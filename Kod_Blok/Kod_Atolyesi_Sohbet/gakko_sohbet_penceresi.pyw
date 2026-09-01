@@ -12,7 +12,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QThread, QUrl, Signal, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWebChannel import QWebChannel
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 
@@ -314,12 +314,14 @@ class ChatBridge(QObject):
     reply_ready = Signal(str)
     error_ready = Signal(str)
     connection_ready = Signal()
+    project_selected = Signal(str)
 
     def __init__(self):
         super().__init__()
         self.session = QwenSession()
         self._busy = False
         self._pending_message = None
+        self.active_project_root = None
 
         self.session.ready.connect(self._on_ready)
         self.session.reply_ready.connect(self._on_reply)
@@ -338,6 +340,26 @@ class ChatBridge(QObject):
             self._busy = True
             if not self.session.submit_prompt(pending):
                 self._busy = False
+
+    @Slot()
+    def select_project_folder(self):
+        selected_path = QFileDialog.getExistingDirectory(
+            QApplication.activeWindow(),
+            "Proje klasörü seç",
+            str(PROJECT_ROOT),
+        )
+
+        selected_path = str(selected_path or "").strip()
+        if not selected_path:
+            return
+
+        selected_root = Path(selected_path)
+        if not selected_root.exists() or not selected_root.is_dir():
+            self.error_ready.emit("Seçilen proje klasörü geçerli değil.")
+            return
+
+        self.active_project_root = selected_root
+        self.project_selected.emit(str(selected_root))
 
     @Slot(str)
     def send_message(self, message):

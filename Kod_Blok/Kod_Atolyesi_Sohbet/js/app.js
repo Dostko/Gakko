@@ -7,6 +7,10 @@ const sendButton = document.getElementById("sendButton");
 const statusNote = document.getElementById("statusNote");
 const appShell = document.querySelector(".app-shell");
 const sidebarToggle = document.getElementById("sidebarToggle");
+const projectButton = document.getElementById("projectButton");
+const activeProject = document.getElementById("activeProject");
+const activeProjectName = document.getElementById("activeProjectName");
+const activeProjectPath = document.getElementById("activeProjectPath");
 const timerPanel = document.createElement("div");
 timerPanel.style.display = "grid";
 timerPanel.style.gridTemplateColumns = "1fr auto 1fr";
@@ -123,6 +127,24 @@ function connectBridge() {
   new QWebChannel(qt.webChannelTransport, channel => {
     bridge = channel.objects.gakkoBridge;
 
+    bridge.project_selected.connect(path => {
+      const projectPath = String(path || "").trim();
+      if (!projectPath) {
+        return;
+      }
+
+      const cleanPath = projectPath.replace(/[\\/]+$/, "");
+      const parts = cleanPath.split(/[\\/]/);
+
+      activeProjectName.textContent = parts[parts.length - 1] || cleanPath;
+      activeProjectPath.textContent = projectPath;
+      activeProject.hidden = false;
+
+      appShell.classList.add("sidebar-open");
+      sidebarToggle.setAttribute("aria-expanded", "true");
+      sidebarToggle.title = "Menüyü kapat";
+    });
+
     bridge.reply_ready.connect(reply => {
       addMessage(reply, "assistant");
       setWaiting(false);
@@ -146,6 +168,15 @@ sidebarToggle.addEventListener("click", () => {
   sidebarToggle.title = opened
     ? "Menüyü kapat"
     : "Menüyü aç";
+});
+
+projectButton.addEventListener("click", () => {
+  if (!bridge || typeof bridge.select_project_folder !== "function") {
+    statusNote.textContent = "Proje seçici henüz hazır değil";
+    return;
+  }
+
+  bridge.select_project_folder();
 });
 
 form.addEventListener("submit", event => {

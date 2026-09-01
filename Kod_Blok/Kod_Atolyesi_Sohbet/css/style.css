@@ -109,6 +109,45 @@ button {
     box-shadow: inset 2px 0 0 var(--accent);
 }
 
+.active-project {
+    display: none;
+    width: calc(100% - 16px);
+    padding: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 122, 24, .28);
+    border-radius: 10px;
+    background: #080808;
+}
+
+.app-shell.sidebar-open .active-project:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.active-project > span {
+    color: #ff7a18;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.active-project > strong {
+    overflow: hidden;
+    color: #ededed;
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.active-project > small {
+    color: #777777;
+    font-size: 9px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
 .settings {
     margin-top: auto;
 }
