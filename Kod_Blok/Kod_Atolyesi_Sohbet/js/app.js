@@ -5,6 +5,33 @@ const welcome = document.getElementById("welcome");
 const stage = document.getElementById("chatStage");
 const sendButton = document.getElementById("sendButton");
 const statusNote = document.getElementById("statusNote");
+const appShell = document.querySelector(".app-shell");
+const sidebarToggle = document.getElementById("sidebarToggle");
+const timerPanel = document.createElement("div");
+timerPanel.style.display = "grid";
+timerPanel.style.gridTemplateColumns = "1fr auto 1fr";
+timerPanel.style.alignItems = "center";
+timerPanel.style.gap = "12px";
+timerPanel.style.marginTop = "8px";
+
+const timerDisplay = document.createElement("span");
+timerDisplay.textContent = "00:00.0";
+timerDisplay.style.fontSize = "10px";
+timerDisplay.style.fontWeight = "600";
+timerDisplay.style.fontVariantNumeric = "tabular-nums";
+timerDisplay.style.letterSpacing = "0.5px";
+timerDisplay.style.justifySelf = "start";
+
+const shortcutNote = document.createElement("span");
+shortcutNote.textContent = "Ctrl+Shift · Alt satır";
+shortcutNote.style.fontSize = "10px";
+shortcutNote.style.justifySelf = "end";
+
+statusNote.insertAdjacentElement("afterend", timerPanel);
+timerPanel.appendChild(timerDisplay);
+timerPanel.appendChild(statusNote);
+timerPanel.appendChild(shortcutNote);
+statusNote.style.justifySelf = "center";
 
 let bridge = null;
 let waiting = false;
@@ -25,7 +52,7 @@ function renderTimer() {
     return;
   }
 
-  statusNote.textContent = `Gakko düşünüyor... • ${formatElapsed(performance.now() - timerStartedAt)}`;
+  timerDisplay.textContent = formatElapsed(performance.now() - timerStartedAt);
 }
 
 function startTimer() {
@@ -34,16 +61,17 @@ function startTimer() {
   }
 
   timerStartedAt = performance.now();
+  timerDisplay.textContent = "00:00.0";
   renderTimer();
   timerInterval = setInterval(renderTimer, 100);
 }
 
-function stopTimer(label) {
+function stopTimer() {
   if (timerStartedAt === null) {
     return;
   }
 
-  const elapsed = formatElapsed(performance.now() - timerStartedAt);
+  timerDisplay.textContent = formatElapsed(performance.now() - timerStartedAt);
 
   if (timerInterval !== null) {
     clearInterval(timerInterval);
@@ -51,12 +79,11 @@ function stopTimer(label) {
   }
 
   timerStartedAt = null;
-  statusNote.textContent = `${label}: ${elapsed}`;
 }
 
 function resize() {
-  input.style.height = "auto";
-  input.style.height = Math.max(64, Math.min(input.scrollHeight, 170)) + "px";
+  input.style.height = "40px";
+  input.style.height = Math.max(40, Math.min(input.scrollHeight, 170)) + "px";
 }
 
 function addMessage(text, role) {
@@ -99,18 +126,27 @@ function connectBridge() {
     bridge.reply_ready.connect(reply => {
       addMessage(reply, "assistant");
       setWaiting(false);
-      stopTimer("Yanıt süresi");
+      stopTimer();
     });
 
     bridge.error_ready.connect(error => {
       addMessage("Hata: " + error, "assistant");
       setWaiting(false);
-      stopTimer("İşlem süresi");
+      stopTimer();
     });
 
     statusNote.textContent = "Gakko • Qwen Code";
   });
 }
+
+sidebarToggle.addEventListener("click", () => {
+  const opened = appShell.classList.toggle("sidebar-open");
+
+  sidebarToggle.setAttribute("aria-expanded", String(opened));
+  sidebarToggle.title = opened
+    ? "Menüyü kapat"
+    : "Menüyü aç";
+});
 
 form.addEventListener("submit", event => {
   event.preventDefault();
