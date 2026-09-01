@@ -135,7 +135,7 @@ function connectBridge() {
       stopTimer();
     });
 
-    statusNote.textContent = "Gakko • Qwen Code";
+    statusNote.textContent = "Gakko AI";
   });
 }
 
