@@ -85,19 +85,58 @@ button {
 }
 
 .sidebar nav {
+    width: 100%;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 10px;
 }
 
 .nav-btn {
     width: 42px;
     height: 42px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    overflow: hidden;
+    padding: 0;
     border: 0;
     border-radius: 13px;
     background: transparent;
     color: #7f899b;
+    text-align: left;
+    transition:
+        width 180ms ease,
+        background-color 120ms ease,
+        color 120ms ease;
+}
+
+.nav-icon {
+    width: 42px;
+    display: grid;
+    place-items: center;
     font-size: 18px;
+    line-height: 1;
+}
+
+.nav-label {
+    min-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    color: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: opacity 100ms ease;
+}
+
+.app-shell.sidebar-open .nav-btn {
+    width: calc(100% - 16px);
+}
+
+.app-shell.sidebar-open .nav-label {
+    opacity: 1;
+    transition-delay: 70ms;
 }
 
 .nav-btn:hover,.nav-btn.active {
@@ -107,6 +146,47 @@ button {
 
 .nav-btn.active {
     box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.project-nav {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.project-menu {
+    display: none;
+    width: calc(100% - 24px);
+    padding: 4px;
+    border: 1px solid rgba(255, 122, 24, .22);
+    border-radius: 10px;
+    background: #080808;
+}
+
+.app-shell.sidebar-open .project-menu:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.project-action {
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #a8a8a8;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.project-action:hover {
+    background: rgba(255, 122, 24, .10);
+    color: #f4f4f4;
 }
 
 .active-project {
@@ -150,6 +230,10 @@ button {
 
 .settings {
     margin-top: auto;
+}
+
+.app-shell.sidebar-open .settings {
+    width: calc(100% - 16px);
 }
 
 .workspace {

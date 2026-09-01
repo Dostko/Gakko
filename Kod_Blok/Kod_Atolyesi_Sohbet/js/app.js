@@ -8,6 +8,9 @@ const statusNote = document.getElementById("statusNote");
 const appShell = document.querySelector(".app-shell");
 const sidebarToggle = document.getElementById("sidebarToggle");
 const projectButton = document.getElementById("projectButton");
+const projectMenu = document.getElementById("projectMenu");
+const newProjectButton = document.getElementById("newProjectButton");
+const openProjectButton = document.getElementById("openProjectButton");
 const activeProject = document.getElementById("activeProject");
 const activeProjectName = document.getElementById("activeProjectName");
 const activeProjectPath = document.getElementById("activeProjectPath");
@@ -161,16 +164,45 @@ function connectBridge() {
   });
 }
 
-sidebarToggle.addEventListener("click", () => {
-  const opened = appShell.classList.toggle("sidebar-open");
+function closeProjectMenu() {
+  projectMenu.hidden = true;
+  projectButton.setAttribute("aria-expanded", "false");
+}
 
+function setSidebarOpen(opened) {
+  appShell.classList.toggle("sidebar-open", opened);
   sidebarToggle.setAttribute("aria-expanded", String(opened));
   sidebarToggle.title = opened
     ? "Menüyü kapat"
     : "Menüyü aç";
+
+  if (!opened) {
+    closeProjectMenu();
+  }
+}
+
+sidebarToggle.addEventListener("click", () => {
+  setSidebarOpen(!appShell.classList.contains("sidebar-open"));
 });
 
 projectButton.addEventListener("click", () => {
+  if (!appShell.classList.contains("sidebar-open")) {
+    setSidebarOpen(true);
+  }
+
+  const opened = projectMenu.hidden;
+  projectMenu.hidden = !opened;
+  projectButton.setAttribute("aria-expanded", String(opened));
+});
+
+newProjectButton.addEventListener("click", () => {
+  closeProjectMenu();
+  statusNote.textContent = "Yeni Proje Başlat seçildi";
+});
+
+openProjectButton.addEventListener("click", () => {
+  closeProjectMenu();
+
   if (!bridge || typeof bridge.select_project_folder !== "function") {
     statusNote.textContent = "Proje seçici henüz hazır değil";
     return;

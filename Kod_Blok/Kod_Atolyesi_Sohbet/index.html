@@ -19,10 +19,38 @@
     G
   </button>
       <nav>
-        <button class="nav-btn active" title="Sohbet">✦</button>
-        <button class="nav-btn" title="Geçmiş">⌁</button>
-        <button class="nav-btn" title="Dosyalar">▱</button>
-        <button class="nav-btn" id="projectButton" type="button" title="Proje aç">▣</button>
+        <button class="nav-btn active" id="chatButton" type="button" title="Sohbet">
+          <span class="nav-icon" aria-hidden="true">✦</span>
+          <span class="nav-label">Sohbet</span>
+        </button>
+
+        <button class="nav-btn" id="historyButton" type="button" title="Geçmiş">
+          <span class="nav-icon" aria-hidden="true">⌁</span>
+          <span class="nav-label">Geçmiş</span>
+        </button>
+
+        <button class="nav-btn" id="filesButton" type="button" title="Dosyalar">
+          <span class="nav-icon" aria-hidden="true">▱</span>
+          <span class="nav-label">Dosyalar</span>
+        </button>
+
+        <div class="project-nav">
+          <button
+            class="nav-btn"
+            id="projectButton"
+            type="button"
+            title="Proje"
+            aria-expanded="false"
+          >
+            <span class="nav-icon" aria-hidden="true">▣</span>
+            <span class="nav-label">Proje</span>
+          </button>
+
+          <div class="project-menu" id="projectMenu" hidden>
+            <button class="project-action" id="newProjectButton" type="button">Yeni Proje Başlat</button>
+            <button class="project-action" id="openProjectButton" type="button">Proje Aç</button>
+          </div>
+        </div>
       </nav>
 
       <div class="active-project" id="activeProject" hidden>
@@ -31,7 +59,10 @@
         <small id="activeProjectPath"></small>
       </div>
 
-      <button class="nav-btn settings" title="Ayarlar">⚙</button>
+      <button class="nav-btn settings" id="settingsButton" type="button" title="Ayarlar">
+        <span class="nav-icon" aria-hidden="true">⚙</span>
+        <span class="nav-label">Ayarlar</span>
+      </button>
     </aside>
 
     <main class="workspace">
