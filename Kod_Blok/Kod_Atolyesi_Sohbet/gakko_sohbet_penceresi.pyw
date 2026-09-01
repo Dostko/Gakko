@@ -18,23 +18,66 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 
 PROJECT_ROOT = Path(r"D:\Gakko")
 YUVA_ROOT = PROJECT_ROOT / "GAKKO_YUVA"
+CALISMA_YONTEMLERI_ROOT = YUVA_ROOT / "Calisma_Yontemleri"
+MEVCUT_PROJE_YONTEMI = CALISMA_YONTEMLERI_ROOT / "mevcut_projeyi_baslat_incele.md"
+YENI_PROJE_YONTEMI = CALISMA_YONTEMLERI_ROOT / "yeni_proje_olustur.md"
 
 
-def build_qwen_args(qwen_exe, session_id, events_file, input_file):
-    return [
+def build_qwen_args(qwen_exe, session_id, events_file, input_file, project_root=None):
+    args = [
         str(qwen_exe),
         "--session-id",
         str(session_id),
         "--include-directories",
         str(YUVA_ROOT),
+    ]
+
+    if project_root is not None:
+        args.extend(["--include-directories", str(project_root)])
+
+    args.extend([
         "--approval-mode",
         "auto",
         "--json-file",
         str(events_file),
         "--input-file",
         str(input_file),
-    ]
+    ])
 
+    return args
+
+
+def list_project_directory(project_root, relative_path=""):
+    root = Path(project_root).resolve()
+    relative = str(relative_path or "").replace("\\", "/").strip("/")
+    target = root.joinpath(*([part for part in relative.split("/") if part] or [])).resolve()
+
+    if target != root and not target.is_relative_to(root):
+        raise ValueError("Proje kökü dışındaki klasörler listelenemez.")
+
+    if not target.exists() or not target.is_dir():
+        raise ValueError("İstenen proje klasörü bulunamadı.")
+
+    entries = []
+    for entry in target.iterdir():
+        try:
+            is_directory = entry.is_dir()
+        except OSError:
+            continue
+
+        entry_relative = entry.relative_to(root).as_posix()
+        entries.append({
+            "name": entry.name,
+            "type": "directory" if is_directory else "file",
+            "path": entry_relative,
+        })
+
+    entries.sort(key=lambda item: (item["type"] != "directory", item["name"].casefold()))
+
+    return {
+        "path": relative,
+        "entries": entries,
+    }
 
 
 class QwenSession(QThread):
@@ -42,9 +85,14 @@ class QwenSession(QThread):
     reply_ready = Signal(str)
     error_ready = Signal(str)
 
-    def __init__(self):
+    def __init__(self, active_project_root=None):
         super().__init__()
         self.session_id = str(uuid.uuid4())
+        self.active_project_root = (
+            Path(active_project_root)
+            if active_project_root is not None
+            else None
+        )
         self.process = None
         self._stopping = False
         self._ready = False
@@ -85,6 +133,7 @@ class QwenSession(QThread):
             self.session_id,
             self.events_file,
             self.input_file,
+            self.active_project_root,
         )
 
         if qwen_exe.lower().endswith((".cmd", ".bat")):
@@ -315,6 +364,7 @@ class ChatBridge(QObject):
     error_ready = Signal(str)
     connection_ready = Signal()
     project_selected = Signal(str)
+    project_directory_ready = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -323,9 +373,12 @@ class ChatBridge(QObject):
         self._pending_message = None
         self.active_project_root = None
 
-        self.session.ready.connect(self._on_ready)
-        self.session.reply_ready.connect(self._on_reply)
-        self.session.error_ready.connect(self._on_error)
+        self._bind_session(self.session)
+
+    def _bind_session(self, session):
+        session.ready.connect(self._on_ready)
+        session.reply_ready.connect(self._on_reply)
+        session.error_ready.connect(self._on_error)
 
     def start(self):
         if not self.session.isRunning():
@@ -341,12 +394,93 @@ class ChatBridge(QObject):
             if not self.session.submit_prompt(pending):
                 self._busy = False
 
+    def _build_project_start_prompt(self, selected_root, method_path):
+        return (
+            f"Aktif proje kökü: {selected_root}\n"
+            f"{method_path} dosyasını oku ve bu çalışma yöntemine göre devam et. "
+            "Seçilen proje kökünü aktif çalışma projesi olarak kullan. "
+            "Çalışma yönteminin sınırlarını aşma."
+        )
+
+    def _restart_session_for_project(self, selected_root, startup_prompt):
+        old_session = self.session
+        old_session.stop()
+        old_session.wait(3000)
+
+        if old_session.isRunning():
+            self.error_ready.emit("Mevcut Qwen Code oturumu kapatılamadı.")
+            return False
+
+        self.session = QwenSession(selected_root)
+        self._bind_session(self.session)
+        self._pending_message = startup_prompt
+        self._busy = False
+        return True
+
+    def _activate_project(self, selected_root, method_path):
+        selected_root = Path(selected_root)
+        method_path = Path(method_path)
+
+        if not selected_root.exists() or not selected_root.is_dir():
+            self.error_ready.emit("Seçilen proje klasörü geçerli değil.")
+            return False
+
+        if not method_path.exists() or not method_path.is_file():
+            self.error_ready.emit(
+                f"Proje çalışma yöntemi bulunamadı: {method_path}"
+            )
+            return False
+
+        startup_prompt = self._build_project_start_prompt(
+            selected_root,
+            method_path,
+        )
+
+        if not self._restart_session_for_project(selected_root, startup_prompt):
+            return False
+
+        self.active_project_root = selected_root
+        self.project_selected.emit(str(selected_root))
+        self.session.start()
+        return True
+
+    def _project_change_allowed(self):
+        if self._busy:
+            self.error_ready.emit(
+                "Qwen Code şu anda başka bir mesaja cevap veriyor."
+            )
+            return False
+        return True
+
     @Slot()
     def select_project_folder(self):
+        if not self._project_change_allowed():
+            return
+
         selected_path = QFileDialog.getExistingDirectory(
             QApplication.activeWindow(),
-            "Proje klasörü seç",
+            "Proje Aç",
             str(PROJECT_ROOT),
+        )
+
+        selected_path = str(selected_path or "").strip()
+        if not selected_path:
+            return
+
+        self._activate_project(
+            Path(selected_path),
+            MEVCUT_PROJE_YONTEMI,
+        )
+
+    @Slot()
+    def start_new_project(self):
+        if not self._project_change_allowed():
+            return
+
+        selected_path = QFileDialog.getExistingDirectory(
+            QApplication.activeWindow(),
+            "Yeni Proje Başlat - boş klasör seç veya oluştur",
+            str(PROJECT_ROOT.parent),
         )
 
         selected_path = str(selected_path or "").strip()
@@ -358,8 +492,39 @@ class ChatBridge(QObject):
             self.error_ready.emit("Seçilen proje klasörü geçerli değil.")
             return
 
-        self.active_project_root = selected_root
-        self.project_selected.emit(str(selected_root))
+        try:
+            if any(selected_root.iterdir()):
+                self.error_ready.emit(
+                    "Yeni proje için boş bir klasör seç veya oluştur. "
+                    "Mevcut bir proje için Proje Aç seçeneğini kullan."
+                )
+                return
+        except OSError as error:
+            self.error_ready.emit(f"Proje klasörü okunamadı: {error}")
+            return
+
+        self._activate_project(
+            selected_root,
+            YENI_PROJE_YONTEMI,
+        )
+
+    @Slot(str)
+    def list_project_directory(self, relative_path):
+        if self.active_project_root is None:
+            return
+
+        try:
+            payload = list_project_directory(
+                self.active_project_root,
+                relative_path,
+            )
+        except (OSError, ValueError) as error:
+            self.error_ready.emit(f"Proje dosyaları okunamadı: {error}")
+            return
+
+        self.project_directory_ready.emit(
+            json.dumps(payload, ensure_ascii=False)
+        )
 
     @Slot(str)
     def send_message(self, message):

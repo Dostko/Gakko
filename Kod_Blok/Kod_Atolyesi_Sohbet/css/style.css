@@ -37,6 +37,7 @@ button {
 .app-shell {
     width: 100vw;
     height: 100vh;
+    --sidebar-open-width: 180px;
     display: grid;
     grid-template-columns: 56px minmax(0, 1fr);
     transition: grid-template-columns 180ms ease;
@@ -45,13 +46,15 @@ button {
 }
 
 .app-shell.sidebar-open {
-    grid-template-columns: 180px minmax(0, 1fr);
+    grid-template-columns: var(--sidebar-open-width) minmax(0, 1fr);
 }
 
 .sidebar {
     border-right: 1px solid var(--line);
     background: rgb(0, 0, 0);
     backdrop-filter: blur(20px);
+    position: relative;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -86,10 +89,14 @@ button {
 
 .sidebar nav {
     width: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .nav-btn {
@@ -226,6 +233,103 @@ button {
     font-size: 9px;
     line-height: 1.35;
     overflow-wrap: anywhere;
+}
+
+.project-tree {
+    margin-top: 7px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 122, 24, .15);
+}
+
+.project-tree-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.project-tree-item {
+    width: 100%;
+    min-width: 0;
+    min-height: 24px;
+    padding-top: 0;
+    padding-right: 6px;
+    padding-bottom: 0;
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+    align-items: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #9c9c9c;
+    font-size: 11px;
+    text-align: left;
+}
+
+button.project-tree-item:hover {
+    background: rgba(255, 122, 24, .08);
+    color: #ededed;
+}
+
+.project-tree-marker {
+    color: #ff7a18;
+    font-size: 13px;
+    line-height: 1;
+    text-align: center;
+}
+
+.project-tree-item.file .project-tree-marker {
+    color: #666666;
+}
+
+.project-tree-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.project-tree-empty {
+    padding: 4px 8px 2px;
+    color: #666666;
+    font-size: 10px;
+}
+
+.sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    bottom: 0;
+    z-index: 20;
+    display: none;
+    width: 7px;
+    cursor: col-resize;
+}
+
+.app-shell.sidebar-open .sidebar-resizer {
+    display: block;
+}
+
+.sidebar-resizer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 3px;
+    bottom: 0;
+    width: 1px;
+    background: transparent;
+}
+
+.sidebar-resizer:hover::after,
+.app-shell.sidebar-resizing .sidebar-resizer::after {
+    background: rgba(255, 122, 24, .78);
+}
+
+.app-shell.sidebar-resizing {
+    transition: none;
+    cursor: col-resize;
+    user-select: none;
 }
 
 .settings {

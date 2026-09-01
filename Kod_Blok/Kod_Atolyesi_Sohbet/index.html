@@ -49,20 +49,25 @@
           <div class="project-menu" id="projectMenu" hidden>
             <button class="project-action" id="newProjectButton" type="button">Yeni Proje Başlat</button>
             <button class="project-action" id="openProjectButton" type="button">Proje Aç</button>
+
+            <div class="active-project" id="activeProject" hidden>
+              <span>AKTİF PROJE</span>
+              <strong id="activeProjectName">—</strong>
+              <small id="activeProjectPath"></small>
+              <div class="project-tree" id="projectTree" hidden>
+                <div class="project-tree-list" id="projectTreeList" role="tree"></div>
+              </div>
+            </div>
           </div>
         </div>
       </nav>
-
-      <div class="active-project" id="activeProject" hidden>
-        <span>AKTİF PROJE</span>
-        <strong id="activeProjectName">—</strong>
-        <small id="activeProjectPath"></small>
-      </div>
 
       <button class="nav-btn settings" id="settingsButton" type="button" title="Ayarlar">
         <span class="nav-icon" aria-hidden="true">⚙</span>
         <span class="nav-label">Ayarlar</span>
       </button>
+
+      <div class="sidebar-resizer" id="sidebarResizer" aria-hidden="true"></div>
     </aside>
 
     <main class="workspace">
