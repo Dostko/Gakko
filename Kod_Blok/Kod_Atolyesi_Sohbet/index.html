@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gakko — Kod Atölyesi</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">G<span></span></div>
+      <nav>
+        <button class="nav-btn active" title="Sohbet">✦</button>
+        <button class="nav-btn" title="Geçmiş">⌁</button>
+        <button class="nav-btn" title="Dosyalar">▱</button>
+      </nav>
+      <button class="nav-btn settings" title="Ayarlar">⚙</button>
+    </aside>
+
+    <main class="workspace">
+
+      <section class="chat-stage" id="chatStage">
+        <div class="welcome" id="welcome">
+          <div class="orb">G</div>
+          <p>GAKKO AI</p>
+          <h2>Bugün ne üzerinde çalışıyoruz?</h2>
+          <span>Kod, fikir ve proje çalışmaları için sade bir sohbet alanı.</span>
+        </div>
+        <div class="messages" id="messages"></div>
+      </section>
+
+      <section class="composer-area">
+        <form class="composer" id="chatForm">
+          <button type="button" class="attach" title="Dosya ekle">＋</button>
+          <textarea id="messageInput" rows="2" placeholder="Gakko'ya mesaj yaz..."></textarea>
+          <button type="submit" class="send" id="sendButton" title="Gönder">↑</button>
+        </form>
+        <div class="note" id="statusNote">Gakko • Qwen Code</div>
+      </section>
+    </main>
+  </div>
+
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
