@@ -80,6 +80,7 @@ button {
     font-weight: 800;
 
     cursor: pointer;
+    transition: background-color 90ms ease, color 90ms ease;
 }
 
 .brand:hover {
@@ -110,19 +111,20 @@ button {
     border: 0;
     border-radius: 13px;
     background: transparent;
-    color: #7f899b;
+    color: #aeb6c4;
     text-align: left;
     transition:
         width 180ms ease,
-        background-color 120ms ease,
-        color 120ms ease;
+        background-color 90ms ease,
+        color 90ms ease,
+        box-shadow 90ms ease;
 }
 
 .nav-icon {
     width: 42px;
     display: grid;
     place-items: center;
-    font-size: 18px;
+    font-size: 19px;
     line-height: 1;
 }
 
@@ -131,8 +133,8 @@ button {
     overflow: hidden;
     opacity: 0;
     color: inherit;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 650;
     white-space: nowrap;
     transition: opacity 100ms ease;
 }
@@ -147,12 +149,12 @@ button {
 }
 
 .nav-btn:hover,.nav-btn.active {
-    background: rgba(255,255,255,.055);
-    color: #e9f5ff;
+    background: rgba(7, 144, 242, 0.605);
+    color: #ffffff;
 }
 
 .nav-btn.active {
-    box-shadow: inset 2px 0 0 var(--accent);
+    box-shadow: inset 2px 0 0 #ff7a18;
 }
 
 .project-nav {
@@ -167,9 +169,9 @@ button {
     display: none;
     width: calc(100% - 24px);
     padding: 4px;
-    border: 1px solid rgba(255, 122, 24, .22);
+    border: 1px solid rgba(24, 105, 255, 0.753);
     border-radius: 10px;
-    background: #080808;
+    background: #080000;
 }
 
 .app-shell.sidebar-open .project-menu:not([hidden]) {
@@ -185,25 +187,26 @@ button {
     border: 0;
     border-radius: 7px;
     background: transparent;
-    color: #a8a8a8;
-    font-size: 12px;
-    font-weight: 600;
+    color: #d2d2d2;
+    font-size: 13px;
+    font-weight: 650;
     text-align: left;
+    transition: background-color 90ms ease, color 90ms ease;
 }
 
 .project-action:hover {
-    background: rgba(255, 122, 24, .10);
-    color: #f4f4f4;
+    background: rgba(24, 255, 105, 0.471);
+    color: #dabfbf;
 }
 
 .active-project {
     display: none;
-    width: calc(100% - 16px);
-    padding: 10px;
+    width: calc(100% - 4px);
+    padding: 14px;
     overflow: hidden;
-    border: 1px solid rgba(255, 122, 24, .28);
+    border: 1px solid rgba(24, 255, 43, 0.225);
     border-radius: 10px;
-    background: #080808;
+    background: #060000;
 }
 
 .app-shell.sidebar-open .active-project:not([hidden]) {
@@ -213,24 +216,24 @@ button {
 }
 
 .active-project > span {
-    color: #ff7a18;
-    font-size: 9px;
+    color: #076dfb;
+    font-size: 14px;
     font-weight: 800;
     letter-spacing: .08em;
 }
 
 .active-project > strong {
     overflow: hidden;
-    color: #ededed;
-    font-size: 12px;
-    font-weight: 650;
+    color: #09cc71;
+    font-size: 13px;
+    font-weight: 680;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
 .active-project > small {
-    color: #777777;
-    font-size: 9px;
+    color: #b7efff;
+    font-size: 10px;
     line-height: 1.35;
     overflow-wrap: anywhere;
 }
@@ -238,7 +241,7 @@ button {
 .project-tree {
     margin-top: 7px;
     padding-top: 6px;
-    border-top: 1px solid rgba(255, 122, 24, .15);
+    border-top: 1px solid rgba(24, 182, 255, 0.969);
 }
 
 .project-tree-list {
@@ -251,7 +254,7 @@ button {
 .project-tree-item {
     width: 100%;
     min-width: 0;
-    min-height: 24px;
+    min-height: 28px;
     padding-top: 0;
     padding-right: 6px;
     padding-bottom: 0;
@@ -262,25 +265,27 @@ button {
     border: 0;
     border-radius: 5px;
     background: transparent;
-    color: #9c9c9c;
-    font-size: 11px;
+    color: #fcfaf9;
+    font-size: 13px;
+    font-weight: 520;
     text-align: left;
+    transition: background-color 90ms ease, color 90ms ease;
 }
 
-button.project-tree-item:hover {
-    background: rgba(255, 122, 24, .08);
-    color: #ededed;
+.project-tree-item:hover {
+    background: rgba(0, 12, 17, 0.984);
+    color: #0495f5;
 }
 
 .project-tree-marker {
-    color: #ff7a18;
-    font-size: 13px;
+    color: #2a4aff;
+    font-size: 15px;
     line-height: 1;
     text-align: center;
 }
 
 .project-tree-item.file .project-tree-marker {
-    color: #666666;
+    color: #8b8b8b;
 }
 
 .project-tree-name {
@@ -292,8 +297,8 @@ button.project-tree-item:hover {
 
 .project-tree-empty {
     padding: 4px 8px 2px;
-    color: #666666;
-    font-size: 10px;
+    color: #8f8f8f;
+    font-size: 11px;
 }
 
 .sidebar-resizer {
@@ -323,7 +328,7 @@ button.project-tree-item:hover {
 
 .sidebar-resizer:hover::after,
 .app-shell.sidebar-resizing .sidebar-resizer::after {
-    background: rgba(255, 122, 24, .78);
+    background: rgba(24, 93, 255, 0.487);
 }
 
 .app-shell.sidebar-resizing {
@@ -441,6 +446,95 @@ button.project-tree-item:hover {
     background: rgba(18, 18, 18, 0.629);
     border: 1px solid var(--line);
     border-bottom-left-radius: 6px;
+}
+
+
+.message.assistant .message-text {
+    white-space: pre-wrap;
+}
+
+.code-block {
+    width: min(860px, 100%);
+    margin: 12px 0;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 10px;
+    background: #090b10;
+    box-shadow: 0 12px 32px rgba(0,0,0,.22);
+}
+
+.code-block-header {
+    min-height: 34px;
+    padding: 0 10px 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    background: #10141c;
+}
+
+.code-language {
+    color: #ff9a3d;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.code-copy-button {
+    min-height: 24px;
+    padding: 3px 8px;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 6px;
+    background: rgba(255,255,255,.035);
+    color: #aeb8c7;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.code-copy-button:hover {
+    border-color: rgba(255,154,61,.35);
+    color: #ffffff;
+    background: rgba(255,154,61,.08);
+}
+
+.code-block pre {
+    margin: 0;
+    padding: 14px 16px 16px;
+    overflow-x: auto;
+    white-space: pre;
+    tab-size: 4;
+}
+
+.code-block code {
+    display: block;
+    color: #d8dee9;
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.62;
+}
+
+.syn-keyword {
+    color: #c792ea;
+    font-weight: 650;
+}
+
+.syn-string {
+    color: #c3e88d;
+}
+
+.syn-comment {
+    color: #6f7d8f;
+    font-style: italic;
+}
+
+.syn-number {
+    color: #f78c6c;
+}
+
+.syn-tag {
+    color: #82aaff;
 }
 
 .composer-area {

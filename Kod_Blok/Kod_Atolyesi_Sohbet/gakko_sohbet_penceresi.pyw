@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QThread, QUrl, Signal, Slot
+from PySide6.QtCore import QObject, QSettings, QThread, QUrl, Signal, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow
@@ -368,12 +368,35 @@ class ChatBridge(QObject):
 
     def __init__(self):
         super().__init__()
-        self.session = QwenSession()
+        self.settings = QSettings("Gakko", "Gakko")
+        self.active_project_root = self._load_last_active_project()
+        self.session = QwenSession(self.active_project_root)
         self._busy = False
         self._pending_message = None
-        self.active_project_root = None
 
         self._bind_session(self.session)
+
+    def _load_last_active_project(self):
+        saved_path = str(
+            self.settings.value("last_active_project", "") or ""
+        ).strip()
+
+        if not saved_path:
+            return None
+
+        saved_root = Path(saved_path)
+        if saved_root.exists() and saved_root.is_dir():
+            return saved_root
+
+        self.settings.remove("last_active_project")
+        return None
+
+    def _save_last_active_project(self, selected_root):
+        self.settings.setValue(
+            "last_active_project",
+            str(Path(selected_root)),
+        )
+        self.settings.sync()
 
     def _bind_session(self, session):
         session.ready.connect(self._on_ready)
@@ -440,6 +463,7 @@ class ChatBridge(QObject):
             return False
 
         self.active_project_root = selected_root
+        self._save_last_active_project(selected_root)
         self.project_selected.emit(str(selected_root))
         self.session.start()
         return True
@@ -507,6 +531,12 @@ class ChatBridge(QObject):
             selected_root,
             YENI_PROJE_YONTEMI,
         )
+
+    @Slot(result=str)
+    def get_active_project(self):
+        if self.active_project_root is None:
+            return ""
+        return str(self.active_project_root)
 
     @Slot(str)
     def list_project_directory(self, relative_path):
