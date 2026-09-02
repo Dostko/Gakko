@@ -356,6 +356,56 @@ def list_project_directory(project_root, relative_path=""):
     }
 
 
+def format_attachment_reference(path):
+    clean = str(path or "").strip().replace("\\", "/")
+    if not clean:
+        return ""
+    return "@" + clean.replace(" ", "\\ ")
+
+
+def attachment_display_name(path):
+    clean = str(path or "").strip().replace("\\", "/").rstrip("/")
+    if not clean:
+        return ""
+    return clean.rsplit("/", 1)[-1]
+
+
+def build_attachment_prompt(message, file_paths):
+    message = str(message or "").strip()
+    references = [
+        format_attachment_reference(path)
+        for path in (file_paths or [])
+        if str(path or "").strip()
+    ]
+    references = [reference for reference in references if reference]
+
+    if not references:
+        return message
+
+    user_text = message or "Ekli dosyaları incele."
+    attachment_block = "\n".join(f"- {reference}" for reference in references)
+    return (
+        f"{user_text}\n\n"
+        "Ekli dosyalar:\n"
+        f"{attachment_block}\n\n"
+        "Bu ekli dosyaları yalnızca bu istek için bağlam olarak kullan; "
+        "kullanıcı açıkça istemeden değiştirme."
+    )
+
+
+def build_attachment_history_message(message, file_paths):
+    message = str(message or "").strip() or "Ekli dosyaları incele."
+    names = [
+        attachment_display_name(path)
+        for path in (file_paths or [])
+        if str(path or "").strip()
+    ]
+    names = [name for name in names if name]
+    if not names:
+        return message
+    return f"{message}\n\nEkler: {', '.join(names)}"
+
+
 class QwenSession(QThread):
     ready = Signal()
     reply_ready = Signal(str)
@@ -644,6 +694,7 @@ class ChatBridge(QObject):
     history_sessions_ready = Signal(str)
     history_session_ready = Signal(str)
     history_action_ready = Signal(str)
+    chat_files_selected = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -784,6 +835,45 @@ class ChatBridge(QObject):
         )
 
     @Slot()
+    def select_chat_files(self):
+        if self._busy:
+            self.error_ready.emit(
+                "Qwen Code şu anda başka bir mesaja cevap veriyor."
+            )
+            return
+
+        selected_paths, _ = QFileDialog.getOpenFileNames(
+            QApplication.activeWindow(),
+            "Dosya veya görsel ekle",
+            str(Path.home()),
+            "Tüm dosyalar (*.*)",
+        )
+
+        files = []
+        image_extensions = {
+            ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp",
+        }
+
+        for selected_path in selected_paths:
+            path = Path(str(selected_path or "").strip())
+            if not path.exists() or not path.is_file():
+                continue
+            files.append(
+                {
+                    "path": str(path),
+                    "name": path.name,
+                    "type": "image" if path.suffix.lower() in image_extensions else "file",
+                }
+            )
+
+        if not files:
+            return
+
+        self.chat_files_selected.emit(
+            json.dumps({"files": files}, ensure_ascii=False)
+        )
+
+    @Slot()
     def start_new_project(self):
         if not self._project_change_allowed():
             return
@@ -919,10 +1009,11 @@ class ChatBridge(QObject):
         except (OSError, ValueError, sqlite3.Error) as error:
             self.error_ready.emit(f"Sohbet geçmişi silinemedi: {error}")
 
-    @Slot(str)
-    def send_message(self, message):
-        message = str(message or "").strip()
-        if not message:
+    def _send_chat_prompt(self, prompt, history_message):
+        prompt = str(prompt or "").strip()
+        history_message = str(history_message or "").strip()
+
+        if not prompt:
             self.error_ready.emit("Boş mesaj gönderilemez.")
             return
 
@@ -931,17 +1022,69 @@ class ChatBridge(QObject):
             return
 
         history_session_id = self._ensure_history_session()
-        self.history.add_message(history_session_id, "user", message)
+        self.history.add_message(
+            history_session_id,
+            "user",
+            history_message or prompt,
+        )
         self._history_capture_reply = True
 
         if not self.session.is_ready:
-            self._pending_message = message
+            self._pending_message = prompt
             return
 
         self._busy = True
-        if not self.session.submit_prompt(message):
+        if not self.session.submit_prompt(prompt):
             self._busy = False
             self._history_capture_reply = False
+
+    @Slot(str)
+    def send_message(self, message):
+        message = str(message or "").strip()
+        self._send_chat_prompt(message, message)
+
+    @Slot(str, str)
+    def send_message_with_attachments(self, message, attachments_json):
+        try:
+            raw_items = json.loads(str(attachments_json or "[]"))
+        except json.JSONDecodeError:
+            self.error_ready.emit("Ekli dosya listesi okunamadı.")
+            return
+
+        if not isinstance(raw_items, list):
+            self.error_ready.emit("Ekli dosya listesi geçerli değil.")
+            return
+
+        file_paths = []
+        seen = set()
+        for item in raw_items:
+            raw_path = item.get("path", "") if isinstance(item, dict) else item
+            raw_path = str(raw_path or "").strip()
+            if not raw_path:
+                continue
+
+            path = Path(raw_path)
+            try:
+                valid = path.exists() and path.is_file()
+            except OSError:
+                valid = False
+
+            if not valid:
+                continue
+
+            key = str(path).casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            file_paths.append(str(path))
+
+        if not file_paths:
+            self.error_ready.emit("Seçilen ek dosyalar bulunamadı.")
+            return
+
+        prompt = build_attachment_prompt(message, file_paths)
+        history_message = build_attachment_history_message(message, file_paths)
+        self._send_chat_prompt(prompt, history_message)
 
     def _on_reply(self, text):
         self._busy = False

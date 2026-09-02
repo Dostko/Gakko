@@ -4,7 +4,16 @@ const messages = document.getElementById("messages");
 const welcome = document.getElementById("welcome");
 const stage = document.getElementById("chatStage");
 const sendButton = document.getElementById("sendButton");
+const attachButton = document.getElementById("attachButton");
 const statusNote = document.getElementById("statusNote");
+const attachmentStrip = document.createElement("div");
+attachmentStrip.hidden = true;
+attachmentStrip.style.display = "flex";
+attachmentStrip.style.flexWrap = "wrap";
+attachmentStrip.style.gap = "7px";
+attachmentStrip.style.marginBottom = "8px";
+attachmentStrip.style.padding = "0 4px";
+form.insertAdjacentElement("beforebegin", attachmentStrip);
 const appShell = document.querySelector(".app-shell");
 const sidebarToggle = document.getElementById("sidebarToggle");
 const chatButton = document.getElementById("chatButton");
@@ -62,11 +71,100 @@ let resizingSidebar = false;
 let currentView = "chat";
 let selectedHistoryId = null;
 let historySearchTimer = null;
+let selectedChatFiles = [];
 const projectDirectoryCache = new Map();
 const expandedProjectDirectories = new Set();
 
 const SIDEBAR_MIN_WIDTH = 150;
 const SIDEBAR_MAX_WIDTH = 520;
+
+function attachmentDisplayText(text) {
+  const cleanText = String(text || "").trim();
+  const base = cleanText || "Ekli dosyaları incele.";
+  if (selectedChatFiles.length === 0) {
+    return base;
+  }
+  const names = selectedChatFiles.map(file => String(file.name || "dosya"));
+  return `${base}
+
+Ekler: ${names.join(", ")}`;
+}
+
+function renderAttachmentStrip() {
+  attachmentStrip.replaceChildren();
+  attachmentStrip.hidden = selectedChatFiles.length === 0;
+
+  selectedChatFiles.forEach(file => {
+    const chip = document.createElement("div");
+    chip.style.display = "inline-flex";
+    chip.style.alignItems = "center";
+    chip.style.gap = "7px";
+    chip.style.maxWidth = "280px";
+    chip.style.minHeight = "30px";
+    chip.style.padding = "0 8px 0 10px";
+    chip.style.border = "1px solid #253142";
+    chip.style.borderRadius = "9px";
+    chip.style.background = "#0d121b";
+    chip.style.color = "#dfe7f0";
+    chip.style.fontSize = "12px";
+    chip.title = String(file.path || "");
+
+    const icon = document.createElement("span");
+    icon.textContent = file.type === "image" ? "▧" : "▤";
+    icon.style.color = file.type === "image" ? "#6fb7ff" : "#aeb6c4";
+
+    const name = document.createElement("span");
+    name.textContent = String(file.name || "dosya");
+    name.style.overflow = "hidden";
+    name.style.textOverflow = "ellipsis";
+    name.style.whiteSpace = "nowrap";
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.title = "Eki kaldır";
+    remove.style.border = "0";
+    remove.style.background = "transparent";
+    remove.style.color = "#8f9bad";
+    remove.style.cursor = "pointer";
+    remove.style.fontSize = "16px";
+    remove.style.lineHeight = "1";
+    remove.style.padding = "0 2px";
+    remove.addEventListener("click", () => {
+      selectedChatFiles = selectedChatFiles.filter(
+        current => String(current.path || "") !== String(file.path || "")
+      );
+      renderAttachmentStrip();
+      input.focus();
+    });
+
+    chip.appendChild(icon);
+    chip.appendChild(name);
+    chip.appendChild(remove);
+    attachmentStrip.appendChild(chip);
+  });
+}
+
+function mergeSelectedChatFiles(files) {
+  const byPath = new Map(
+    selectedChatFiles.map(file => [String(file.path || "").toLowerCase(), file])
+  );
+
+  (Array.isArray(files) ? files : []).forEach(file => {
+    const path = String(file.path || "").trim();
+    if (!path) {
+      return;
+    }
+    byPath.set(path.toLowerCase(), {
+      path,
+      name: String(file.name || path.split(/[\\/]/).pop() || "dosya"),
+      type: file.type === "image" ? "image" : "file"
+    });
+  });
+
+  selectedChatFiles = Array.from(byPath.values());
+  renderAttachmentStrip();
+}
 
 function clampSidebarWidth(width) {
   const viewportLimit = Math.max(SIDEBAR_MIN_WIDTH, Math.floor(window.innerWidth * 0.55));
@@ -435,6 +533,7 @@ function addMessage(text, role) {
 function setWaiting(value) {
   waiting = Boolean(value);
   sendButton.disabled = waiting;
+  attachButton.disabled = waiting;
   input.disabled = waiting;
 
   statusNote.textContent = waiting
@@ -695,6 +794,17 @@ function connectBridge() {
       }
     });
 
+    bridge.chat_files_selected.connect(payloadText => {
+      try {
+        const payload = JSON.parse(String(payloadText || "{}"));
+        mergeSelectedChatFiles(payload.files);
+        statusNote.textContent = "Ekler hazır";
+        input.focus();
+      } catch (error) {
+        statusNote.textContent = "Ekli dosyalar alınamadı";
+      }
+    });
+
     bridge.reply_ready.connect(reply => {
       addMessage(reply, "assistant");
       setWaiting(false);
@@ -803,6 +913,19 @@ openProjectButton.addEventListener("click", () => {
   bridge.select_project_folder();
 });
 
+attachButton.addEventListener("click", () => {
+  if (waiting) {
+    return;
+  }
+
+  if (!bridge || typeof bridge.select_chat_files !== "function") {
+    statusNote.textContent = "Dosya seçici henüz hazır değil";
+    return;
+  }
+
+  bridge.select_chat_files();
+});
+
 sidebarResizer.addEventListener("pointerdown", event => {
   if (!appShell.classList.contains("sidebar-open")) {
     return;
@@ -851,8 +974,9 @@ form.addEventListener("submit", event => {
   }
 
   const text = input.value.trim();
+  const attachments = [...selectedChatFiles];
 
-  if (!text) {
+  if (!text && attachments.length === 0) {
     return;
   }
 
@@ -861,14 +985,20 @@ form.addEventListener("submit", event => {
     return;
   }
 
-  addMessage(text, "user");
+  addMessage(attachmentDisplayText(text), "user");
 
   input.value = "";
+  selectedChatFiles = [];
+  renderAttachmentStrip();
   resize();
   setWaiting(true);
   startTimer();
 
-  bridge.send_message(text);
+  if (attachments.length > 0 && typeof bridge.send_message_with_attachments === "function") {
+    bridge.send_message_with_attachments(text, JSON.stringify(attachments));
+  } else {
+    bridge.send_message(text);
+  }
 });
 
 input.addEventListener("input", resize);
