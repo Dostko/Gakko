@@ -7,6 +7,16 @@ const sendButton = document.getElementById("sendButton");
 const statusNote = document.getElementById("statusNote");
 const appShell = document.querySelector(".app-shell");
 const sidebarToggle = document.getElementById("sidebarToggle");
+const chatButton = document.getElementById("chatButton");
+const historyButton = document.getElementById("historyButton");
+const composerArea = document.querySelector(".composer-area");
+const historyView = document.getElementById("historyView");
+const historySearch = document.getElementById("historySearch");
+const historyList = document.getElementById("historyList");
+const historyDetail = document.getElementById("historyDetail");
+const historyDeleteBefore = document.getElementById("historyDeleteBefore");
+const historyDeleteBeforeButton = document.getElementById("historyDeleteBeforeButton");
+const historyRetentionNote = document.getElementById("historyRetentionNote");
 const projectButton = document.getElementById("projectButton");
 const projectMenu = document.getElementById("projectMenu");
 const newProjectButton = document.getElementById("newProjectButton");
@@ -49,6 +59,9 @@ let timerStartedAt = null;
 let timerInterval = null;
 let sidebarOpenWidth = 180;
 let resizingSidebar = false;
+let currentView = "chat";
+let selectedHistoryId = null;
+let historySearchTimer = null;
 const projectDirectoryCache = new Map();
 const expandedProjectDirectories = new Set();
 
@@ -426,7 +439,7 @@ function setWaiting(value) {
 
   statusNote.textContent = waiting
     ? "Gakko düşünüyor..."
-    : "Dostko AI";
+    : "Gakko AI";
 
   if (!waiting) {
     input.focus();
@@ -460,6 +473,168 @@ function showActiveProject(path, startsProjectMethod) {
   sidebarToggle.title = "Menüyü kapat";
 }
 
+function formatHistoryDate(value) {
+  const date = new Date(String(value || ""));
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return date.toLocaleString("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function setMainView(view) {
+  currentView = view === "history" ? "history" : "chat";
+  const historyOpen = currentView === "history";
+
+  historyView.hidden = !historyOpen;
+  stage.hidden = historyOpen;
+  composerArea.hidden = historyOpen;
+  historyButton.classList.toggle("active", historyOpen);
+  chatButton.classList.toggle("active", !historyOpen);
+
+  if (!historyOpen) {
+    input.focus();
+  }
+}
+
+function requestHistory(query = historySearch.value) {
+  if (!bridge || typeof bridge.list_history !== "function") {
+    statusNote.textContent = "Geçmiş bağlantısı henüz hazır değil";
+    return;
+  }
+  bridge.list_history(String(query || ""));
+}
+
+function clearHistoryDetail(message = "Okumak için soldan bir sohbet seç.") {
+  selectedHistoryId = null;
+  historyDetail.replaceChildren();
+  const empty = document.createElement("div");
+  empty.className = "history-empty";
+  empty.textContent = message;
+  historyDetail.appendChild(empty);
+}
+
+function renderHistorySessions(payload) {
+  const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+  const retentionDays = Number(payload.retention_days) || 30;
+  historyRetentionNote.textContent = `Son ${retentionDays} günlük sohbet geçmişi`;
+  historyList.replaceChildren();
+
+  if (sessions.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    empty.textContent = historySearch.value.trim()
+      ? "Aramayla eşleşen sohbet bulunamadı."
+      : "Henüz kaydedilmiş sohbet yok.";
+    historyList.appendChild(empty);
+    clearHistoryDetail();
+    return;
+  }
+
+  const existingIds = new Set(sessions.map(session => String(session.id || "")));
+  if (selectedHistoryId && !existingIds.has(selectedHistoryId)) {
+    clearHistoryDetail();
+  }
+
+  sessions.forEach(session => {
+    const id = String(session.id || "");
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "history-item";
+    if (id === selectedHistoryId) {
+      item.classList.add("active");
+    }
+
+    const title = document.createElement("strong");
+    title.textContent = String(session.title || "Sohbet");
+
+    const meta = document.createElement("div");
+    meta.className = "history-item-meta";
+    const parts = [formatHistoryDate(session.updated_at)];
+    if (session.project_name) {
+      parts.push(String(session.project_name));
+    }
+    parts.push(`${Number(session.message_count) || 0} mesaj`);
+    meta.textContent = parts.filter(Boolean).join(" · ");
+
+    item.appendChild(title);
+    item.appendChild(meta);
+    item.addEventListener("click", () => {
+      selectedHistoryId = id;
+      if (bridge && typeof bridge.get_history_session === "function") {
+        bridge.get_history_session(id);
+      }
+      renderHistorySessions(payload);
+    });
+    historyList.appendChild(item);
+  });
+}
+
+function renderHistorySession(session) {
+  if (!session || !session.id) {
+    clearHistoryDetail("Bu sohbet artık bulunamıyor.");
+    return;
+  }
+
+  selectedHistoryId = String(session.id);
+  historyDetail.replaceChildren();
+
+  const head = document.createElement("div");
+  head.className = "history-detail-head";
+
+  const info = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = String(session.title || "Sohbet");
+  const meta = document.createElement("div");
+  meta.className = "history-detail-meta";
+  const metaParts = [formatHistoryDate(session.updated_at)];
+  if (session.project_name) {
+    metaParts.push(String(session.project_name));
+  }
+  meta.textContent = metaParts.filter(Boolean).join(" · ");
+  info.appendChild(title);
+  info.appendChild(meta);
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "history-delete-one";
+  deleteButton.textContent = "Sohbeti sil";
+  deleteButton.addEventListener("click", () => {
+    if (!confirm("Bu sohbet geçmişten kalıcı olarak silinsin mi?")) {
+      return;
+    }
+    if (bridge && typeof bridge.delete_history_session === "function") {
+      bridge.delete_history_session(String(session.id));
+    }
+  });
+
+  head.appendChild(info);
+  head.appendChild(deleteButton);
+  historyDetail.appendChild(head);
+
+  const historyMessages = document.createElement("div");
+  historyMessages.className = "history-messages";
+
+  (Array.isArray(session.messages) ? session.messages : []).forEach(message => {
+    const role = message.role === "user" ? "user" : "assistant";
+    const item = document.createElement("div");
+    item.className = `history-message ${role}`;
+    if (role === "assistant") {
+      renderAssistantContent(item, message.content);
+    } else {
+      item.textContent = String(message.content || "");
+    }
+    historyMessages.appendChild(item);
+  });
+
+  historyDetail.appendChild(historyMessages);
+}
+
 function connectBridge() {
   if (typeof QWebChannel === "undefined" || !window.qt || !qt.webChannelTransport) {
     statusNote.textContent = "Qwen bağlantısı kurulamadı";
@@ -491,6 +666,35 @@ function connectBridge() {
       }
     });
 
+    bridge.history_sessions_ready.connect(payloadText => {
+      try {
+        renderHistorySessions(JSON.parse(String(payloadText || "{}")));
+      } catch (error) {
+        statusNote.textContent = "Sohbet geçmişi okunamadı";
+      }
+    });
+
+    bridge.history_session_ready.connect(payloadText => {
+      try {
+        renderHistorySession(JSON.parse(String(payloadText || "{}")));
+      } catch (error) {
+        statusNote.textContent = "Sohbet geçmişi açılamadı";
+      }
+    });
+
+    bridge.history_action_ready.connect(payloadText => {
+      try {
+        const payload = JSON.parse(String(payloadText || "{}"));
+        const deleted = Number(payload.deleted) || 0;
+        statusNote.textContent = deleted > 0
+          ? `${deleted} geçmiş kaydı silindi`
+          : "Silinecek geçmiş kaydı bulunamadı";
+        clearHistoryDetail();
+      } catch (error) {
+        statusNote.textContent = "Geçmiş işlemi tamamlanamadı";
+      }
+    });
+
     bridge.reply_ready.connect(reply => {
       addMessage(reply, "assistant");
       setWaiting(false);
@@ -504,7 +708,7 @@ function connectBridge() {
       stopTimer();
     });
 
-    statusNote.textContent = "Dostko AI";
+    statusNote.textContent = "Gakko AI";
   });
 }
 
@@ -527,6 +731,44 @@ function setSidebarOpen(opened) {
 
 sidebarToggle.addEventListener("click", () => {
   setSidebarOpen(!appShell.classList.contains("sidebar-open"));
+});
+
+chatButton.addEventListener("click", () => {
+  setMainView("chat");
+});
+
+historyButton.addEventListener("click", () => {
+  setMainView("history");
+  requestHistory();
+});
+
+historySearch.addEventListener("input", () => {
+  if (historySearchTimer !== null) {
+    clearTimeout(historySearchTimer);
+  }
+  historySearchTimer = setTimeout(() => requestHistory(), 180);
+});
+
+historyDeleteBeforeButton.addEventListener("click", () => {
+  const value = String(historyDeleteBefore.value || "").trim();
+  if (!value) {
+    statusNote.textContent = "Önce bir tarih seç";
+    return;
+  }
+
+  const cutoff = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(cutoff.getTime())) {
+    statusNote.textContent = "Geçerli bir tarih seç";
+    return;
+  }
+
+  if (!confirm(`${value} tarihinden önceki sohbetler kalıcı olarak silinsin mi?`)) {
+    return;
+  }
+
+  if (bridge && typeof bridge.delete_history_before === "function") {
+    bridge.delete_history_before(cutoff.toISOString());
+  }
 });
 
 projectButton.addEventListener("click", () => {

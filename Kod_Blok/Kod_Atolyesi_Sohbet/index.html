@@ -5,6 +5,125 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gakko — Kod Atölyesi</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .history-view {
+      height: 100%;
+      min-height: 0;
+      padding: 28px;
+      overflow: hidden;
+      color: #eef4fb;
+      background: #080b11;
+      box-sizing: border-box;
+    }
+    .history-shell {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 16px;
+    }
+    .history-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .history-header h2 { margin: 0; font-size: 24px; font-weight: 650; }
+    .history-header span { color: #8492a6; font-size: 12px; }
+    .history-toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .history-search,
+    .history-date {
+      min-height: 38px;
+      border: 1px solid #253142;
+      border-radius: 10px;
+      background: #0d121b;
+      color: #f3f6fa;
+      padding: 0 12px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .history-search:focus,
+    .history-date:focus { border-color: #4d91d9; }
+    .history-delete-before,
+    .history-delete-one {
+      min-height: 38px;
+      border: 1px solid #4b2d34;
+      border-radius: 10px;
+      background: #181014;
+      color: #ff9eaa;
+      padding: 0 14px;
+      cursor: pointer;
+    }
+    .history-delete-before:hover,
+    .history-delete-one:hover { background: #26151b; color: #ffffff; }
+    .history-content {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(280px, 34%) minmax(0, 1fr);
+      gap: 14px;
+    }
+    .history-list,
+    .history-detail {
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid #1e2938;
+      border-radius: 14px;
+      background: #0b1018;
+    }
+    .history-list { padding: 8px; }
+    .history-item {
+      width: 100%;
+      display: grid;
+      gap: 6px;
+      border: 0;
+      border-bottom: 1px solid #182230;
+      border-radius: 9px;
+      background: transparent;
+      color: #dfe7f0;
+      padding: 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .history-item:hover,
+    .history-item.active { background: #101c2a; }
+    .history-item strong { font-size: 13px; font-weight: 600; color: #ffffff; }
+    .history-item-meta { display: flex; gap: 8px; flex-wrap: wrap; color: #8392a5; font-size: 11px; }
+    .history-empty { padding: 24px 14px; color: #7e8b9b; text-align: center; font-size: 13px; }
+    .history-detail { padding: 18px; }
+    .history-detail-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #1b2635;
+    }
+    .history-detail-head h3 { margin: 0 0 6px; color: #ffffff; font-size: 17px; }
+    .history-detail-meta { color: #8290a2; font-size: 11px; }
+    .history-messages { display: grid; gap: 12px; padding-top: 16px; }
+    .history-message {
+      max-width: 88%;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      border-radius: 12px;
+      padding: 11px 13px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .history-message.user { justify-self: end; background: #12304a; color: #ffffff; }
+    .history-message.assistant { justify-self: start; background: #111923; color: #dce5ef; }
+    .history-message .code-block { margin: 8px 0 0; }
+    @media (max-width: 900px) {
+      .history-view { padding: 18px; }
+      .history-toolbar { grid-template-columns: 1fr; }
+      .history-content { grid-template-columns: 1fr; grid-template-rows: minmax(180px, 38%) minmax(0, 1fr); }
+    }
+  </style>
 </head>
 <body>
     <div class="app-shell">
@@ -98,6 +217,31 @@
 
     <main class="workspace">
 
+
+      <section class="history-view" id="historyView" hidden>
+        <div class="history-shell">
+          <div class="history-header">
+            <div>
+              <h2>Geçmiş</h2>
+              <span id="historyRetentionNote">Son 30 günlük sohbet geçmişi</span>
+            </div>
+          </div>
+
+          <div class="history-toolbar">
+            <input class="history-search" id="historySearch" type="search" placeholder="Geçmişte ara...">
+            <input class="history-date" id="historyDeleteBefore" type="date" title="Bu tarihten öncekileri sil">
+            <button class="history-delete-before" id="historyDeleteBeforeButton" type="button">Bu tarihten öncekileri sil</button>
+          </div>
+
+          <div class="history-content">
+            <div class="history-list" id="historyList"></div>
+            <div class="history-detail" id="historyDetail">
+              <div class="history-empty">Okumak için soldan bir sohbet seç.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="chat-stage" id="chatStage">
         <div class="welcome" id="welcome">
           <div class="orb">G</div>
@@ -114,7 +258,7 @@
           <textarea id="messageInput" rows="2" placeholder="Gakko'ya mesaj yaz..."></textarea>
           <button type="submit" class="send" id="sendButton" title="Gönder">↑</button>
         </form>
-        <div class="note" id="statusNote">Dostko AI</div>
+        <div class="note" id="statusNote">Gakko AI</div>
       </section>
     </main>
   </div>
