@@ -1,3 +1,4 @@
+import base64
 import json
 import sqlite3
 from pathlib import Path
@@ -27,16 +28,19 @@ class ChatBridge(QObject):
     connection_ready = Signal()
     project_selected = Signal(str)
     project_directory_ready = Signal(str)
+    file_browser_project_selected = Signal(str)
+    file_browser_directory_ready = Signal(str)
+    file_browser_file_ready = Signal(str)
     history_sessions_ready = Signal(str)
     history_session_ready = Signal(str)
     history_action_ready = Signal(str)
     chat_files_selected = Signal(str)
-    context_remaining_ready = Signal(float)
 
     def __init__(self):
         super().__init__()
         self.settings = QSettings("Gakko", "Gakko")
         self.active_project_root = self._load_last_active_project()
+        self.file_browser_root = None
         self.history = ChatHistoryStore(
             get_history_db_path(),
             retention_days=HISTORY_RETENTION_DAYS,
@@ -75,7 +79,6 @@ class ChatBridge(QObject):
         session.ready.connect(self._on_ready)
         session.reply_ready.connect(self._on_reply)
         session.error_ready.connect(self._on_error)
-        session.context_remaining.connect(self._on_context_remaining)
 
     def start(self):
         if not self.session.isRunning():
@@ -173,6 +176,26 @@ class ChatBridge(QObject):
         )
 
     @Slot()
+    def select_file_browser_folder(self):
+        selected_path = QFileDialog.getExistingDirectory(
+            QApplication.activeWindow(),
+            "Dosya - Klasör Aç",
+            str(self.file_browser_root or PROJECT_ROOT),
+        )
+
+        selected_path = str(selected_path or "").strip()
+        if not selected_path:
+            return
+
+        selected_root = Path(selected_path)
+        if not selected_root.exists() or not selected_root.is_dir():
+            self.error_ready.emit("Seçilen klasör geçerli değil.")
+            return
+
+        self.file_browser_root = selected_root
+        self.file_browser_project_selected.emit(str(selected_root))
+
+    @Slot()
     def select_chat_files(self):
         if self._busy:
             self.error_ready.emit(
@@ -268,6 +291,98 @@ class ChatBridge(QObject):
             return
 
         self.project_directory_ready.emit(
+            json.dumps(payload, ensure_ascii=False)
+        )
+
+    @Slot(str)
+    def list_file_browser_directory(self, relative_path):
+        if self.file_browser_root is None:
+            return
+
+        try:
+            payload = list_project_directory(
+                self.file_browser_root,
+                relative_path,
+            )
+        except (OSError, ValueError) as error:
+            self.error_ready.emit(f"Dosya klasörü okunamadı: {error}")
+            return
+
+        self.file_browser_directory_ready.emit(
+            json.dumps(payload, ensure_ascii=False)
+        )
+
+    @Slot(str)
+    def read_file_browser_file(self, relative_path):
+        if self.file_browser_root is None:
+            return
+
+        root = Path(self.file_browser_root).resolve()
+        relative = str(relative_path or "").replace("\\", "/").strip("/")
+        target = root.joinpath(
+            *([part for part in relative.split("/") if part] or [])
+        ).resolve()
+
+        if target != root and not target.is_relative_to(root):
+            self.error_ready.emit("Dosya klasörü dışındaki dosyalar açılamaz.")
+            return
+
+        if not target.exists() or not target.is_file():
+            self.error_ready.emit("Seçilen dosya bulunamadı.")
+            return
+
+        try:
+            raw = target.read_bytes()
+        except OSError as error:
+            self.error_ready.emit(f"Dosya okunamadı: {error}")
+            return
+
+        image_mime_types = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+            ".bmp": "image/bmp",
+            ".ico": "image/x-icon",
+        }
+        suffix = target.suffix.lower()
+        image_mime = image_mime_types.get(suffix)
+
+        if image_mime is not None:
+            if len(raw) > 12 * 1024 * 1024:
+                self.error_ready.emit("Görsel, dosya okuma alanı için çok büyük.")
+                return
+
+            encoded = base64.b64encode(raw).decode("ascii")
+            payload = {
+                "kind": "image",
+                "path": relative,
+                "name": target.name,
+                "mime": image_mime,
+                "data_url": f"data:{image_mime};base64,{encoded}",
+            }
+            self.file_browser_file_ready.emit(
+                json.dumps(payload, ensure_ascii=False)
+            )
+            return
+
+        if b"\x00" in raw[:8192]:
+            self.error_ready.emit("Bu dosya desteklenen bir metin veya görsel dosyası değil.")
+            return
+
+        if len(raw) > 2 * 1024 * 1024:
+            self.error_ready.emit("Dosya okuma alanı için çok büyük.")
+            return
+
+        content = raw.decode("utf-8-sig", errors="replace")
+        payload = {
+            "kind": "text",
+            "path": relative,
+            "name": target.name,
+            "content": content,
+        }
+        self.file_browser_file_ready.emit(
             json.dumps(payload, ensure_ascii=False)
         )
 
@@ -376,20 +491,6 @@ class ChatBridge(QObject):
             self._busy = False
             self._history_capture_reply = False
 
-    @Slot()
-    def reset_qwen_context(self):
-        if self._busy:
-            self.error_ready.emit(
-                "Qwen Code şu anda başka bir mesaja cevap veriyor."
-            )
-            return
-
-        if not self.session.is_ready:
-            self.error_ready.emit("Qwen Code henüz hazır değil.")
-            return
-
-        self.session.reset_context()
-
     @Slot(str)
     def send_message(self, message):
         message = str(message or "").strip()
@@ -437,9 +538,6 @@ class ChatBridge(QObject):
         prompt = build_attachment_prompt(message, file_paths)
         history_message = build_attachment_history_message(message, file_paths)
         self._send_chat_prompt(prompt, history_message)
-
-    def _on_context_remaining(self, value):
-        self.context_remaining_ready.emit(float(value))
 
     def _on_reply(self, text):
         self._busy = False

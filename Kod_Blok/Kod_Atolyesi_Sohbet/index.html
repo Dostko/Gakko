@@ -118,8 +118,207 @@
     .history-message.user { justify-self: end; background: #12304a; color: #ffffff; }
     .history-message.assistant { justify-self: start; background: #111923; color: #dce5ef; }
     .history-message .code-block { margin: 8px 0 0; }
+
+    /* =========================================
+       DOSYA GÖRÜNÜMÜ
+       ========================================= */
+
+    .file-view {
+      height: 100%;
+      min-height: 0;
+      padding: 28px;
+      overflow: hidden;
+      color: #eef4fb;
+      background: #080b11;
+      box-sizing: border-box;
+    }
+
+    .file-shell {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .file-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .file-header-title {
+      min-width: 0;
+    }
+
+    .file-header h2 {
+      margin: 0 0 5px;
+      font-size: 24px;
+      font-weight: 650;
+    }
+
+    .file-active-project {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      color: #8492a6;
+      font-size: 12px;
+    }
+
+    #fileActiveProjectName {
+      min-width: 0;
+      overflow: hidden;
+      color: #b9c5d4;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-open-project {
+      min-height: 38px;
+      flex: 0 0 auto;
+      padding: 0 16px;
+      border: 1px solid #285d43;
+      border-radius: 10px;
+      background: #0d1813;
+      color: #72ffad;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .file-open-project:hover {
+      border-color: #39ff88;
+      background: #12251b;
+      color: #ffffff;
+    }
+
+    .file-content {
+      --file-tree-width: 320px;
+
+      min-height: 0;
+      display: grid;
+      grid-template-columns:
+        minmax(220px, var(--file-tree-width))
+        8px
+        minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .file-tree-pane,
+    .file-reader-pane {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid #1e2938;
+      border-radius: 14px;
+      background: #0b1018;
+    }
+
+    .file-pane-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 13px 15px;
+      border-bottom: 1px solid #1b2635;
+      background: #0b1018;
+      color: #dce5ef;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: .3px;
+    }
+
+    .file-tree-list {
+      min-width: 0;
+      padding: 8px;
+    }
+
+    .file-tree-item {
+      width: 100%;
+      min-width: 0;
+      min-height: 30px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      align-items: center;
+      gap: 5px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #dfe7f0;
+      text-align: left;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+
+    button.file-tree-item {
+      cursor: pointer;
+    }
+
+    .file-tree-item:hover {
+      background: #101c2a;
+    }
+
+    .file-tree-marker {
+      color: #6f8298;
+      text-align: center;
+    }
+
+    .file-tree-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-tree-item.directory .file-tree-name {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .file-tree-empty {
+      padding: 26px 12px;
+      color: #7e8b9b;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .file-pane-empty {
+      padding: 28px 18px;
+      color: #7e8b9b;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .file-view-resizer {
+      position: relative;
+      min-height: 0;
+      cursor: col-resize;
+      touch-action: none;
+    }
+
+    .file-view-resizer::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      left: 50%;
+      width: 1px;
+      transform: translateX(-50%);
+      background: #253142;
+      transition: background .15s, box-shadow .15s;
+    }
+
+    .file-view-resizer:hover::before,
+    .file-view-resizer.dragging::before {
+      background: #39ff88;
+      box-shadow: 0 0 6px rgba(57,255,136,.65);
+    }
+
     @media (max-width: 900px) {
-      .history-view { padding: 18px; }
+      .history-view,
+      .file-view { padding: 18px; }
       .history-toolbar { grid-template-columns: 1fr; }
       .history-content { grid-template-columns: 1fr; grid-template-rows: minmax(180px, 38%) minmax(0, 1fr); }
     }
@@ -150,7 +349,7 @@
           <span class="nav-label">Sohbet</span>
         </button>
 
-        <button class="nav-btn" id="historyButton" type="button" title="Geçmiş">
+                <button class="nav-btn" id="historyButton" type="button" title="Geçmiş">
           <span class="nav-icon" aria-hidden="true">
             <svg class="menu-icon-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#6fb7ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 3px rgba(111,183,255,.72));">
               <path d="M4.2 8.4A8.5 8.5 0 1 1 4 15"/>
@@ -161,7 +360,31 @@
           <span class="nav-label">Geçmiş</span>
         </button>
 
+        <button class="nav-btn" id="fileButton" type="button" title="Dosya">
+          <span class="nav-icon" aria-hidden="true">
+            <svg
+              class="menu-icon-svg"
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="#39ff88"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="filter: drop-shadow(0 0 3px rgba(57,255,136,.78));"
+            >
+              <path d="M7 3.5h6.5L18 8v12.5H7z"/>
+              <path d="M13.5 3.5V8H18"/>
+              <path d="M10 12h5"/>
+              <path d="M10 15h5"/>
+            </svg>
+          </span>
+          <span class="nav-label">Dosya</span>
+        </button>
+
         <div class="project-nav">
+          
           <button
             class="nav-btn"
             id="projectButton"
@@ -227,6 +450,54 @@
             <div class="history-list" id="historyList"></div>
             <div class="history-detail" id="historyDetail">
               <div class="history-empty">Okumak için soldan bir sohbet seç.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- =========================================
+           DOSYA GÖRÜNÜMÜ
+           ========================================= -->
+      <section class="file-view" id="fileView" hidden>
+        <div class="file-shell">
+          <div class="file-header">
+            <div class="file-header-title">
+              <h2>Dosya</h2>
+              <div class="file-active-project">
+                <span>Açılan Proje:</span>
+                <strong id="fileActiveProjectName">Yok</strong>
+              </div>
+            </div>
+
+            <button
+              class="file-open-project"
+              id="fileOpenProjectButton"
+              type="button"
+            >
+              Proje Aç
+            </button>
+          </div>
+
+          <div class="file-content" id="fileContent">
+            <div class="file-tree-pane" id="fileTreePane">
+              <div class="file-pane-header">PROJE DOSYALARI</div>
+              <div class="file-tree-list" id="fileTreeList" role="tree">
+                <div class="file-tree-empty">Proje Aç ile bir klasör seç.</div>
+              </div>
+            </div>
+
+            <div
+              class="file-view-resizer"
+              id="fileViewResizer"
+              aria-hidden="true"
+            ></div>
+
+            <div class="file-reader-pane" id="fileReaderPane">
+              <div class="file-pane-header">DOSYA OKUMA</div>
+              <div class="file-pane-empty">
+                Okumak için soldan bir dosya seç.
+              </div>
             </div>
           </div>
         </div>

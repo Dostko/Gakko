@@ -18,6 +18,16 @@ const appShell = document.querySelector(".app-shell");
 const sidebarToggle = document.getElementById("sidebarToggle");
 const chatButton = document.getElementById("chatButton");
 const historyButton = document.getElementById("historyButton");
+const fileButton = document.getElementById("fileButton");
+
+const fileView = document.getElementById("fileView");
+const fileOpenProjectButton = document.getElementById("fileOpenProjectButton");
+const fileActiveProjectName = document.getElementById("fileActiveProjectName");
+const fileTreeList = document.getElementById("fileTreeList");
+const fileReaderPane = document.getElementById("fileReaderPane");
+const fileContent = document.getElementById("fileContent");
+const fileViewResizer = document.getElementById("fileViewResizer");
+
 const composerArea = document.querySelector(".composer-area");
 const historyView = document.getElementById("historyView");
 const historySearch = document.getElementById("historySearch");
@@ -97,6 +107,9 @@ let historySearchTimer = null;
 let selectedChatFiles = [];
 const projectDirectoryCache = new Map();
 const expandedProjectDirectories = new Set();
+const fileBrowserDirectoryCache = new Map();
+const expandedFileBrowserDirectories = new Set();
+let fileBrowserProjectName = "";
 
 const SIDEBAR_MIN_WIDTH = 150;
 const SIDEBAR_MAX_WIDTH = 520;
@@ -306,6 +319,227 @@ function resetProjectTree() {
   expandedProjectDirectories.clear();
   projectTreeList.replaceChildren();
   projectTree.hidden = true;
+}
+
+function requestFileBrowserDirectory(relativePath = "") {
+  if (!bridge || typeof bridge.list_file_browser_directory !== "function") {
+    return;
+  }
+
+  bridge.list_file_browser_directory(String(relativePath || ""));
+}
+
+function requestFileBrowserFile(relativePath) {
+  if (!bridge || typeof bridge.read_file_browser_file !== "function") {
+    statusNote.textContent = "Dosya okuyucu henüz hazır değil";
+    return;
+  }
+
+  bridge.read_file_browser_file(String(relativePath || ""));
+}
+
+function renderFileBrowserFile(payload) {
+  if (!fileReaderPane) {
+    return;
+  }
+
+  const header = fileReaderPane.querySelector(".file-pane-header");
+  const oldBody = fileReaderPane.querySelector(".file-reader-body");
+  if (oldBody) {
+    oldBody.remove();
+  }
+
+  const oldEmpty = fileReaderPane.querySelector(".file-pane-empty");
+  if (oldEmpty) {
+    oldEmpty.remove();
+  }
+
+  if (header) {
+    header.textContent = `DOSYA OKUMA · ${String(payload.name || "")}`;
+  }
+
+  let body;
+
+  if (String(payload.kind || "") === "image") {
+    body = document.createElement("div");
+    body.className = "file-reader-body";
+    body.style.minHeight = "100%";
+    body.style.boxSizing = "border-box";
+    body.style.padding = "18px";
+    body.style.display = "flex";
+    body.style.alignItems = "flex-start";
+    body.style.justifyContent = "center";
+
+    const image = document.createElement("img");
+    image.src = String(payload.data_url || "");
+    image.alt = String(payload.name || "Görsel");
+    image.style.display = "block";
+    image.style.maxWidth = "100%";
+    image.style.height = "auto";
+    image.style.objectFit = "contain";
+
+    body.appendChild(image);
+  } else {
+    body = document.createElement("pre");
+    body.className = "file-reader-body";
+    body.textContent = String(payload.content || "");
+    body.style.margin = "0";
+    body.style.padding = "16px 18px 24px";
+    body.style.minHeight = "100%";
+    body.style.boxSizing = "border-box";
+    body.style.whiteSpace = "pre";
+    body.style.overflowWrap = "normal";
+    body.style.fontFamily = 'Consolas, "Courier New", monospace';
+    body.style.fontSize = "12.5px";
+    body.style.lineHeight = "1.55";
+    body.style.color = "#dce5ef";
+    body.style.tabSize = "4";
+  }
+
+  fileReaderPane.appendChild(body);
+  fileReaderPane.scrollTop = 0;
+}
+
+function resetFileBrowserReader() {
+  if (!fileReaderPane) {
+    return;
+  }
+
+  const header = fileReaderPane.querySelector(".file-pane-header");
+  if (header) {
+    header.textContent = "DOSYA OKUMA";
+  }
+
+  fileReaderPane.querySelectorAll(".file-reader-body, .file-pane-empty")
+    .forEach(node => node.remove());
+
+  const empty = document.createElement("div");
+  empty.className = "file-pane-empty";
+  empty.textContent = "Okumak için soldan bir dosya seç.";
+  fileReaderPane.appendChild(empty);
+  fileReaderPane.scrollTop = 0;
+}
+
+function createFileBrowserTreeRow(entry, depth) {
+  const row = document.createElement(entry.type === "directory" ? "button" : "div");
+  row.className = `file-tree-item ${entry.type}`;
+  row.style.paddingLeft = `${10 + depth * 16}px`;
+  row.title = entry.path;
+
+  const marker = document.createElement("span");
+  marker.className = "file-tree-marker";
+
+  if (entry.type === "directory") {
+    const opened = expandedFileBrowserDirectories.has(entry.path);
+    marker.textContent = opened ? "⌄" : "›";
+  } else {
+    marker.textContent = "·";
+  }
+
+  const label = document.createElement("span");
+  label.className = "file-tree-name";
+  label.textContent = entry.name;
+
+  row.appendChild(marker);
+  row.appendChild(label);
+
+  if (entry.type === "directory") {
+    row.type = "button";
+    row.addEventListener("click", () => {
+      if (expandedFileBrowserDirectories.has(entry.path)) {
+        expandedFileBrowserDirectories.delete(entry.path);
+        renderFileBrowserTree();
+        return;
+      }
+
+      expandedFileBrowserDirectories.add(entry.path);
+      if (!fileBrowserDirectoryCache.has(entry.path)) {
+        requestFileBrowserDirectory(entry.path);
+      }
+      renderFileBrowserTree();
+    });
+  } else {
+    row.style.cursor = "pointer";
+    row.addEventListener("click", () => {
+      requestFileBrowserFile(entry.path);
+    });
+  }
+
+  return row;
+}
+
+function appendFileBrowserTreeBranch(container, relativePath, depth) {
+  const payload = fileBrowserDirectoryCache.get(relativePath);
+  if (!payload) {
+    return;
+  }
+
+  payload.entries.forEach(entry => {
+    container.appendChild(createFileBrowserTreeRow(entry, depth));
+
+    if (
+      entry.type === "directory"
+      && expandedFileBrowserDirectories.has(entry.path)
+      && fileBrowserDirectoryCache.has(entry.path)
+    ) {
+      appendFileBrowserTreeBranch(container, entry.path, depth + 1);
+    }
+  });
+}
+
+function renderFileBrowserTree() {
+  if (!fileTreeList) {
+    return;
+  }
+
+  fileTreeList.replaceChildren();
+  const rootPayload = fileBrowserDirectoryCache.get("");
+
+  if (!rootPayload) {
+    const empty = document.createElement("div");
+    empty.className = "file-tree-empty";
+    empty.textContent = fileBrowserProjectName
+      ? "Dosyalar yükleniyor..."
+      : "Proje Aç ile bir klasör seç.";
+    fileTreeList.appendChild(empty);
+    return;
+  }
+
+  if (rootPayload.entries.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "file-tree-empty";
+    empty.textContent = "Bu klasör boş";
+    fileTreeList.appendChild(empty);
+    return;
+  }
+
+  appendFileBrowserTreeBranch(fileTreeList, "", 0);
+}
+
+function resetFileBrowserTree() {
+  fileBrowserDirectoryCache.clear();
+  expandedFileBrowserDirectories.clear();
+  renderFileBrowserTree();
+  resetFileBrowserReader();
+}
+
+function showFileBrowserProject(path) {
+  const projectPath = String(path || "").trim();
+  if (!projectPath) {
+    return;
+  }
+
+  const cleanPath = projectPath.replace(/[\\/]+$/, "");
+  const parts = cleanPath.split(/[\\/]/);
+  fileBrowserProjectName = parts[parts.length - 1] || cleanPath;
+
+  if (fileActiveProjectName) {
+    fileActiveProjectName.textContent = fileBrowserProjectName;
+    fileActiveProjectName.title = projectPath;
+  }
+
+  resetFileBrowserTree();
+  requestFileBrowserDirectory("");
 }
 
 function formatRemainingPercentage(value) {
@@ -549,9 +783,12 @@ function showActiveProject(path, startsProjectMethod) {
   const cleanPath = projectPath.replace(/[\\/]+$/, "");
   const parts = cleanPath.split(/[\\/]/);
 
-  activeProjectName.textContent = parts[parts.length - 1] || cleanPath;
+  const projectName = parts[parts.length - 1] || cleanPath;
+
+  activeProjectName.textContent = projectName;
   activeProjectPath.textContent = projectPath;
   activeProject.hidden = false;
+
   resetProjectTree();
   requestProjectDirectory("");
   projectMenu.hidden = false;
@@ -581,18 +818,132 @@ function formatHistoryDate(value) {
 }
 
 function setMainView(view) {
-  currentView = view === "history" ? "history" : "chat";
+  if (view === "history") {
+    currentView = "history";
+  } else if (view === "files" && fileView) {
+    currentView = "files";
+  } else {
+    currentView = "chat";
+  }
+
   const historyOpen = currentView === "history";
+  const filesOpen = currentView === "files";
+  const chatOpen = currentView === "chat";
 
   historyView.hidden = !historyOpen;
-  stage.hidden = historyOpen;
-  composerArea.hidden = historyOpen;
-  historyButton.classList.toggle("active", historyOpen);
-  chatButton.classList.toggle("active", !historyOpen);
 
-  if (!historyOpen) {
+  if (fileView) {
+    fileView.hidden = !filesOpen;
+  }
+
+  stage.hidden = !chatOpen;
+  composerArea.hidden = !chatOpen;
+
+  historyButton.classList.toggle("active", historyOpen);
+
+  if (fileButton) {
+    fileButton.classList.toggle("active", filesOpen);
+  }
+
+  chatButton.classList.toggle("active", chatOpen);
+
+  if (chatOpen) {
     input.focus();
   }
+}
+
+/* =========================================
+   DOSYA GÖRÜNÜMÜ PANEL BOYUTLANDIRMA
+   ========================================= */
+
+const FILE_TREE_MIN_WIDTH = 220;
+const FILE_READER_MIN_WIDTH = 320;
+
+let resizingFileView = false;
+let fileResizePointerId = null;
+
+function resizeFileTree(clientX) {
+  if (!fileContent) {
+    return;
+  }
+
+  const bounds = fileContent.getBoundingClientRect();
+
+  if (bounds.width <= 0) {
+    return;
+  }
+
+  const dividerSpace = 24;
+
+  const maxWidth = Math.max(
+    FILE_TREE_MIN_WIDTH,
+    bounds.width - FILE_READER_MIN_WIDTH - dividerSpace
+  );
+
+  const requestedWidth = clientX - bounds.left;
+
+  const width = Math.min(
+    maxWidth,
+    Math.max(FILE_TREE_MIN_WIDTH, requestedWidth)
+  );
+
+  fileContent.style.setProperty(
+    "--file-tree-width",
+    `${Math.round(width)}px`
+  );
+}
+
+function stopFileResize() {
+  if (!resizingFileView || !fileViewResizer) {
+    return;
+  }
+
+  resizingFileView = false;
+  fileViewResizer.classList.remove("dragging");
+
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+
+  if (
+    fileResizePointerId !== null
+    && fileViewResizer.hasPointerCapture(fileResizePointerId)
+  ) {
+    fileViewResizer.releasePointerCapture(fileResizePointerId);
+  }
+
+  fileResizePointerId = null;
+}
+
+if (fileViewResizer && fileContent) {
+  fileViewResizer.addEventListener("pointerdown", event => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    resizingFileView = true;
+    fileResizePointerId = event.pointerId;
+
+    fileViewResizer.setPointerCapture(event.pointerId);
+    fileViewResizer.classList.add("dragging");
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    resizeFileTree(event.clientX);
+  });
+
+  fileViewResizer.addEventListener("pointermove", event => {
+    if (!resizingFileView) {
+      return;
+    }
+
+    resizeFileTree(event.clientX);
+  });
+
+  fileViewResizer.addEventListener("pointerup", stopFileResize);
+  fileViewResizer.addEventListener("pointercancel", stopFileResize);
 }
 
 function requestHistory(query = historySearch.value) {
@@ -759,6 +1110,46 @@ function connectBridge() {
       }
     });
 
+    if (
+      bridge.file_browser_project_selected
+      && typeof bridge.file_browser_project_selected.connect === "function"
+    ) {
+      bridge.file_browser_project_selected.connect(path => {
+        showFileBrowserProject(path);
+      });
+    }
+
+    if (
+      bridge.file_browser_directory_ready
+      && typeof bridge.file_browser_directory_ready.connect === "function"
+    ) {
+      bridge.file_browser_directory_ready.connect(payloadText => {
+        try {
+          const payload = JSON.parse(String(payloadText || "{}"));
+          const path = String(payload.path || "");
+          const entries = Array.isArray(payload.entries) ? payload.entries : [];
+          fileBrowserDirectoryCache.set(path, { path, entries });
+          renderFileBrowserTree();
+        } catch (error) {
+          statusNote.textContent = "Dosya projesi ağacı okunamadı";
+        }
+      });
+    }
+
+    if (
+      bridge.file_browser_file_ready
+      && typeof bridge.file_browser_file_ready.connect === "function"
+    ) {
+      bridge.file_browser_file_ready.connect(payloadText => {
+        try {
+          const payload = JSON.parse(String(payloadText || "{}"));
+          renderFileBrowserFile(payload);
+        } catch (error) {
+          statusNote.textContent = "Dosya içeriği açılamadı";
+        }
+      });
+    }
+
     bridge.history_sessions_ready.connect(payloadText => {
       try {
         renderHistorySessions(JSON.parse(String(payloadText || "{}")));
@@ -870,6 +1261,23 @@ historyButton.addEventListener("click", () => {
   setMainView("history");
   requestHistory();
 });
+
+if (fileButton) {
+  fileButton.addEventListener("click", () => {
+    setMainView("files");
+  });
+}
+
+if (fileOpenProjectButton) {
+  fileOpenProjectButton.addEventListener("click", () => {
+    if (!bridge || typeof bridge.select_file_browser_folder !== "function") {
+      statusNote.textContent = "Dosya proje seçici henüz hazır değil";
+      return;
+    }
+
+    bridge.select_file_browser_folder();
+  });
+}
 
 historySearch.addEventListener("input", () => {
   if (historySearchTimer !== null) {
