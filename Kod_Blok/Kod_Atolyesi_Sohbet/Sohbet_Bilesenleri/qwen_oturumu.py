@@ -41,6 +41,7 @@ class QwenSession(QThread):
     ready = Signal()
     reply_ready = Signal(str)
     error_ready = Signal(str)
+    context_remaining = Signal(float)
 
     def __init__(self, active_project_root=None):
         super().__init__()
@@ -60,6 +61,9 @@ class QwenSession(QThread):
         self.runtime_dir = Path(tempfile.mkdtemp(prefix="gakko-qwen-"))
         self.events_file = self.runtime_dir / "events.jsonl"
         self.input_file = self.runtime_dir / "input.jsonl"
+        self.status_file = self.runtime_dir / "status.json"
+        self._status_mtime_ns = 0
+        self._last_context_remaining = None
         self.events_file.write_text("", encoding="utf-8")
         self.input_file.write_text("", encoding="utf-8")
 
@@ -107,6 +111,7 @@ class QwenSession(QThread):
 
         env = os.environ.copy()
         env.setdefault("TERM", "xterm-256color")
+        env["GAKKO_QWEN_STATUS_FILE"] = str(self.status_file)
 
         self.process = PtyProcess.spawn(
             command,
@@ -173,6 +178,10 @@ class QwenSession(QThread):
             self.error_ready.emit(f"Qwen Code mesajı gönderilemedi: {error}")
             return False
 
+    def reset_context(self):
+        self._last_assistant_text = ""
+        return self.submit_prompt("/new")
+
     def _extract_assistant_text(self, event):
         if not isinstance(event, dict) or event.get("type") != "assistant":
             return ""
@@ -220,6 +229,36 @@ class QwenSession(QThread):
                 else:
                     return
 
+    def _read_context_remaining(self):
+        try:
+            if not self.status_file.exists():
+                return
+
+            modified = self.status_file.stat().st_mtime_ns
+            if modified == self._status_mtime_ns:
+                return
+
+            payload = json.loads(
+                self.status_file.read_text(encoding="utf-8", errors="replace")
+            )
+            remaining = (payload.get("context_window") or {}).get(
+                "remaining_percentage"
+            )
+            if remaining is None:
+                return
+
+            value = max(0.0, min(100.0, float(remaining)))
+            self._status_mtime_ns = modified
+
+            if (
+                self._last_context_remaining is None
+                or abs(value - self._last_context_remaining) >= 0.05
+            ):
+                self._last_context_remaining = value
+                self.context_remaining.emit(value)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return
+
     def _tail_events(self):
         position = 0
         pending = ""
@@ -249,6 +288,8 @@ class QwenSession(QThread):
                         except json.JSONDecodeError:
                             continue
                         self._handle_event(event)
+
+                self._read_context_remaining()
 
                 process = self.process
                 if process is not None:
@@ -307,7 +348,7 @@ class QwenSession(QThread):
 
     def _cleanup_runtime_files(self):
         try:
-            for path in (self.events_file, self.input_file):
+            for path in (self.events_file, self.input_file, self.status_file):
                 if path.exists():
                     path.unlink()
             if self.runtime_dir.exists():

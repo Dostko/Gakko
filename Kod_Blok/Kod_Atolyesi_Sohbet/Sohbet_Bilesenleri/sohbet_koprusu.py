@@ -31,6 +31,7 @@ class ChatBridge(QObject):
     history_session_ready = Signal(str)
     history_action_ready = Signal(str)
     chat_files_selected = Signal(str)
+    context_remaining_ready = Signal(float)
 
     def __init__(self):
         super().__init__()
@@ -74,6 +75,7 @@ class ChatBridge(QObject):
         session.ready.connect(self._on_ready)
         session.reply_ready.connect(self._on_reply)
         session.error_ready.connect(self._on_error)
+        session.context_remaining.connect(self._on_context_remaining)
 
     def start(self):
         if not self.session.isRunning():
@@ -374,6 +376,20 @@ class ChatBridge(QObject):
             self._busy = False
             self._history_capture_reply = False
 
+    @Slot()
+    def reset_qwen_context(self):
+        if self._busy:
+            self.error_ready.emit(
+                "Qwen Code şu anda başka bir mesaja cevap veriyor."
+            )
+            return
+
+        if not self.session.is_ready:
+            self.error_ready.emit("Qwen Code henüz hazır değil.")
+            return
+
+        self.session.reset_context()
+
     @Slot(str)
     def send_message(self, message):
         message = str(message or "").strip()
@@ -421,6 +437,9 @@ class ChatBridge(QObject):
         prompt = build_attachment_prompt(message, file_paths)
         history_message = build_attachment_history_message(message, file_paths)
         self._send_chat_prompt(prompt, history_message)
+
+    def _on_context_remaining(self, value):
+        self.context_remaining_ready.emit(float(value))
 
     def _on_reply(self, text):
         self._busy = False

@@ -36,36 +36,59 @@ const activeProjectPath = document.getElementById("activeProjectPath");
 const projectTree = document.getElementById("projectTree");
 const projectTreeList = document.getElementById("projectTreeList");
 const sidebarResizer = document.getElementById("sidebarResizer");
-const timerPanel = document.createElement("div");
-timerPanel.style.display = "grid";
-timerPanel.style.gridTemplateColumns = "1fr auto 1fr";
-timerPanel.style.alignItems = "center";
-timerPanel.style.gap = "12px";
-timerPanel.style.marginTop = "8px";
+const contextPanel = document.createElement("div");
+contextPanel.style.display = "grid";
+contextPanel.style.gridTemplateColumns = "1fr auto 1fr";
+contextPanel.style.alignItems = "center";
+contextPanel.style.gap = "12px";
+contextPanel.style.marginTop = "8px";
 
-const timerDisplay = document.createElement("span");
-timerDisplay.textContent = "00:00.0";
-timerDisplay.style.fontSize = "10px";
-timerDisplay.style.fontWeight = "600";
-timerDisplay.style.fontVariantNumeric = "tabular-nums";
-timerDisplay.style.letterSpacing = "0.5px";
-timerDisplay.style.justifySelf = "start";
+const contextLeft = document.createElement("div");
+contextLeft.style.display = "inline-flex";
+contextLeft.style.alignItems = "center";
+contextLeft.style.gap = "8px";
+contextLeft.style.justifySelf = "start";
+
+const remainingDisplay = document.createElement("span");
+remainingDisplay.textContent = "Kalan —";
+remainingDisplay.style.fontSize = "10px";
+remainingDisplay.style.fontWeight = "600";
+remainingDisplay.style.fontVariantNumeric = "tabular-nums";
+remainingDisplay.style.letterSpacing = "0.3px";
+
+const divider = document.createElement("span");
+divider.textContent = "|";
+divider.style.fontSize = "10px";
+divider.style.color = "#566273";
+
+const resetContextButton = document.createElement("button");
+resetContextButton.type = "button";
+resetContextButton.textContent = "Sıfırla";
+resetContextButton.title = "Qwen Code bağlamını sıfırla";
+resetContextButton.style.minHeight = "28px";
+resetContextButton.style.padding = "0";
+resetContextButton.style.border = "0";
+resetContextButton.style.background = "transparent";
+resetContextButton.style.color = "#8f9bad";
+resetContextButton.style.fontSize = "10px";
+resetContextButton.style.cursor = "pointer";
 
 const shortcutNote = document.createElement("span");
-shortcutNote.textContent = "Ctrl+Shift · Alt satır";
+shortcutNote.textContent = "Shift+Enter · Alt satır";
 shortcutNote.style.fontSize = "10px";
 shortcutNote.style.justifySelf = "end";
 
-statusNote.insertAdjacentElement("afterend", timerPanel);
-timerPanel.appendChild(timerDisplay);
-timerPanel.appendChild(statusNote);
-timerPanel.appendChild(shortcutNote);
+statusNote.insertAdjacentElement("afterend", contextPanel);
+contextLeft.appendChild(remainingDisplay);
+contextLeft.appendChild(divider);
+contextLeft.appendChild(resetContextButton);
+contextPanel.appendChild(contextLeft);
+contextPanel.appendChild(statusNote);
+contextPanel.appendChild(shortcutNote);
 statusNote.style.justifySelf = "center";
 
 let bridge = null;
 let waiting = false;
-let timerStartedAt = null;
-let timerInterval = null;
 let sidebarOpenWidth = 180;
 let resizingSidebar = false;
 let currentView = "chat";
@@ -285,47 +308,17 @@ function resetProjectTree() {
   projectTree.hidden = true;
 }
 
-function formatElapsed(milliseconds) {
-  const totalTenths = Math.max(0, Math.floor(milliseconds / 100));
-  const minutes = Math.floor(totalTenths / 600);
-  const seconds = Math.floor((totalTenths % 600) / 10);
-  const tenths = totalTenths % 10;
-
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${tenths}`;
-}
-
-function renderTimer() {
-  if (timerStartedAt === null) {
-    return;
+function formatRemainingPercentage(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return "Kalan —";
   }
 
-  timerDisplay.textContent = formatElapsed(performance.now() - timerStartedAt);
-}
-
-function startTimer() {
-  if (timerInterval !== null) {
-    clearInterval(timerInterval);
-  }
-
-  timerStartedAt = performance.now();
-  timerDisplay.textContent = "00:00.0";
-  renderTimer();
-  timerInterval = setInterval(renderTimer, 100);
-}
-
-function stopTimer() {
-  if (timerStartedAt === null) {
-    return;
-  }
-
-  timerDisplay.textContent = formatElapsed(performance.now() - timerStartedAt);
-
-  if (timerInterval !== null) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-
-  timerStartedAt = null;
+  const clamped = Math.max(0, Math.min(100, number));
+  return `Kalan %${clamped.toLocaleString("tr-TR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  })}`;
 }
 
 function resize() {
@@ -534,6 +527,8 @@ function setWaiting(value) {
   waiting = Boolean(value);
   sendButton.disabled = waiting;
   attachButton.disabled = waiting;
+  resetContextButton.disabled = waiting;
+  resetContextButton.style.opacity = waiting ? "0.45" : "1";
   input.disabled = waiting;
 
   statusNote.textContent = waiting
@@ -564,7 +559,6 @@ function showActiveProject(path, startsProjectMethod) {
 
   if (startsProjectMethod) {
     setWaiting(true);
-    startTimer();
   }
 
   appShell.classList.add("sidebar-open");
@@ -794,6 +788,18 @@ function connectBridge() {
       }
     });
 
+    if (
+      bridge.context_remaining_ready
+      && typeof bridge.context_remaining_ready.connect === "function"
+    ) {
+      bridge.context_remaining_ready.connect(value => {
+        remainingDisplay.textContent = formatRemainingPercentage(value);
+        if (!waiting && statusNote.textContent === "Bağlam sıfırlanıyor...") {
+          statusNote.textContent = "Gakko AI";
+        }
+      });
+    }
+
     bridge.chat_files_selected.connect(payloadText => {
       try {
         const payload = JSON.parse(String(payloadText || "{}"));
@@ -808,14 +814,12 @@ function connectBridge() {
     bridge.reply_ready.connect(reply => {
       addMessage(reply, "assistant");
       setWaiting(false);
-      stopTimer();
       refreshVisibleProjectDirectories();
     });
 
     bridge.error_ready.connect(error => {
       addMessage("Hata: " + error, "assistant");
       setWaiting(false);
-      stopTimer();
     });
 
     statusNote.textContent = "Gakko AI";
@@ -838,6 +842,21 @@ function setSidebarOpen(opened) {
     closeProjectMenu();
   }
 }
+
+resetContextButton.addEventListener("click", () => {
+  if (waiting) {
+    return;
+  }
+
+  if (!bridge || typeof bridge.reset_qwen_context !== "function") {
+    statusNote.textContent = "Sıfırlama bağlantısı henüz hazır değil";
+    return;
+  }
+
+  remainingDisplay.textContent = "Kalan …";
+  statusNote.textContent = "Bağlam sıfırlanıyor...";
+  bridge.reset_qwen_context();
+});
 
 sidebarToggle.addEventListener("click", () => {
   setSidebarOpen(!appShell.classList.contains("sidebar-open"));
@@ -992,7 +1011,6 @@ form.addEventListener("submit", event => {
   renderAttachmentStrip();
   resize();
   setWaiting(true);
-  startTimer();
 
   if (attachments.length > 0 && typeof bridge.send_message_with_attachments === "function") {
     bridge.send_message_with_attachments(text, JSON.stringify(attachments));
