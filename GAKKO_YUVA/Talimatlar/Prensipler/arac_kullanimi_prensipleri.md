@@ -31,4 +31,4 @@ Geri dönüşü zor veya kullanıcı verisini etkileyen işlemlerde uygulamadan 
 
 Tool çıktısı otomatik olarak doğru kabul edilmez; görevin beklenen sonucu ile karşılaştırılır.
 
-Tool başarılı görünse bile beklenen sonuç oluşmamışsa görev tamamlanmış kabul
+Tool başarılı görünse bile beklenen sonuç oluşmamışsa görev tamamlanmış kabul edilmez.
