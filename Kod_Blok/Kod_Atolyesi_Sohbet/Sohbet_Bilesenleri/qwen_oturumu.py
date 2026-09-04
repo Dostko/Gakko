@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import queue
 import threading
+import time
 from pathlib import Path
 
 from ollama import Client
@@ -226,10 +227,70 @@ class QwenSession(QThread):
         except Exception:
             return
 
+    def _create_measurement_totals(self):
+        return {
+            "total_duration": 0,
+            "load_duration": 0,
+            "prompt_eval_count": 0,
+            "prompt_eval_duration": 0,
+            "eval_count": 0,
+            "eval_duration": 0,
+        }
+
+    def _add_response_measurement(self, totals, response):
+        for metric_name in totals:
+            try:
+                value = getattr(response, metric_name, 0) or 0
+                totals[metric_name] += int(value)
+            except (TypeError, ValueError):
+                continue
+
+    def _print_measurement(self, started_at, totals, rounds):
+        elapsed_seconds = time.perf_counter() - started_at
+
+        model_seconds = (
+            totals["total_duration"] / 1_000_000_000
+        )
+        load_seconds = (
+            totals["load_duration"] / 1_000_000_000
+        )
+        prompt_seconds = (
+            totals["prompt_eval_duration"] / 1_000_000_000
+        )
+        eval_seconds = (
+            totals["eval_duration"] / 1_000_000_000
+        )
+
+        prompt_tokens = totals["prompt_eval_count"]
+        eval_tokens = totals["eval_count"]
+
+        if eval_seconds > 0:
+            tokens_per_second = eval_tokens / eval_seconds
+        else:
+            tokens_per_second = 0.0
+
+        print(
+            "[QWEN ÖLÇÜM] "
+            f"toplam={elapsed_seconds:.2f} sn | "
+            f"model={model_seconds:.2f} sn | "
+            f"yükleme={load_seconds:.2f} sn | "
+            f"giriş={prompt_seconds:.2f} sn / "
+            f"{prompt_tokens} tok | "
+            f"üretim={eval_seconds:.2f} sn / "
+            f"{eval_tokens} tok / "
+            f"{tokens_per_second:.1f} tok/sn | "
+            f"tur={rounds}",
+            flush=True,
+        )
+
     def _chat_with_tools(self, user_text):
         messages = self._messages_for_prompt(user_text)
         tool = self._tool_definition()
         last_response = None
+
+        started_at = time.perf_counter()
+        rounds = 0
+        totals = self._create_measurement_totals()
 
         for _ in range(MAX_TOOL_ROUNDS):
             if self._stopping:
@@ -242,7 +303,14 @@ class QwenSession(QThread):
                 stream=False,
                 options={"num_ctx": OLLAMA_CONTEXT_SIZE},
             )
+
             last_response = response
+            rounds += 1
+
+            self._add_response_measurement(
+                totals,
+                response,
+            )
 
             assistant_message = response.message
             messages.append(assistant_message)
@@ -251,21 +319,44 @@ class QwenSession(QThread):
 
             if not tool_calls:
                 self._emit_context_remaining(response)
-                return (assistant_message.content or "").strip()
+
+                self._print_measurement(
+                    started_at,
+                    totals,
+                    rounds,
+                )
+
+                return (
+                    assistant_message.content or ""
+                ).strip()
 
             for tool_call in tool_calls:
                 if self._stopping:
                     return None
 
                 tool_name = tool_call.function.name
-                arguments = tool_call.function.arguments or {}
+                arguments = (
+                    tool_call.function.arguments or {}
+                )
 
                 if tool_name != "DOSYA_OKU":
-                    result = f"[TOOL HATA] Bilinmeyen araç: {tool_name}"
+                    result = (
+                        "[TOOL HATA] Bilinmeyen araç: "
+                        f"{tool_name}"
+                    )
                 else:
-                    requested_path = str(arguments.get("path", ""))
-                    print(f"[QWEN DOSYA İSTEDİ] {requested_path}")
-                    result = self.DOSYA_OKU(requested_path)
+                    requested_path = str(
+                        arguments.get("path", "")
+                    )
+
+                    print(
+                        f"[QWEN DOSYA İSTEDİ] "
+                        f"{requested_path}"
+                    )
+
+                    result = self.DOSYA_OKU(
+                        requested_path
+                    )
 
                 messages.append(
                     {
@@ -276,10 +367,19 @@ class QwenSession(QThread):
                 )
 
         if last_response is not None:
-            self._emit_context_remaining(last_response)
+            self._emit_context_remaining(
+                last_response
+            )
+
+        self._print_measurement(
+            started_at,
+            totals,
+            rounds,
+        )
 
         raise RuntimeError(
-            f"Qwen {MAX_TOOL_ROUNDS} araç turu içinde nihai cevap üretmedi."
+            f"Qwen {MAX_TOOL_ROUNDS} araç turu içinde "
+            "nihai cevap üretmedi."
         )
 
     def run(self):
@@ -290,7 +390,9 @@ class QwenSession(QThread):
         try:
             while not self._stopping:
                 try:
-                    item = self._prompt_queue.get(timeout=0.1)
+                    item = self._prompt_queue.get(
+                        timeout=0.1
+                    )
                 except queue.Empty:
                     continue
 
@@ -300,16 +402,24 @@ class QwenSession(QThread):
                 user_text = str(item)
 
                 try:
-                    reply = self._chat_with_tools(user_text)
+                    reply = self._chat_with_tools(
+                        user_text
+                    )
                 except Exception as error:
                     if not self._stopping:
-                        self.error_ready.emit(str(error))
+                        self.error_ready.emit(
+                            str(error)
+                        )
                     continue
 
                 if self._stopping or reply is None:
                     break
 
-                self._remember_exchange(user_text, reply)
+                self._remember_exchange(
+                    user_text,
+                    reply,
+                )
+
                 self.reply_ready.emit(reply)
 
         finally:

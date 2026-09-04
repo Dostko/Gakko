@@ -2,7 +2,7 @@
 
 Bu dosya GAKKO_YUVA içindeki ana talimat girişidir.
 
-@GAKKO_YUVA/Talimatlar/Prensipler/Fihrist/PRENSIPLER_FIHRISTI.md
+@GAKKO_YUVA/Talimatlar/GAKKO_FIHRIST_1.md
 
 Görevle ilgili prensibi Fihrist üzerinden bul, ilgili MD dosyasını oku ve kararını bu kaynaklara göre ver.
 

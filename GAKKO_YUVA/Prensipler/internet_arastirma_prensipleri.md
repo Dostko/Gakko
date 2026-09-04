@@ -118,4 +118,4 @@ dis kaynak katmanidir.
 
 Bu prensip mevcut durumu cozmek icin yeterliyse goreve devam et.
 
-Yeterli degilse Fihrist/PRENSIPLER_FIHRISTI.md dosyasina don ve yeni duruma uygun prensibi sec.
+Yeterli degilse GAKKO_YUVA/Talimatlar/GAKKO_FIHRIST_1.md dosyasina don ve yeni duruma uygun prensibi sec.

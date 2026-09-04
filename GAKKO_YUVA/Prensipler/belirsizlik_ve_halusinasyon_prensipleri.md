@@ -33,4 +33,4 @@ Hata yapıldığı fark edilirse önce hatanın kaynağı bulunur; yeni varsayı
 
 Bu prensip mevcut durumu çözmek için yeterliyse göreve devam et.
 
-Yeterli değilse Fihrist/PRENSIPLER_FIHRISTI.md dosyasına dön ve yeni duruma uygun prensibi seç.
+Yeterli değilse GAKKO_YUVA/Talimatlar/GAKKO_FIHRIST_1.md dosyasına dön ve yeni duruma uygun prensibi seç.
