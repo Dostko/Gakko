@@ -1,41 +1,25 @@
-import json
-import os
-import shutil
-import subprocess
-import sys
-import tempfile
+from __future__ import annotations
+
+import queue
 import threading
-import time
-import uuid
 from pathlib import Path
 
+from ollama import Client
 from PySide6.QtCore import QThread, Signal
 
-from Sohbet_Bilesenleri.proje_dosya_yardimcilari import PROJECT_ROOT, YUVA_ROOT
 
+OLLAMA_HOST = "http://127.0.0.1:11434"
+OLLAMA_MODEL = "gakko-qwen38-64k-gpu:latest"
+OLLAMA_CONTEXT_SIZE = 65536
 
-def build_qwen_args(qwen_exe, session_id, events_file, input_file, project_root=None):
-    args = [
-        str(qwen_exe),
-        "--session-id",
-        str(session_id),
-        "--include-directories",
-        str(YUVA_ROOT),
-    ]
+PROJECT_ROOT = Path(r"D:\Gakko")
+QWEN_MD_PATH = PROJECT_ROOT / ".qwen" / "QWEN.md"
 
-    if project_root is not None:
-        args.extend(["--include-directories", str(project_root)])
+MAX_FILE_BYTES = 2 * 1024 * 1024
+MAX_TOOL_ROUNDS = 12
 
-    args.extend([
-        "--approval-mode",
-        "auto",
-        "--json-file",
-        str(events_file),
-        "--input-file",
-        str(input_file),
-    ])
+_STOP = object()
 
-    return args
 
 class QwenSession(QThread):
     ready = Signal()
@@ -45,313 +29,293 @@ class QwenSession(QThread):
 
     def __init__(self, active_project_root=None):
         super().__init__()
-        self.session_id = str(uuid.uuid4())
+
         self.active_project_root = (
-            Path(active_project_root)
+            Path(active_project_root).resolve()
             if active_project_root is not None
             else None
         )
-        self.process = None
-        self._stopping = False
-        self._ready = False
-        self._input_lock = threading.Lock()
-        self._last_assistant_text = ""
-        self._pty_output_tail = ""
 
-        self.runtime_dir = Path(tempfile.mkdtemp(prefix="gakko-qwen-"))
-        self.events_file = self.runtime_dir / "events.jsonl"
-        self.input_file = self.runtime_dir / "input.jsonl"
-        self.status_file = self.runtime_dir / "status.json"
-        self._status_mtime_ns = 0
-        self._last_context_remaining = None
-        self.events_file.write_text("", encoding="utf-8")
-        self.input_file.write_text("", encoding="utf-8")
+        self._ready = False
+        self._stopping = False
+        self._prompt_queue = queue.Queue()
+        self._messages_lock = threading.Lock()
+        self._messages = []
+
+        self.client = Client(host=OLLAMA_HOST)
+
+        self._system_message = {
+            "role": "system",
+            "content": self._load_startup_context(),
+        }
 
     @property
     def is_ready(self):
         return self._ready
 
-    def _find_qwen(self):
-        qwen_exe = shutil.which("qwen") or shutil.which("qwen.cmd")
-        if not qwen_exe:
-            raise RuntimeError("Qwen Code bulunamadı.")
-        return qwen_exe
+    def _load_startup_context(self):
+        if not QWEN_MD_PATH.exists() or not QWEN_MD_PATH.is_file():
+            raise RuntimeError(f"QWEN.md bulunamadı: {QWEN_MD_PATH}")
 
-    def _start_qwen(self):
-        if sys.platform != "win32":
-            raise RuntimeError("Bu Gakko terminal köprüsü Windows için hazırlanmıştır.")
+        text = QWEN_MD_PATH.read_text(
+            encoding="utf-8",
+            errors="replace",
+        ).strip()
 
+        if not text:
+            raise RuntimeError(f"QWEN.md boş: {QWEN_MD_PATH}")
+
+        return (
+            "Sen GAKKO'nun ana Qwen modelisin.\n"
+            "Aşağıdaki QWEN.md yalnız başlangıç kapısıdır.\n"
+            "Bir dosyanın içeriğine ihtiyaç duyduğunda DOSYA_OKU aracını çağır.\n"
+            "Hangi dosyanın gerekli olduğuna yalnız sen karar ver.\n"
+            "Python dosya, fihrist, prensip veya sonraki kaynak seçmez.\n"
+            "Python yalnız senin açıkça istediğin dosyayı diskten okur ve "
+            "içeriğini sana geri verir.\n\n"
+            "===== QWEN.md =====\n"
+            f"{text}\n"
+            "===== /QWEN.md ====="
+        )
+
+    def _resolve_requested_path(self, path):
+        raw = str(path or "").strip().strip('"').strip("'")
+        if not raw:
+            raise ValueError("Boş dosya yolu.")
+
+        candidate = Path(raw)
+
+        if not candidate.is_absolute():
+            candidate = PROJECT_ROOT / candidate
+
+        return candidate.resolve()
+
+    def DOSYA_OKU(self, path):
+        """
+        Qwen'in açıkça istediği dosyanın ham metin içeriğini döndürür.
+
+        Bu fonksiyon dosya seçmez, fihrist takip etmez, prensip eşleştirmez
+        ve bir sonraki kaynağa karar vermez.
+        """
         try:
-            from winpty import PtyProcess
-        except ImportError as error:
-            raise RuntimeError(
-                "Kalıcı Qwen terminal köprüsü için pywinpty bulunamadı."
-            ) from error
+            file_path = self._resolve_requested_path(path)
 
-        qwen_exe = self._find_qwen()
-        qwen_args = build_qwen_args(
-            qwen_exe,
-            self.session_id,
-            self.events_file,
-            self.input_file,
-            self.active_project_root,
-        )
+            if not file_path.exists():
+                return f"[DOSYA_OKU HATA] Dosya bulunamadı: {file_path}"
 
-        if qwen_exe.lower().endswith((".cmd", ".bat")):
-            inner = subprocess.list2cmdline(qwen_args)
-            command = [
-                os.environ.get("COMSPEC", "cmd.exe"),
-                "/d",
-                "/s",
-                "/c",
-                inner,
-            ]
-        else:
-            command = qwen_args
+            if not file_path.is_file():
+                return f"[DOSYA_OKU HATA] Yol bir dosya değil: {file_path}"
 
-        env = os.environ.copy()
-        env.setdefault("TERM", "xterm-256color")
-        env["GAKKO_QWEN_STATUS_FILE"] = str(self.status_file)
+            size = file_path.stat().st_size
+            if size > MAX_FILE_BYTES:
+                return (
+                    "[DOSYA_OKU HATA] Dosya güvenlik sınırından büyük: "
+                    f"{size} bayt > {MAX_FILE_BYTES} bayt"
+                )
 
-        self.process = PtyProcess.spawn(
-            command,
-            cwd=str(PROJECT_ROOT),
-            env=env,
-            dimensions=(40, 120),
-        )
+            raw = file_path.read_bytes()
 
-        threading.Thread(
-            target=self._drain_pty_output,
-            name="gakko-qwen-pty-drain",
-            daemon=True,
-        ).start()
+            if b"\x00" in raw[:8192]:
+                return (
+                    "[DOSYA_OKU HATA] Dosya metin olarak okunamıyor: "
+                    f"{file_path}"
+                )
 
-    def _drain_pty_output(self):
-        process = self.process
-        if process is None:
-            return
-
-        while not self._stopping:
-            try:
-                chunk = process.read(4096)
-            except EOFError:
-                break
-            except Exception:
-                if not self._stopping:
-                    time.sleep(0.05)
-                continue
-
-            if not chunk:
+            for encoding in ("utf-8-sig", "utf-8", "cp1254"):
                 try:
-                    if not process.isalive():
-                        break
-                except Exception:
-                    break
-                time.sleep(0.05)
-                continue
+                    return raw.decode(encoding)
+                except UnicodeDecodeError:
+                    continue
 
-            self._pty_output_tail = (self._pty_output_tail + str(chunk))[-4000:]
+            return (
+                "[DOSYA_OKU HATA] Dosya metin olarak çözümlenemedi: "
+                f"{file_path}"
+            )
+
+        except Exception as error:
+            return f"[DOSYA_OKU HATA] {type(error).__name__}: {error}"
+
+    def _tool_definition(self):
+        return {
+            "type": "function",
+            "function": {
+                "name": "DOSYA_OKU",
+                "description": (
+                    "İhtiyaç duyduğun metin dosyasını oku. "
+                    "Hangi dosyanın gerekli olduğuna yalnız sen karar verirsin. "
+                    "Python dosya, fihrist veya prensip seçmez."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": (
+                                "Okunacak dosyanın tam yolu veya "
+                                "D:\\Gakko köküne göre göreli yolu."
+                            ),
+                        }
+                    },
+                },
+            },
+        }
 
     def submit_prompt(self, text):
         text = str(text or "").strip()
+
         if not text:
             self.error_ready.emit("Boş mesaj gönderilemez.")
             return False
 
         if not self._ready:
-            self.error_ready.emit("Qwen Code henüz hazır değil.")
+            self.error_ready.emit("Qwen henüz hazır değil.")
             return False
 
-        command = {
-            "type": "submit",
-            "text": text,
-        }
-        line = json.dumps(command, ensure_ascii=False) + "\n"
-
-        try:
-            with self._input_lock:
-                with self.input_file.open("a", encoding="utf-8", newline="") as handle:
-                    handle.write(line)
-                    handle.flush()
-            return True
-        except Exception as error:
-            self.error_ready.emit(f"Qwen Code mesajı gönderilemedi: {error}")
-            return False
+        self._prompt_queue.put(text)
+        return True
 
     def reset_context(self):
-        self._last_assistant_text = ""
-        return self.submit_prompt("/new")
+        if not self._ready:
+            self.error_ready.emit("Qwen henüz hazır değil.")
+            return False
 
-    def _extract_assistant_text(self, event):
-        if not isinstance(event, dict) or event.get("type") != "assistant":
-            return ""
+        with self._messages_lock:
+            self._messages.clear()
 
-        message = event.get("message") or {}
-        content = message.get("content") or []
-        parts = []
+        self.context_remaining.emit(100.0)
+        return True
 
-        for item in content:
-            if (
-                isinstance(item, dict)
-                and item.get("type") == "text"
-                and isinstance(item.get("text"), str)
-            ):
-                text = item["text"].strip()
-                if text:
-                    parts.append(text)
+    def _messages_for_prompt(self, text):
+        with self._messages_lock:
+            return [
+                self._system_message,
+                *self._messages,
+                {"role": "user", "content": text},
+            ]
 
-        return "\n".join(parts).strip()
+    def _remember_exchange(self, user_text, assistant_text):
+        with self._messages_lock:
+            self._messages.append(
+                {"role": "user", "content": user_text}
+            )
+            self._messages.append(
+                {"role": "assistant", "content": assistant_text}
+            )
 
-    def _handle_event(self, event):
-        if not isinstance(event, dict):
-            return
-
-        if event.get("type") == "system" and event.get("subtype") == "session_start":
-            if not self._ready:
-                self._ready = True
-                self.ready.emit()
-            return
-
-        assistant_text = self._extract_assistant_text(event)
-        if assistant_text:
-            self._last_assistant_text = assistant_text
-            return
-
-        if event.get("type") == "stream_event":
-            stream_event = event.get("event") or {}
-
-            if stream_event.get("type") == "message_stop":
-                reply = self._last_assistant_text.strip()
-                self._last_assistant_text = ""
-
-                if reply:
-                    self.reply_ready.emit(reply)
-                else:
-                    return
-
-    def _read_context_remaining(self):
+    def _emit_context_remaining(self, response):
         try:
-            if not self.status_file.exists():
-                return
-
-            modified = self.status_file.stat().st_mtime_ns
-            if modified == self._status_mtime_ns:
-                return
-
-            payload = json.loads(
-                self.status_file.read_text(encoding="utf-8", errors="replace")
+            prompt_tokens = int(
+                getattr(response, "prompt_eval_count", 0) or 0
             )
-            remaining = (payload.get("context_window") or {}).get(
-                "remaining_percentage"
+            eval_tokens = int(
+                getattr(response, "eval_count", 0) or 0
             )
-            if remaining is None:
-                return
 
-            value = max(0.0, min(100.0, float(remaining)))
-            self._status_mtime_ns = modified
+            used = max(0, prompt_tokens + eval_tokens)
+            used = min(used, OLLAMA_CONTEXT_SIZE)
 
-            if (
-                self._last_context_remaining is None
-                or abs(value - self._last_context_remaining) >= 0.05
-            ):
-                self._last_context_remaining = value
-                self.context_remaining.emit(value)
-        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            remaining = 100.0 * (
+                1.0 - (used / OLLAMA_CONTEXT_SIZE)
+            )
+
+            self.context_remaining.emit(
+                max(0.0, min(100.0, remaining))
+            )
+
+        except Exception:
             return
 
-    def _tail_events(self):
-        position = 0
-        pending = ""
+    def _chat_with_tools(self, user_text):
+        messages = self._messages_for_prompt(user_text)
+        tool = self._tool_definition()
+        last_response = None
 
-        while not self._stopping:
-            try:
-                if not self.events_file.exists():
-                    time.sleep(0.05)
-                    continue
+        for _ in range(MAX_TOOL_ROUNDS):
+            if self._stopping:
+                return None
 
-                with self.events_file.open("r", encoding="utf-8", errors="replace") as handle:
-                    handle.seek(position)
-                    chunk = handle.read()
-                    position = handle.tell()
+            response = self.client.chat(
+                model=OLLAMA_MODEL,
+                messages=messages,
+                tools=[tool],
+                stream=False,
+                options={"num_ctx": OLLAMA_CONTEXT_SIZE},
+            )
+            last_response = response
 
-                if chunk:
-                    pending += chunk
-                    lines = pending.split("\n")
-                    pending = lines.pop()
+            assistant_message = response.message
+            messages.append(assistant_message)
 
-                    for raw_line in lines:
-                        raw_line = raw_line.strip()
-                        if not raw_line:
-                            continue
-                        try:
-                            event = json.loads(raw_line)
-                        except json.JSONDecodeError:
-                            continue
-                        self._handle_event(event)
+            tool_calls = assistant_message.tool_calls or []
 
-                self._read_context_remaining()
+            if not tool_calls:
+                self._emit_context_remaining(response)
+                return (assistant_message.content or "").strip()
 
-                process = self.process
-                if process is not None:
-                    try:
-                        alive = process.isalive()
-                    except Exception:
-                        alive = False
+            for tool_call in tool_calls:
+                if self._stopping:
+                    return None
 
-                    if not alive:
-                        if not self._stopping:
-                            detail = self._pty_output_tail.strip()
-                            self.error_ready.emit(
-                                "Qwen Code terminal oturumu kapandı."
-                                + (f"\n{detail[-1200:]}" if detail else "")
-                            )
-                        break
+                tool_name = tool_call.function.name
+                arguments = tool_call.function.arguments or {}
 
-                time.sleep(0.05)
+                if tool_name != "DOSYA_OKU":
+                    result = f"[TOOL HATA] Bilinmeyen araç: {tool_name}"
+                else:
+                    requested_path = str(arguments.get("path", ""))
+                    print(f"[QWEN DOSYA İSTEDİ] {requested_path}")
+                    result = self.DOSYA_OKU(requested_path)
 
-            except Exception as error:
-                if not self._stopping:
-                    self.error_ready.emit(f"Qwen Code olay akışı okunamadı: {error}")
-                time.sleep(0.1)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_name": tool_name,
+                        "content": result,
+                    }
+                )
+
+        if last_response is not None:
+            self._emit_context_remaining(last_response)
+
+        raise RuntimeError(
+            f"Qwen {MAX_TOOL_ROUNDS} araç turu içinde nihai cevap üretmedi."
+        )
 
     def run(self):
+        self._ready = True
+        self.context_remaining.emit(100.0)
+        self.ready.emit()
+
         try:
-            self._start_qwen()
-            self._tail_events()
-        except Exception as error:
-            if not self._stopping:
-                self.error_ready.emit(str(error))
+            while not self._stopping:
+                try:
+                    item = self._prompt_queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+
+                if item is _STOP:
+                    break
+
+                user_text = str(item)
+
+                try:
+                    reply = self._chat_with_tools(user_text)
+                except Exception as error:
+                    if not self._stopping:
+                        self.error_ready.emit(str(error))
+                    continue
+
+                if self._stopping or reply is None:
+                    break
+
+                self._remember_exchange(user_text, reply)
+                self.reply_ready.emit(reply)
+
         finally:
-            self._terminate_process()
-            self._cleanup_runtime_files()
+            self._ready = False
 
     def stop(self):
         self._stopping = True
         self._ready = False
-        self._terminate_process()
-
-    def _terminate_process(self):
-        process = self.process
-        self.process = None
-
-        if process is None:
-            return
-
-        try:
-            if process.isalive():
-                process.terminate(force=True)
-        except Exception:
-            try:
-                process.close(force=True)
-            except Exception:
-                pass
-
-    def _cleanup_runtime_files(self):
-        try:
-            for path in (self.events_file, self.input_file, self.status_file):
-                if path.exists():
-                    path.unlink()
-            if self.runtime_dir.exists():
-                self.runtime_dir.rmdir()
-        except Exception:
-            pass
+        self._prompt_queue.put(_STOP)
