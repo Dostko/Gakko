@@ -79,27 +79,33 @@ QWEN.md
 
 ↓
 
-GAKKO.md
+GAKKO.md — Ana Fihrist / Harita
 
 ↓
 
-GAKKO_FIHRIST_1.md
+Göreve göre doğrudan ilgili hedef
+
+- ilgili Fihrist
+- ilgili Prensip
+- ilgili Bilgi
+- ilgili Bellek
+- ilgili Calisma_Yontemi
 
 ↓
 
-gerekirse GAKKO_FIHRIST_2.md
+Qwen ilgili kaynağı okur, yorumlar ve karar verir
 
 ↓
 
-ilgili kaynak
+Gerekirse yeni bir kaynak için GAKKO.md ana haritasına döner
 
 ↓
 
-Qwen okur, yorumlar ve karar verir
+İlgili diğer kaynağa doğrudan yönelir
 
 ↓
 
-cevap
+Görev tamamlandığında cevap üretir
 
 ↓
 

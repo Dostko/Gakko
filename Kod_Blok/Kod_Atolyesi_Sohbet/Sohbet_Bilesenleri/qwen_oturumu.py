@@ -11,6 +11,12 @@ from pathlib import Path
 from ollama import Client
 from PySide6.QtCore import QThread, Signal
 
+from .internet_giris import (
+    INTERNET_TOOL_NAMES,
+    INTERNET_TOOLS,
+    internet_araci_calistir,
+)
+
 
 OLLAMA_HOST = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "gakko-qwen38-64k-gpu:latest"
@@ -811,6 +817,7 @@ class QwenSession(QThread):
     def _chat_with_tools(self, user_text):
         messages = self._messages_for_prompt(user_text)
         tool = self._tool_definition()
+        tools = [tool, *INTERNET_TOOLS]
         last_response = None
 
         started_at = time.perf_counter()
@@ -824,7 +831,7 @@ class QwenSession(QThread):
             response = self.client.chat(
                 model=OLLAMA_MODEL,
                 messages=messages,
-                tools=[tool],
+                tools=tools,
                 stream=False,
                 options={"num_ctx": OLLAMA_CONTEXT_SIZE},
             )
@@ -864,12 +871,7 @@ class QwenSession(QThread):
                     tool_call.function.arguments or {}
                 )
 
-                if tool_name != "DOSYA_OKU":
-                    result = (
-                        "[TOOL HATA] Bilinmeyen araç: "
-                        f"{tool_name}"
-                    )
-                else:
+                if tool_name == "DOSYA_OKU":
                     requested_path = str(
                         arguments.get("path", "")
                     )
@@ -881,6 +883,16 @@ class QwenSession(QThread):
 
                     result = self.DOSYA_OKU(
                         requested_path
+                    )
+                elif tool_name in INTERNET_TOOL_NAMES:
+                    result = internet_araci_calistir(
+                        tool_name,
+                        arguments,
+                    )
+                else:
+                    result = (
+                        "[TOOL HATA] Bilinmeyen araç: "
+                        f"{tool_name}"
                     )
 
                 messages.append(
