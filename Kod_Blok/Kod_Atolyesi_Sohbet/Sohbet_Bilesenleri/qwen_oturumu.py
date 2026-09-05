@@ -13,6 +13,15 @@ OLLAMA_HOST = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "gakko-qwen38-64k-gpu:latest"
 OLLAMA_CONTEXT_SIZE = 65536
 
+VISION_MODEL = "qwen3-vl:8b"
+VISION_CONTEXT_SIZE = 32768
+IMAGE_EXTENSIONS = frozenset({
+    ".jpeg",
+    ".jpg",
+    ".png",
+    ".webp",
+})
+
 PROJECT_ROOT = Path(r"D:\Gakko")
 QWEN_MD_PATH = PROJECT_ROOT / ".qwen" / "QWEN.md"
 
@@ -135,6 +144,151 @@ class QwenSession(QThread):
 
         except Exception as error:
             return f"[DOSYA_OKU HATA] {type(error).__name__}: {error}"
+
+    def _image_path_from_attachment_line(self, line):
+        stripped = str(line or "").strip()
+
+        # + dosya ekleme akışı satırı "- @D:/dosya.png" biçiminde üretir.
+        # Doğrudan "@D:/dosya.png" biçimini de destekle.
+        if stripped.startswith("-"):
+            stripped = stripped[1:].lstrip()
+
+        if not stripped.startswith("@"):
+            return None
+
+        raw_path = stripped[1:].strip().strip('"').strip("'")
+        if not raw_path:
+            return None
+
+        # Ek dosya referanslarında boşluklar "\ " olarak kaçırılır.
+        raw_path = raw_path.replace("\\ ", " ")
+
+        try:
+            file_path = self._resolve_requested_path(raw_path)
+        except Exception:
+            return None
+
+        if file_path.suffix.lower() not in IMAGE_EXTENSIONS:
+            return None
+
+        return file_path
+
+    def _analyze_image(self, file_path, user_request):
+        try:
+            if not file_path.exists():
+                return f"[GÖRSEL ANALİZ HATA] Dosya bulunamadı: {file_path}"
+
+            if not file_path.is_file():
+                return f"[GÖRSEL ANALİZ HATA] Yol bir dosya değil: {file_path}"
+
+            if self._stopping:
+                return "[GÖRSEL ANALİZ DURDU]"
+
+            print(
+                f"[QWEN GÖRSEL İSTEDİ] {file_path}",
+                flush=True,
+            )
+
+            vision_prompt = (
+                "Bu görseli GAKKO'nun ana modeli için incele.\n"
+                "Kullanıcının isteğini dikkate al.\n"
+                "Yalnız görselden doğrulanabilen bilgileri aktar.\n"
+                "Görünen yazıları mümkün olduğunca doğru oku.\n"
+                "Nihai kullanıcı cevabını verme; yalnız görsel bağlamı üret.\n\n"
+                "Kullanıcı isteği:\n"
+                f"{user_request}"
+            )
+
+            response = self.client.chat(
+                model=VISION_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": vision_prompt,
+                        "images": [str(file_path)],
+                    }
+                ],
+                stream=False,
+                options={"num_ctx": VISION_CONTEXT_SIZE},
+            )
+
+            content = (
+                response.message.content or ""
+            ).strip()
+
+            if not content:
+                return (
+                    "[GÖRSEL ANALİZ HATA] "
+                    f"{VISION_MODEL} boş çıktı üretti: {file_path}"
+                )
+
+            return content
+
+        except Exception as error:
+            return (
+                "[GÖRSEL ANALİZ HATA] "
+                f"{type(error).__name__}: {error}"
+            )
+
+    def _prepare_user_text(self, text):
+        original_text = str(text or "")
+        kept_lines = []
+        image_paths = []
+        seen_paths = set()
+
+        for line in original_text.splitlines():
+            image_path = self._image_path_from_attachment_line(line)
+
+            if image_path is None:
+                kept_lines.append(line)
+                continue
+
+            path_key = str(image_path).casefold()
+
+            if path_key not in seen_paths:
+                seen_paths.add(path_key)
+                image_paths.append(image_path)
+
+        if not image_paths:
+            return original_text
+
+        user_request = "\n".join(kept_lines).strip()
+        if not user_request:
+            user_request = "Ekli görseli incele."
+
+        vision_sections = []
+
+        for image_path in image_paths:
+            if self._stopping:
+                break
+
+            analysis = self._analyze_image(
+                image_path,
+                user_request,
+            )
+
+            vision_sections.append(
+                "----- GÖRSEL -----\n"
+                f"Dosya: {image_path}\n"
+                f"{analysis}\n"
+                "----- /GÖRSEL -----"
+            )
+
+        if not vision_sections:
+            return user_request
+
+        vision_context = "\n\n".join(vision_sections)
+
+        return (
+            f"{user_request}\n\n"
+            "===== YARDIMCI GÖRSEL MODEL BAĞLAMI =====\n"
+            f"Kaynak model: {VISION_MODEL}\n"
+            "Aşağıdaki görsel içeriği yardımcı model tarafından okunmuştur.\n"
+            "Nihai cevabı ana model olarak sen üret.\n"
+            "Bu görseller için DOSYA_OKU aracını çağırma.\n\n"
+            f"{vision_context}\n"
+            "===== /YARDIMCI GÖRSEL MODEL BAĞLAMI ====="
+        )
 
     def _tool_definition(self):
         return {
@@ -400,10 +554,13 @@ class QwenSession(QThread):
                     break
 
                 user_text = str(item)
+                prepared_user_text = self._prepare_user_text(
+                    user_text
+                )
 
                 try:
                     reply = self._chat_with_tools(
-                        user_text
+                        prepared_user_text
                     )
                 except Exception as error:
                     if not self._stopping:
@@ -416,7 +573,7 @@ class QwenSession(QThread):
                     break
 
                 self._remember_exchange(
-                    user_text,
+                    prepared_user_text,
                     reply,
                 )
 
