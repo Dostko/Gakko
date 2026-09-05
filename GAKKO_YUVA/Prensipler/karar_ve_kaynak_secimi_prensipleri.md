@@ -120,8 +120,3 @@ dogru haritayi kullanarak dogru kaynaga ulasmak,
 yalniz gerekli bilgiyi almak
 ve yeterli kanitla karar vermektir.
 
-## Sonraki Yonlendirme
-
-Bu prensip mevcut durumu cozmek icin yeterliyse goreve devam et.
-
-Yeterli degilse GAKKO_YUVA/Talimatlar/GAKKO_FIHRIST_1.md dosyasina don ve yeni duruma uygun prensibi sec.
