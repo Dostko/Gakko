@@ -97,7 +97,7 @@ statusNote.style.justifySelf = "center";
 
 let bridge = null;
 let waiting = false;
-let sidebarOpenWidth = 180;
+let sidebarOpenWidth = 240;
 let resizingSidebar = false;
 let currentView = "chat";
 let selectedHistoryId = null;
