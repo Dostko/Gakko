@@ -22,6 +22,20 @@ from Sohbet_Bilesenleri.sohbet_gecmisi import (
 )
 
 
+CHAT_IMAGE_EXTENSIONS = frozenset({
+    ".bmp",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".png",
+    ".svg",
+    ".tif",
+    ".tiff",
+    ".webp",
+})
+
+
 class ChatBridge(QObject):
     reply_ready = Signal(str)
     error_ready = Signal(str)
@@ -197,6 +211,33 @@ class ChatBridge(QObject):
         self.file_browser_root = selected_root
         self.file_browser_project_selected.emit(str(selected_root))
 
+    def _emit_chat_files(self, selected_paths):
+        files = []
+
+        for selected_path in selected_paths:
+            path = Path(str(selected_path or "").strip())
+            if not path.exists() or not path.is_file():
+                continue
+
+            files.append(
+                {
+                    "path": str(path),
+                    "name": path.name,
+                    "type": (
+                        "image"
+                        if path.suffix.lower() in CHAT_IMAGE_EXTENSIONS
+                        else "file"
+                    ),
+                }
+            )
+
+        if not files:
+            return
+
+        self.chat_files_selected.emit(
+            json.dumps({"files": files}, ensure_ascii=False)
+        )
+
     @Slot()
     def select_chat_files(self):
         if self._busy:
@@ -212,29 +253,27 @@ class ChatBridge(QObject):
             "Tüm dosyalar (*.*)",
         )
 
-        files = []
-        image_extensions = {
-            ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp",
-        }
+        self._emit_chat_files(selected_paths)
 
-        for selected_path in selected_paths:
-            path = Path(str(selected_path or "").strip())
-            if not path.exists() or not path.is_file():
-                continue
-            files.append(
-                {
-                    "path": str(path),
-                    "name": path.name,
-                    "type": "image" if path.suffix.lower() in image_extensions else "file",
-                }
+    @Slot(str)
+    def add_chat_files(self, paths_json):
+        if self._busy:
+            self.error_ready.emit(
+                "Qwen Code şu anda başka bir mesaja cevap veriyor."
             )
-
-        if not files:
             return
 
-        self.chat_files_selected.emit(
-            json.dumps({"files": files}, ensure_ascii=False)
-        )
+        try:
+            selected_paths = json.loads(str(paths_json or "[]"))
+        except json.JSONDecodeError:
+            self.error_ready.emit("Sürüklenen dosya listesi okunamadı.")
+            return
+
+        if not isinstance(selected_paths, list):
+            self.error_ready.emit("Sürüklenen dosya listesi geçerli değil.")
+            return
+
+        self._emit_chat_files(selected_paths[:1])
 
     @Slot()
     def start_new_project(self):

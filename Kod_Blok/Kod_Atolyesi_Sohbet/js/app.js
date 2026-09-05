@@ -23,8 +23,6 @@ const fileButton = document.getElementById("fileButton");
 const fileView = document.getElementById("fileView");
 const fileOpenProjectButton = document.getElementById("fileOpenProjectButton");
 const fileActiveProjectName = document.getElementById("fileActiveProjectName");
-const fileTreeList = document.getElementById("fileTreeList");
-const fileReaderPane = document.getElementById("fileReaderPane");
 const fileContent = document.getElementById("fileContent");
 const fileViewResizer = document.getElementById("fileViewResizer");
 
@@ -107,9 +105,6 @@ let historySearchTimer = null;
 let selectedChatFiles = [];
 const projectDirectoryCache = new Map();
 const expandedProjectDirectories = new Set();
-const fileBrowserDirectoryCache = new Map();
-const expandedFileBrowserDirectories = new Set();
-let fileBrowserProjectName = "";
 
 const SIDEBAR_MIN_WIDTH = 150;
 const SIDEBAR_MAX_WIDTH = 520;
@@ -126,16 +121,34 @@ function attachmentDisplayText(text) {
 Ekler: ${names.join(", ")}`;
 }
 
+function attachmentPreviewUrl(path) {
+  const normalized = String(path || "").trim().replace(/\\/g, "/");
+  if (!normalized) {
+    return "";
+  }
+  return encodeURI(`file:///${normalized.replace(/^\/+/, "")}`);
+}
+
+function isImageAttachment(file) {
+  if (file && file.type === "image") {
+    return true;
+  }
+  return /\.(png|jpe?g|webp|gif|bmp|svg|ico|tiff?)$/i.test(String(file?.path || ""));
+}
+
 function renderAttachmentStrip() {
   attachmentStrip.replaceChildren();
   attachmentStrip.hidden = selectedChatFiles.length === 0;
 
+  let previewShown = false;
+
   selectedChatFiles.forEach(file => {
+    const imageAttachment = isImageAttachment(file);
     const chip = document.createElement("div");
     chip.style.display = "inline-flex";
     chip.style.alignItems = "center";
     chip.style.gap = "7px";
-    chip.style.maxWidth = "280px";
+    chip.style.maxWidth = "320px";
     chip.style.minHeight = "30px";
     chip.style.padding = "0 8px 0 10px";
     chip.style.border = "1px solid #253142";
@@ -146,8 +159,29 @@ function renderAttachmentStrip() {
     chip.title = String(file.path || "");
 
     const icon = document.createElement("span");
-    icon.textContent = file.type === "image" ? "▧" : "▤";
-    icon.style.color = file.type === "image" ? "#6fb7ff" : "#aeb6c4";
+    icon.textContent = imageAttachment ? "▧" : "▤";
+    icon.style.color = imageAttachment ? "#6fb7ff" : "#aeb6c4";
+
+    if (imageAttachment && !previewShown) {
+      previewShown = true;
+      const preview = document.createElement("img");
+      preview.src = attachmentPreviewUrl(file.path);
+      preview.alt = "";
+      preview.style.width = "44px";
+      preview.style.height = "44px";
+      preview.style.objectFit = "cover";
+      preview.style.flex = "0 0 auto";
+      preview.style.borderRadius = "6px";
+      preview.style.border = "1px solid #253142";
+      chip.style.minHeight = "52px";
+      chip.style.padding = "4px 8px 4px 4px";
+      icon.hidden = true;
+      preview.addEventListener("error", () => {
+        preview.remove();
+        icon.hidden = false;
+      });
+      chip.appendChild(preview);
+    }
 
     const name = document.createElement("span");
     name.textContent = String(file.name || "dosya");
@@ -201,6 +235,12 @@ function mergeSelectedChatFiles(files) {
   selectedChatFiles = Array.from(byPath.values());
   renderAttachmentStrip();
 }
+
+window.addDroppedChatImages = files => {
+  mergeSelectedChatFiles(Array.isArray(files) ? files : []);
+  statusNote.textContent = "Görsel eklendi";
+  input.focus();
+};
 
 function clampSidebarWidth(width) {
   const viewportLimit = Math.max(SIDEBAR_MIN_WIDTH, Math.floor(window.innerWidth * 0.55));
@@ -319,227 +359,6 @@ function resetProjectTree() {
   expandedProjectDirectories.clear();
   projectTreeList.replaceChildren();
   projectTree.hidden = true;
-}
-
-function requestFileBrowserDirectory(relativePath = "") {
-  if (!bridge || typeof bridge.list_file_browser_directory !== "function") {
-    return;
-  }
-
-  bridge.list_file_browser_directory(String(relativePath || ""));
-}
-
-function requestFileBrowserFile(relativePath) {
-  if (!bridge || typeof bridge.read_file_browser_file !== "function") {
-    statusNote.textContent = "Dosya okuyucu henüz hazır değil";
-    return;
-  }
-
-  bridge.read_file_browser_file(String(relativePath || ""));
-}
-
-function renderFileBrowserFile(payload) {
-  if (!fileReaderPane) {
-    return;
-  }
-
-  const header = fileReaderPane.querySelector(".file-pane-header");
-  const oldBody = fileReaderPane.querySelector(".file-reader-body");
-  if (oldBody) {
-    oldBody.remove();
-  }
-
-  const oldEmpty = fileReaderPane.querySelector(".file-pane-empty");
-  if (oldEmpty) {
-    oldEmpty.remove();
-  }
-
-  if (header) {
-    header.textContent = `DOSYA OKUMA · ${String(payload.name || "")}`;
-  }
-
-  let body;
-
-  if (String(payload.kind || "") === "image") {
-    body = document.createElement("div");
-    body.className = "file-reader-body";
-    body.style.minHeight = "100%";
-    body.style.boxSizing = "border-box";
-    body.style.padding = "18px";
-    body.style.display = "flex";
-    body.style.alignItems = "flex-start";
-    body.style.justifyContent = "center";
-
-    const image = document.createElement("img");
-    image.src = String(payload.data_url || "");
-    image.alt = String(payload.name || "Görsel");
-    image.style.display = "block";
-    image.style.maxWidth = "100%";
-    image.style.height = "auto";
-    image.style.objectFit = "contain";
-
-    body.appendChild(image);
-  } else {
-    body = document.createElement("pre");
-    body.className = "file-reader-body";
-    body.textContent = String(payload.content || "");
-    body.style.margin = "0";
-    body.style.padding = "16px 18px 24px";
-    body.style.minHeight = "100%";
-    body.style.boxSizing = "border-box";
-    body.style.whiteSpace = "pre";
-    body.style.overflowWrap = "normal";
-    body.style.fontFamily = 'Consolas, "Courier New", monospace';
-    body.style.fontSize = "12.5px";
-    body.style.lineHeight = "1.55";
-    body.style.color = "#dce5ef";
-    body.style.tabSize = "4";
-  }
-
-  fileReaderPane.appendChild(body);
-  fileReaderPane.scrollTop = 0;
-}
-
-function resetFileBrowserReader() {
-  if (!fileReaderPane) {
-    return;
-  }
-
-  const header = fileReaderPane.querySelector(".file-pane-header");
-  if (header) {
-    header.textContent = "DOSYA OKUMA";
-  }
-
-  fileReaderPane.querySelectorAll(".file-reader-body, .file-pane-empty")
-    .forEach(node => node.remove());
-
-  const empty = document.createElement("div");
-  empty.className = "file-pane-empty";
-  empty.textContent = "Okumak için soldan bir dosya seç.";
-  fileReaderPane.appendChild(empty);
-  fileReaderPane.scrollTop = 0;
-}
-
-function createFileBrowserTreeRow(entry, depth) {
-  const row = document.createElement(entry.type === "directory" ? "button" : "div");
-  row.className = `file-tree-item ${entry.type}`;
-  row.style.paddingLeft = `${10 + depth * 16}px`;
-  row.title = entry.path;
-
-  const marker = document.createElement("span");
-  marker.className = "file-tree-marker";
-
-  if (entry.type === "directory") {
-    const opened = expandedFileBrowserDirectories.has(entry.path);
-    marker.textContent = opened ? "⌄" : "›";
-  } else {
-    marker.textContent = "·";
-  }
-
-  const label = document.createElement("span");
-  label.className = "file-tree-name";
-  label.textContent = entry.name;
-
-  row.appendChild(marker);
-  row.appendChild(label);
-
-  if (entry.type === "directory") {
-    row.type = "button";
-    row.addEventListener("click", () => {
-      if (expandedFileBrowserDirectories.has(entry.path)) {
-        expandedFileBrowserDirectories.delete(entry.path);
-        renderFileBrowserTree();
-        return;
-      }
-
-      expandedFileBrowserDirectories.add(entry.path);
-      if (!fileBrowserDirectoryCache.has(entry.path)) {
-        requestFileBrowserDirectory(entry.path);
-      }
-      renderFileBrowserTree();
-    });
-  } else {
-    row.style.cursor = "pointer";
-    row.addEventListener("click", () => {
-      requestFileBrowserFile(entry.path);
-    });
-  }
-
-  return row;
-}
-
-function appendFileBrowserTreeBranch(container, relativePath, depth) {
-  const payload = fileBrowserDirectoryCache.get(relativePath);
-  if (!payload) {
-    return;
-  }
-
-  payload.entries.forEach(entry => {
-    container.appendChild(createFileBrowserTreeRow(entry, depth));
-
-    if (
-      entry.type === "directory"
-      && expandedFileBrowserDirectories.has(entry.path)
-      && fileBrowserDirectoryCache.has(entry.path)
-    ) {
-      appendFileBrowserTreeBranch(container, entry.path, depth + 1);
-    }
-  });
-}
-
-function renderFileBrowserTree() {
-  if (!fileTreeList) {
-    return;
-  }
-
-  fileTreeList.replaceChildren();
-  const rootPayload = fileBrowserDirectoryCache.get("");
-
-  if (!rootPayload) {
-    const empty = document.createElement("div");
-    empty.className = "file-tree-empty";
-    empty.textContent = fileBrowserProjectName
-      ? "Dosyalar yükleniyor..."
-      : "Proje Aç ile bir klasör seç.";
-    fileTreeList.appendChild(empty);
-    return;
-  }
-
-  if (rootPayload.entries.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "file-tree-empty";
-    empty.textContent = "Bu klasör boş";
-    fileTreeList.appendChild(empty);
-    return;
-  }
-
-  appendFileBrowserTreeBranch(fileTreeList, "", 0);
-}
-
-function resetFileBrowserTree() {
-  fileBrowserDirectoryCache.clear();
-  expandedFileBrowserDirectories.clear();
-  renderFileBrowserTree();
-  resetFileBrowserReader();
-}
-
-function showFileBrowserProject(path) {
-  const projectPath = String(path || "").trim();
-  if (!projectPath) {
-    return;
-  }
-
-  const cleanPath = projectPath.replace(/[\\/]+$/, "");
-  const parts = cleanPath.split(/[\\/]/);
-  fileBrowserProjectName = parts[parts.length - 1] || cleanPath;
-
-  if (fileActiveProjectName) {
-    fileActiveProjectName.textContent = fileBrowserProjectName;
-    fileActiveProjectName.title = projectPath;
-  }
-
-  resetFileBrowserTree();
-  requestFileBrowserDirectory("");
 }
 
 function formatRemainingPercentage(value) {
@@ -738,14 +557,68 @@ function renderAssistantContent(container, text) {
   appendPlainAssistantText(container, source.slice(cursor));
 }
 
-function addMessage(text, role) {
+function renderUserMessage(container, text, attachments = []) {
+  const cleanText = String(text || "").trim();
+
+  if (cleanText) {
+    const messageText = document.createElement("div");
+    messageText.textContent = cleanText;
+    container.appendChild(messageText);
+  }
+
+  const files = Array.isArray(attachments) ? attachments : [];
+  if (files.length === 0) {
+    return;
+  }
+
+  const attachmentList = document.createElement("div");
+  attachmentList.style.display = "flex";
+  attachmentList.style.flexDirection = "column";
+  attachmentList.style.gap = "6px";
+  attachmentList.style.marginTop = cleanText ? "8px" : "0";
+
+  files.forEach(file => {
+    const row = document.createElement("div");
+    row.style.display = "inline-flex";
+    row.style.alignItems = "center";
+    row.style.gap = "7px";
+    row.style.maxWidth = "320px";
+
+    if (isImageAttachment(file)) {
+      const preview = document.createElement("img");
+      preview.src = attachmentPreviewUrl(file.path);
+      preview.alt = "";
+      preview.style.width = "44px";
+      preview.style.height = "44px";
+      preview.style.objectFit = "cover";
+      preview.style.flex = "0 0 auto";
+      preview.style.borderRadius = "6px";
+      preview.style.border = "1px solid #253142";
+      preview.addEventListener("error", () => preview.remove());
+      row.appendChild(preview);
+    }
+
+    const label = document.createElement("span");
+    label.textContent = `Ekler: ${String(file.name || "dosya")}`;
+    label.style.overflow = "hidden";
+    label.style.textOverflow = "ellipsis";
+    label.style.whiteSpace = "nowrap";
+    row.appendChild(label);
+
+    attachmentList.appendChild(row);
+  });
+
+  container.appendChild(attachmentList);
+}
+
+function addMessage(text, role, attachments = []) {
   const el = document.createElement("div");
   el.className = "message " + role;
 
   if (role === "assistant") {
     renderAssistantContent(el, text);
   } else {
-    el.textContent = String(text || "");
+    renderUserMessage(el, text, attachments);
   }
 
   messages.appendChild(el);
@@ -789,6 +662,10 @@ function showActiveProject(path, startsProjectMethod) {
   activeProjectPath.textContent = projectPath;
   activeProject.hidden = false;
 
+  if (fileActiveProjectName) {
+    fileActiveProjectName.textContent = projectName;
+    fileActiveProjectName.title = projectPath;
+  }
   resetProjectTree();
   requestProjectDirectory("");
   projectMenu.hidden = false;
@@ -1110,46 +987,6 @@ function connectBridge() {
       }
     });
 
-    if (
-      bridge.file_browser_project_selected
-      && typeof bridge.file_browser_project_selected.connect === "function"
-    ) {
-      bridge.file_browser_project_selected.connect(path => {
-        showFileBrowserProject(path);
-      });
-    }
-
-    if (
-      bridge.file_browser_directory_ready
-      && typeof bridge.file_browser_directory_ready.connect === "function"
-    ) {
-      bridge.file_browser_directory_ready.connect(payloadText => {
-        try {
-          const payload = JSON.parse(String(payloadText || "{}"));
-          const path = String(payload.path || "");
-          const entries = Array.isArray(payload.entries) ? payload.entries : [];
-          fileBrowserDirectoryCache.set(path, { path, entries });
-          renderFileBrowserTree();
-        } catch (error) {
-          statusNote.textContent = "Dosya projesi ağacı okunamadı";
-        }
-      });
-    }
-
-    if (
-      bridge.file_browser_file_ready
-      && typeof bridge.file_browser_file_ready.connect === "function"
-    ) {
-      bridge.file_browser_file_ready.connect(payloadText => {
-        try {
-          const payload = JSON.parse(String(payloadText || "{}"));
-          renderFileBrowserFile(payload);
-        } catch (error) {
-          statusNote.textContent = "Dosya içeriği açılamadı";
-        }
-      });
-    }
-
     bridge.history_sessions_ready.connect(payloadText => {
       try {
         renderHistorySessions(JSON.parse(String(payloadText || "{}")));
@@ -1270,12 +1107,12 @@ if (fileButton) {
 
 if (fileOpenProjectButton) {
   fileOpenProjectButton.addEventListener("click", () => {
-    if (!bridge || typeof bridge.select_file_browser_folder !== "function") {
-      statusNote.textContent = "Dosya proje seçici henüz hazır değil";
+    if (!bridge || typeof bridge.select_project_folder !== "function") {
+      statusNote.textContent = "Proje seçici henüz hazır değil";
       return;
     }
 
-    bridge.select_file_browser_folder();
+    bridge.select_project_folder();
   });
 }
 
@@ -1412,7 +1249,7 @@ form.addEventListener("submit", event => {
     return;
   }
 
-  addMessage(attachmentDisplayText(text), "user");
+  addMessage(text, "user", attachments);
 
   input.value = "";
   selectedChatFiles = [];
