@@ -44,15 +44,16 @@ ve Araç sonucunu doğruladıktan sonra göreve devam etmesini sağlamaktır.
 
 `../Bilgi/Ana_sistem.md`
 
+`../Bilgi/dosya_formatlari.md`
+
 **Kullan:**
 
 - GAKKO'nun ne olduğu, kimliği, yapısı veya kendi sistemi hakkında bilgi isteniyorsa.
+- PNG, JPG, JPEG, WEBP, SVG, TIFF, TIF, PDF, TXT, JSON, HTML, CSS, JS, LOG dosyaları eklenmişse veya bu dosyaları okuma, inceleme, açıklama, özetleme ya da çevirme isteniyorsa.
 
 **Amaç:**
 
-GAKKO hakkında doğrulanmış ana sistem bilgisini doğru Bilgi kaynağından almak.
-
----
+Doğru Bilgi kaynağına yönlendirmek.
 
 ## Bellek
 
