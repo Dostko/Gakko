@@ -383,8 +383,8 @@ class ChatHistoryStore:
                     )
                     if not message_start:
                         continue
-                    if len(message_start) > 160:
-                        message_start = message_start[:157].rstrip() + "..."
+                    if len(message_start) > 80:
+                        message_start = message_start[:77].rstrip() + "..."
                     user_message_starts.append(message_start)
 
                 index_entries.append(
@@ -394,7 +394,7 @@ class ChatHistoryStore:
                         "time": first_record.get("time", ""),
                         "title": first_record.get("session_title", "Yeni sohbet"),
                         "project": first_record.get("project_path", "") or "-",
-                        "user_message_starts": user_message_starts[-5:],
+                        "user_message_starts": user_message_starts[-2:],
                         "filename": filename,
                     }
                 )
@@ -404,6 +404,7 @@ class ChatHistoryStore:
                     existing_path.unlink()
 
             index_entries.sort(key=lambda item: item["sort_key"], reverse=True)
+            index_entries = index_entries[:50]
             index_lines = [
                 "# YAKIN GECMIS FIHRISTI",
                 "",
