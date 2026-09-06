@@ -25,7 +25,9 @@ const fileButton = document.getElementById("fileButton");
 
 const fileView = document.getElementById("fileView");
 const fileOpenProjectButton = document.getElementById("fileOpenProjectButton");
+const fileRemoveProjectButton = document.getElementById("fileRemoveProjectButton");
 const fileActiveProjectName = document.getElementById("fileActiveProjectName");
+const fileTreeList = document.getElementById("fileTreeList");
 const fileContent = document.getElementById("fileContent");
 const fileViewResizer = document.getElementById("fileViewResizer");
 
@@ -38,14 +40,6 @@ const historyDeleteBefore = document.getElementById("historyDeleteBefore");
 const historyDeleteBeforeButton = document.getElementById("historyDeleteBeforeButton");
 const historyRetentionNote = document.getElementById("historyRetentionNote");
 const projectButton = document.getElementById("projectButton");
-const projectMenu = document.getElementById("projectMenu");
-const newProjectButton = document.getElementById("newProjectButton");
-const openProjectButton = document.getElementById("openProjectButton");
-const activeProject = document.getElementById("activeProject");
-const activeProjectName = document.getElementById("activeProjectName");
-const activeProjectPath = document.getElementById("activeProjectPath");
-const projectTree = document.getElementById("projectTree");
-const projectTreeList = document.getElementById("projectTreeList");
 const sidebarResizer = document.getElementById("sidebarResizer");
 const contextPanel = document.createElement("div");
 contextPanel.style.display = "grid";
@@ -107,6 +101,7 @@ let currentView = "chat";
 let selectedHistoryId = null;
 let historySearchTimer = null;
 let selectedChatFiles = [];
+let activeProjectPath = "";
 const projectDirectoryCache = new Map();
 const expandedProjectDirectories = new Set();
 
@@ -268,20 +263,22 @@ function requestProjectDirectory(relativePath = "") {
 }
 
 function refreshVisibleProjectDirectories() {
-  if (!activeProject.hidden) {
-    requestProjectDirectory("");
-    expandedProjectDirectories.forEach(path => requestProjectDirectory(path));
+  if (!activeProjectPath) {
+    return;
   }
+
+  requestProjectDirectory("");
+  expandedProjectDirectories.forEach(path => requestProjectDirectory(path));
 }
 
-function createProjectTreeRow(entry, depth) {
+function createFileTreeRow(entry, depth) {
   const row = document.createElement(entry.type === "directory" ? "button" : "div");
-  row.className = `project-tree-item ${entry.type}`;
+  row.className = `file-tree-item ${entry.type}`;
   row.style.paddingLeft = `${8 + depth * 14}px`;
   row.title = entry.path;
 
   const marker = document.createElement("span");
-  marker.className = "project-tree-marker";
+  marker.className = "file-tree-marker";
 
   if (entry.type === "directory") {
     const opened = expandedProjectDirectories.has(entry.path);
@@ -291,7 +288,7 @@ function createProjectTreeRow(entry, depth) {
   }
 
   const label = document.createElement("span");
-  label.className = "project-tree-name";
+  label.className = "file-tree-name";
   label.textContent = entry.name;
 
   row.appendChild(marker);
@@ -302,7 +299,7 @@ function createProjectTreeRow(entry, depth) {
     row.addEventListener("click", () => {
       if (expandedProjectDirectories.has(entry.path)) {
         expandedProjectDirectories.delete(entry.path);
-        renderProjectTree();
+        renderFileTree();
         return;
       }
 
@@ -310,59 +307,75 @@ function createProjectTreeRow(entry, depth) {
       if (!projectDirectoryCache.has(entry.path)) {
         requestProjectDirectory(entry.path);
       }
-      renderProjectTree();
+      renderFileTree();
     });
   }
 
   return row;
 }
 
-function appendProjectTreeBranch(container, relativePath, depth) {
+function appendFileTreeBranch(container, relativePath, depth) {
   const payload = projectDirectoryCache.get(relativePath);
   if (!payload) {
     return;
   }
 
   payload.entries.forEach(entry => {
-    container.appendChild(createProjectTreeRow(entry, depth));
+    container.appendChild(createFileTreeRow(entry, depth));
 
     if (
       entry.type === "directory"
       && expandedProjectDirectories.has(entry.path)
       && projectDirectoryCache.has(entry.path)
     ) {
-      appendProjectTreeBranch(container, entry.path, depth + 1);
+      appendFileTreeBranch(container, entry.path, depth + 1);
     }
   });
 }
 
-function renderProjectTree() {
-  projectTreeList.replaceChildren();
-  const rootPayload = projectDirectoryCache.get("");
-
-  if (!rootPayload) {
-    projectTree.hidden = true;
-    return;
-  }
-
-  projectTree.hidden = false;
-
-  if (rootPayload.entries.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "project-tree-empty";
-    empty.textContent = "Henüz dosya yok";
-    projectTreeList.appendChild(empty);
-    return;
-  }
-
-  appendProjectTreeBranch(projectTreeList, "", 0);
+function showFileTreeMessage(message) {
+  fileTreeList.replaceChildren();
+  const empty = document.createElement("div");
+  empty.className = "file-tree-empty";
+  empty.textContent = message;
+  fileTreeList.appendChild(empty);
 }
 
-function resetProjectTree() {
+function renderFileTree() {
+  const rootPayload = projectDirectoryCache.get("");
+
+  if (!activeProjectPath) {
+    showFileTreeMessage("Proje Aç ile bir klasör seç.");
+    return;
+  }
+
+  if (!rootPayload) {
+    showFileTreeMessage("Proje dosyaları yükleniyor...");
+    return;
+  }
+
+  fileTreeList.replaceChildren();
+
+  if (rootPayload.entries.length === 0) {
+    showFileTreeMessage("Henüz dosya yok");
+    return;
+  }
+
+  appendFileTreeBranch(fileTreeList, "", 0);
+}
+
+function resetFileTree() {
   projectDirectoryCache.clear();
   expandedProjectDirectories.clear();
-  projectTreeList.replaceChildren();
-  projectTree.hidden = true;
+  renderFileTree();
+}
+
+function clearFileProjectView() {
+  activeProjectPath = "";
+  fileActiveProjectName.textContent = "Yok";
+  fileActiveProjectName.removeAttribute("title");
+  fileRemoveProjectButton.hidden = true;
+  resetFileTree();
 }
 
 function formatRemainingPercentage(value) {
@@ -676,29 +689,19 @@ function showActiveProject(path, startsProjectMethod) {
 
   const cleanPath = projectPath.replace(/[\\/]+$/, "");
   const parts = cleanPath.split(/[\\/]/);
-
   const projectName = parts[parts.length - 1] || cleanPath;
 
-  activeProjectName.textContent = projectName;
-  activeProjectPath.textContent = projectPath;
-  activeProject.hidden = false;
+  activeProjectPath = projectPath;
+  fileActiveProjectName.textContent = projectName;
+  fileActiveProjectName.title = projectPath;
+  fileRemoveProjectButton.hidden = false;
 
-  if (fileActiveProjectName) {
-    fileActiveProjectName.textContent = projectName;
-    fileActiveProjectName.title = projectPath;
-  }
-  resetProjectTree();
+  resetFileTree();
   requestProjectDirectory("");
-  projectMenu.hidden = false;
-  projectButton.setAttribute("aria-expanded", "true");
 
   if (startsProjectMethod) {
     setWaiting(true);
   }
-
-  appShell.classList.add("sidebar-open");
-  sidebarToggle.setAttribute("aria-expanded", "true");
-  sidebarToggle.title = "Menüyü kapat";
 }
 
 function formatHistoryDate(value) {
@@ -1002,7 +1005,7 @@ function connectBridge() {
         const path = String(payload.path || "");
         const entries = Array.isArray(payload.entries) ? payload.entries : [];
         projectDirectoryCache.set(path, { path, entries });
-        renderProjectTree();
+        renderFileTree();
       } catch (error) {
         statusNote.textContent = "Proje dosya ağacı okunamadı";
       }
@@ -1086,11 +1089,6 @@ function connectBridge() {
   });
 }
 
-function closeProjectMenu() {
-  projectMenu.hidden = true;
-  projectButton.setAttribute("aria-expanded", "false");
-}
-
 function setSidebarOpen(opened) {
   appShell.classList.toggle("sidebar-open", opened);
   sidebarToggle.setAttribute("aria-expanded", String(opened));
@@ -1098,9 +1096,6 @@ function setSidebarOpen(opened) {
     ? "Menüyü kapat"
     : "Menüyü aç";
 
-  if (!opened) {
-    closeProjectMenu();
-  }
 }
 
 resetContextButton.addEventListener("click", () => {
@@ -1148,6 +1143,13 @@ if (fileOpenProjectButton) {
   });
 }
 
+if (fileRemoveProjectButton) {
+  fileRemoveProjectButton.addEventListener("click", () => {
+    clearFileProjectView();
+    statusNote.textContent = "Proje sayfadan kaldırıldı";
+  });
+}
+
 historySearch.addEventListener("input", () => {
   if (historySearchTimer !== null) {
     clearTimeout(historySearchTimer);
@@ -1178,35 +1180,12 @@ historyDeleteBeforeButton.addEventListener("click", () => {
 });
 
 projectButton.addEventListener("click", () => {
-  if (!appShell.classList.contains("sidebar-open")) {
-    setSidebarOpen(true);
-  }
-
-  const opened = projectMenu.hidden;
-  projectMenu.hidden = !opened;
-  projectButton.setAttribute("aria-expanded", String(opened));
-});
-
-newProjectButton.addEventListener("click", () => {
-  closeProjectMenu();
-
   if (!bridge || typeof bridge.start_new_project !== "function") {
     statusNote.textContent = "Yeni proje bağlantısı henüz hazır değil";
     return;
   }
 
   bridge.start_new_project();
-});
-
-openProjectButton.addEventListener("click", () => {
-  closeProjectMenu();
-
-  if (!bridge || typeof bridge.select_project_folder !== "function") {
-    statusNote.textContent = "Proje seçici henüz hazır değil";
-    return;
-  }
-
-  bridge.select_project_folder();
 });
 
 attachButton.addEventListener("click", () => {
