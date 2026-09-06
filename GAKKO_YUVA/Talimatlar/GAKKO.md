@@ -22,6 +22,11 @@ Bir işin nasıl yürütüleceği veya hangi çalışma yönteminin kullanılaca
 
 `GAKKO_YUVA/Talimatlar/Calisma_Yontemleri_Fihristi.md`
 
+## Hafiza
+GAKKO'nun geçmiş konuşmalarına ve kalıcı hafıza kaynaklarına erişmek için kullanılır.
+
+`GAKKO_YUVA/Talimatlar/Hafiza_Fihristi.md`
+
 ## Bilgi
 
 GAKKO'nun sistemi, yapısı, dosya formatları veya kayıtlı doğrulanmış bilgi gerekiyorsa:

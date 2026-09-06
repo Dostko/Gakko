@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import threading
 import time
+from datetime import date
 from pathlib import Path
 
 from ollama import Client
@@ -94,8 +95,11 @@ class QwenSession(QThread):
         if not text:
             raise RuntimeError(f"QWEN.md boş: {QWEN_MD_PATH}")
 
+        current_date = date.today().isoformat()
+
         return (
             "Sen GAKKO'nun ana Qwen modelisin.\n"
+            f"Güncel sistem tarihi: {current_date}\n"
             "Aşağıdaki QWEN.md yalnız başlangıç kapısıdır.\n"
             "Bir dosyanın içeriğine ihtiyaç duyduğunda DOSYA_OKU aracını çağır.\n"
             "Hangi dosyanın gerekli olduğuna yalnız sen karar ver.\n"
