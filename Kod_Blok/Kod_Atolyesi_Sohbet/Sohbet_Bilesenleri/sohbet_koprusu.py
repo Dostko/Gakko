@@ -50,6 +50,7 @@ class ChatBridge(QObject):
     history_action_ready = Signal(str)
     chat_files_selected = Signal(str)
     context_remaining_ready = Signal(float)
+    generation_cancelled = Signal()
 
     def __init__(self):
         super().__init__()
@@ -94,6 +95,7 @@ class ChatBridge(QObject):
         session.ready.connect(self._on_ready)
         session.reply_ready.connect(self._on_reply)
         session.error_ready.connect(self._on_error)
+        session.cancelled.connect(self._on_cancelled)
         session.context_remaining.connect(self._on_context_remaining)
 
     def start(self):
@@ -546,6 +548,21 @@ class ChatBridge(QObject):
 
         self.session.reset_context()
 
+    @Slot()
+    def cancel_generation(self):
+        if self._pending_message is not None:
+            self._pending_message = None
+            self._history_capture_reply = False
+            self._busy = False
+            self.generation_cancelled.emit()
+            return
+
+        if not self._busy:
+            return
+
+        if not self.session.cancel_current():
+            self.error_ready.emit("Aktif Qwen isteği durdurulamadı.")
+
     @Slot(str)
     def send_message(self, message):
         message = str(message or "").strip()
@@ -613,6 +630,17 @@ class ChatBridge(QObject):
         self._history_capture_reply = False
         self.error_ready.emit(text)
 
+    def _on_cancelled(self):
+        self._busy = False
+        self._history_capture_reply = False
+        self.generation_cancelled.emit()
+
     def close(self):
+        self._pending_message = None
+        self._history_capture_reply = False
         self.session.stop()
-        self.session.wait(3000)
+        if self.session.wait(10000):
+            return True
+
+        self.error_ready.emit("Qwen oturumu güvenli biçimde kapatılamadı.")
+        return False

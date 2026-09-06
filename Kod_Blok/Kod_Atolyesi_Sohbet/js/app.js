@@ -4,6 +4,9 @@ const messages = document.getElementById("messages");
 const welcome = document.getElementById("welcome");
 const stage = document.getElementById("chatStage");
 const sendButton = document.getElementById("sendButton");
+const sendButtonIdleHtml = sendButton.innerHTML;
+const sendButtonIdleTitle = sendButton.title;
+const sendButtonIdleAriaLabel = sendButton.getAttribute("aria-label");
 const attachButton = document.getElementById("attachButton");
 const statusNote = document.getElementById("statusNote");
 const attachmentStrip = document.createElement("div");
@@ -97,6 +100,7 @@ statusNote.style.justifySelf = "center";
 
 let bridge = null;
 let waiting = false;
+let cancelling = false;
 let sidebarOpenWidth = 240;
 let resizingSidebar = false;
 let currentView = "chat";
@@ -632,7 +636,24 @@ function addMessage(text, role, attachments = []) {
 
 function setWaiting(value) {
   waiting = Boolean(value);
-  sendButton.disabled = waiting;
+  if (!waiting) {
+    cancelling = false;
+  }
+
+  sendButton.disabled = cancelling;
+  if (waiting) {
+    sendButton.textContent = "■";
+    sendButton.title = "Qwen yanıtını durdur";
+    sendButton.setAttribute("aria-label", "Qwen yanıtını durdur");
+  } else {
+    sendButton.innerHTML = sendButtonIdleHtml;
+    sendButton.title = sendButtonIdleTitle;
+    if (sendButtonIdleAriaLabel === null) {
+      sendButton.removeAttribute("aria-label");
+    } else {
+      sendButton.setAttribute("aria-label", sendButtonIdleAriaLabel);
+    }
+  }
   attachButton.disabled = waiting;
   resetContextButton.disabled = waiting;
   resetContextButton.style.opacity = waiting ? "0.45" : "1";
@@ -1045,6 +1066,17 @@ function connectBridge() {
       refreshVisibleProjectDirectories();
     });
 
+    if (
+      bridge.generation_cancelled
+      && typeof bridge.generation_cancelled.connect === "function"
+    ) {
+      bridge.generation_cancelled.connect(() => {
+        addMessage("İşlem durduruldu.", "assistant");
+        setWaiting(false);
+        statusNote.textContent = "İşlem durduruldu";
+      });
+    }
+
     bridge.error_ready.connect(error => {
       addMessage("Hata: " + error, "assistant");
       setWaiting(false);
@@ -1234,6 +1266,18 @@ form.addEventListener("submit", event => {
   event.preventDefault();
 
   if (waiting) {
+    if (cancelling) {
+      return;
+    }
+    if (!bridge || typeof bridge.cancel_generation !== "function") {
+      statusNote.textContent = "Durdurma bağlantısı hazır değil";
+      return;
+    }
+
+    cancelling = true;
+    sendButton.disabled = true;
+    statusNote.textContent = "Yanıt durduruluyor...";
+    bridge.cancel_generation();
     return;
   }
 

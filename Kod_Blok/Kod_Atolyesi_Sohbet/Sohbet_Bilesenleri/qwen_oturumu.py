@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import multiprocessing
 import queue
 import shutil
 import subprocess
@@ -9,7 +10,7 @@ import time
 from datetime import date
 from pathlib import Path
 
-from ollama import Client
+from ollama import ChatResponse, Client
 from PySide6.QtCore import QThread, Signal
 
 from .internet_giris import (
@@ -49,12 +50,44 @@ MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_TOOL_ROUNDS = 12
 
 _STOP = object()
+_CANCELLED = object()
+
+
+def _ollama_chat_worker(connection, chat_arguments):
+    client = None
+    try:
+        client = Client(host=OLLAMA_HOST)
+        response = client.chat(**chat_arguments)
+
+        if hasattr(response, "model_dump"):
+            payload = response.model_dump(mode="json")
+        elif hasattr(response, "dict"):
+            payload = response.dict()
+        else:
+            payload = dict(response)
+
+        connection.send(("ok", payload))
+    except BaseException as error:
+        try:
+            connection.send(
+                ("error", f"{type(error).__name__}: {error}")
+            )
+        except (BrokenPipeError, EOFError, OSError):
+            pass
+    finally:
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+        connection.close()
 
 
 class QwenSession(QThread):
     ready = Signal()
     reply_ready = Signal(str)
     error_ready = Signal(str)
+    cancelled = Signal()
     context_remaining = Signal(float)
 
     def __init__(self, active_project_root=None):
@@ -68,16 +101,101 @@ class QwenSession(QThread):
 
         self._ready = False
         self._stopping = False
+        self._cancel_requested = threading.Event()
+        self._active_process_lock = threading.Lock()
+        self._active_process = None
         self._prompt_queue = queue.Queue()
         self._messages_lock = threading.Lock()
         self._messages = []
-
-        self.client = Client(host=OLLAMA_HOST)
 
         self._system_message = {
             "role": "system",
             "content": self._load_startup_context(),
         }
+
+    def _chat(self, **kwargs):
+        if self._stopping or self._cancel_requested.is_set():
+            return _CANCELLED
+
+        process_context = multiprocessing.get_context("spawn")
+        receive_connection, send_connection = process_context.Pipe(
+            duplex=False
+        )
+        process = process_context.Process(
+            target=_ollama_chat_worker,
+            args=(send_connection, dict(kwargs)),
+            daemon=True,
+        )
+        started = False
+
+        try:
+            with self._active_process_lock:
+                if self._stopping or self._cancel_requested.is_set():
+                    return _CANCELLED
+                self._active_process = process
+                process.start()
+                started = True
+
+            send_connection.close()
+
+            while True:
+                if self._stopping or self._cancel_requested.is_set():
+                    if process.is_alive():
+                        process.terminate()
+                    return _CANCELLED
+
+                if receive_connection.poll(0.05):
+                    try:
+                        status, payload = receive_connection.recv()
+                    except EOFError:
+                        status = None
+                        payload = None
+
+                    if status == "ok":
+                        return ChatResponse(**payload)
+                    if status == "error":
+                        raise RuntimeError(payload)
+
+                if not process.is_alive():
+                    if receive_connection.poll(0.1):
+                        continue
+                    raise RuntimeError(
+                        "Qwen istek süreci yanıt vermeden kapandı "
+                        f"(çıkış kodu: {process.exitcode})."
+                    )
+        finally:
+            with self._active_process_lock:
+                if self._active_process is process:
+                    self._active_process = None
+
+            if started and process.is_alive():
+                process.terminate()
+            if started:
+                process.join(2.0)
+                if process.is_alive() and hasattr(process, "kill"):
+                    process.kill()
+                    process.join(2.0)
+
+            receive_connection.close()
+            if not started:
+                send_connection.close()
+
+    def cancel_current(self):
+        self._cancel_requested.set()
+
+        with self._active_process_lock:
+            active_process = self._active_process
+
+        if active_process is None:
+            return True
+
+        try:
+            if active_process.is_alive():
+                active_process.terminate()
+        except (OSError, ValueError):
+            return False
+
+        return True
 
     @property
     def is_ready(self):
@@ -222,7 +340,7 @@ class QwenSession(QThread):
                 f"{user_request}"
             )
 
-            response = self.client.chat(
+            response = self._chat(
                 model=VISION_MODEL,
                 messages=[
                     {
@@ -234,6 +352,9 @@ class QwenSession(QThread):
                 stream=False,
                 options={"num_ctx": VISION_CONTEXT_SIZE},
             )
+
+            if response is _CANCELLED:
+                return "[GÖRSEL ANALİZ DURDU]"
 
             content = (
                 response.message.content or ""
@@ -527,7 +648,7 @@ class QwenSession(QThread):
                     f"{user_request}"
                 )
 
-                response = self.client.chat(
+                response = self._chat(
                     model=VISION_MODEL,
                     messages=[
                         {
@@ -542,6 +663,9 @@ class QwenSession(QThread):
                     stream=False,
                     options={"num_ctx": VISION_CONTEXT_SIZE},
                 )
+
+                if response is _CANCELLED:
+                    return "[PDF ANALİZ DURDU]"
 
                 content = (
                     response.message.content or ""
@@ -708,6 +832,7 @@ class QwenSession(QThread):
             self.error_ready.emit("Qwen henüz hazır değil.")
             return False
 
+        self._cancel_requested.clear()
         self._prompt_queue.put(text)
         return True
 
@@ -831,14 +956,19 @@ class QwenSession(QThread):
         for _ in range(MAX_TOOL_ROUNDS):
             if self._stopping:
                 return None
+            if self._cancel_requested.is_set():
+                return _CANCELLED
 
-            response = self.client.chat(
+            response = self._chat(
                 model=OLLAMA_MODEL,
                 messages=messages,
                 tools=tools,
                 stream=False,
                 options={"num_ctx": OLLAMA_CONTEXT_SIZE},
             )
+
+            if response is _CANCELLED:
+                return _CANCELLED
 
             last_response = response
             rounds += 1
@@ -869,6 +999,8 @@ class QwenSession(QThread):
             for tool_call in tool_calls:
                 if self._stopping:
                     return None
+                if self._cancel_requested.is_set():
+                    return _CANCELLED
 
                 tool_name = tool_call.function.name
                 arguments = (
@@ -923,6 +1055,11 @@ class QwenSession(QThread):
             "nihai cevap üretmedi."
         )
 
+    def _notify_cancelled(self):
+        self._cancel_requested.clear()
+        print("[QWEN] İşlem durduruldu.", flush=True)
+        self.cancelled.emit()
+
     def run(self):
         self._ready = True
         self.context_remaining.emit(100.0)
@@ -950,7 +1087,11 @@ class QwenSession(QThread):
                         prepared_user_text
                     )
                 except Exception as error:
-                    if not self._stopping:
+                    if self._stopping:
+                        break
+                    if self._cancel_requested.is_set():
+                        self._notify_cancelled()
+                    else:
                         self.error_ready.emit(
                             str(error)
                         )
@@ -958,6 +1099,10 @@ class QwenSession(QThread):
 
                 if self._stopping or reply is None:
                     break
+
+                if reply is _CANCELLED:
+                    self._notify_cancelled()
+                    continue
 
                 self._remember_exchange(
                     prepared_user_text,
@@ -972,4 +1117,5 @@ class QwenSession(QThread):
     def stop(self):
         self._stopping = True
         self._ready = False
+        self.cancel_current()
         self._prompt_queue.put(_STOP)

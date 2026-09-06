@@ -160,7 +160,9 @@ class GakkoSohbetPenceresi(QMainWindow):
         )
 
     def closeEvent(self, event):
-        self.bridge.close()
+        if not self.bridge.close():
+            event.ignore()
+            return
         super().closeEvent(event)
 
 
