@@ -8,7 +8,7 @@ Göreve uygun kaynağı seç ve yalnız ilgili MD dosyasını oku.
 
 **Dosya:**
 
-`../Bellek/gakko_kurulus_gunu.md`
+`../Kayitlar/gakko_kurulus_gunu.md`
 
 **Kullan:**
 
