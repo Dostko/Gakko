@@ -33,11 +33,11 @@ GAKKO'nun sistemi, yapısı, dosya formatları veya kayıtlı doğrulanmış bil
 
 `GAKKO_YUVA/Talimatlar/Bilgi_Fihristi.md`
 
-## Bellek
+## Kayitlar
 
 Kalıcı olarak hatırlanmış bilgi veya GAKKO'ya ait kalıcı kayıt gerekiyorsa:
 
-`GAKKO_YUVA/Talimatlar/Bellek_Fihristi.md`
+`GAKKO_YUVA/Talimatlar/Kayitlar_Fihristi.md`
 
 ---
 
