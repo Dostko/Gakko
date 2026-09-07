@@ -1,92 +1,35 @@
 from __future__ import annotations
 
-import multiprocessing
 import queue
-import shutil
-import subprocess
 import tempfile
 import threading
-import time
 from datetime import date
 from pathlib import Path
 
-from ollama import ChatResponse, Client
 from PySide6.QtCore import QThread, Signal
 
 from .proje_dosya_yardimcilari import (
     list_project_directory as list_project_directory_entries,
 )
-from .internet_giris import (
-    INTERNET_TOOL_NAMES,
-    INTERNET_TOOLS,
-    internet_araci_calistir,
+
+from .Qwen_oturum.qwen_ayarlar import (
+    MAX_FILE_BYTES,
+    PROJECT_ROOT,
+    QWEN_MD_PATH,
+    _CANCELLED,
+    _STOP,
 )
+from .Qwen_oturum.qwen_araclari import QwenAraclariMixin
+from .Qwen_oturum.qwen_dosya_ekleri import QwenDosyaEkleriMixin
+from .Qwen_oturum.qwen_model import QwenModelMixin
 
 
-OLLAMA_HOST = "http://127.0.0.1:11434"
-OLLAMA_MODEL = "gakko-qwen38-64k-gpu:latest"
-OLLAMA_CONTEXT_SIZE = 65536
-
-VISION_MODEL = "qwen3-vl:8b"
-VISION_CONTEXT_SIZE = 32768
-IMAGE_EXTENSIONS = frozenset({
-    ".jpeg",
-    ".jpg",
-    ".tif",
-    ".tiff",
-    ".png",
-    ".svg",
-    ".webp",
-})
-PDF_EXTENSIONS = frozenset({".pdf"})
-
-MIN_PDF_TEXT_CHARS = 80
-MAX_PDF_TEXT_CHARS = 50000
-MAX_PDF_VISION_PAGES = 20
-PDF_RENDER_WIDTH = 1600
-PDF_RENDER_MAX_HEIGHT = 2400
-
-PROJECT_ROOT = Path(r"D:\Gakko")
-QWEN_MD_PATH = PROJECT_ROOT / ".qwen" / "QWEN.md"
-
-MAX_FILE_BYTES = 2 * 1024 * 1024
-MAX_TOOL_ROUNDS = 12
-
-_STOP = object()
-_CANCELLED = object()
-
-
-def _ollama_chat_worker(connection, chat_arguments):
-    client = None
-    try:
-        client = Client(host=OLLAMA_HOST)
-        response = client.chat(**chat_arguments)
-
-        if hasattr(response, "model_dump"):
-            payload = response.model_dump(mode="json")
-        elif hasattr(response, "dict"):
-            payload = response.dict()
-        else:
-            payload = dict(response)
-
-        connection.send(("ok", payload))
-    except BaseException as error:
-        try:
-            connection.send(
-                ("error", f"{type(error).__name__}: {error}")
-            )
-        except (BrokenPipeError, EOFError, OSError):
-            pass
-    finally:
-        if client is not None:
-            try:
-                client.close()
-            except Exception:
-                pass
-        connection.close()
-
-
-class QwenSession(QThread):
+class QwenSession(
+    QwenModelMixin,
+    QwenDosyaEkleriMixin,
+    QwenAraclariMixin,
+    QThread,
+):
     ready = Signal()
     reply_ready = Signal(str)
     error_ready = Signal(str)
@@ -104,10 +47,14 @@ class QwenSession(QThread):
 
         self._ready = False
         self._stopping = False
+
         self._cancel_requested = threading.Event()
+
         self._active_process_lock = threading.Lock()
         self._active_process = None
+
         self._prompt_queue = queue.Queue()
+
         self._messages_lock = threading.Lock()
         self._messages = []
 
@@ -116,97 +63,15 @@ class QwenSession(QThread):
             "content": self._load_startup_context(),
         }
 
-    def _chat(self, **kwargs):
-        if self._stopping or self._cancel_requested.is_set():
-            return _CANCELLED
-
-        process_context = multiprocessing.get_context("spawn")
-        receive_connection, send_connection = process_context.Pipe(
-            duplex=False
-        )
-        process = process_context.Process(
-            target=_ollama_chat_worker,
-            args=(send_connection, dict(kwargs)),
-            daemon=True,
-        )
-        started = False
-
-        try:
-            with self._active_process_lock:
-                if self._stopping or self._cancel_requested.is_set():
-                    return _CANCELLED
-                self._active_process = process
-                process.start()
-                started = True
-
-            send_connection.close()
-
-            while True:
-                if self._stopping or self._cancel_requested.is_set():
-                    if process.is_alive():
-                        process.terminate()
-                    return _CANCELLED
-
-                if receive_connection.poll(0.05):
-                    try:
-                        status, payload = receive_connection.recv()
-                    except EOFError:
-                        status = None
-                        payload = None
-
-                    if status == "ok":
-                        return ChatResponse(**payload)
-                    if status == "error":
-                        raise RuntimeError(payload)
-
-                if not process.is_alive():
-                    if receive_connection.poll(0.1):
-                        continue
-                    raise RuntimeError(
-                        "Qwen istek süreci yanıt vermeden kapandı "
-                        f"(çıkış kodu: {process.exitcode})."
-                    )
-        finally:
-            with self._active_process_lock:
-                if self._active_process is process:
-                    self._active_process = None
-
-            if started and process.is_alive():
-                process.terminate()
-            if started:
-                process.join(2.0)
-                if process.is_alive() and hasattr(process, "kill"):
-                    process.kill()
-                    process.join(2.0)
-
-            receive_connection.close()
-            if not started:
-                send_connection.close()
-
-    def cancel_current(self):
-        self._cancel_requested.set()
-
-        with self._active_process_lock:
-            active_process = self._active_process
-
-        if active_process is None:
-            return True
-
-        try:
-            if active_process.is_alive():
-                active_process.terminate()
-        except (OSError, ValueError):
-            return False
-
-        return True
-
     @property
     def is_ready(self):
         return self._ready
 
     def _load_startup_context(self):
         if not QWEN_MD_PATH.exists() or not QWEN_MD_PATH.is_file():
-            raise RuntimeError(f"QWEN.md bulunamadı: {QWEN_MD_PATH}")
+            raise RuntimeError(
+                f"QWEN.md bulunamadı: {QWEN_MD_PATH}"
+            )
 
         text = QWEN_MD_PATH.read_text(
             encoding="utf-8",
@@ -214,7 +79,9 @@ class QwenSession(QThread):
         ).strip()
 
         if not text:
-            raise RuntimeError(f"QWEN.md boş: {QWEN_MD_PATH}")
+            raise RuntimeError(
+                f"QWEN.md boş: {QWEN_MD_PATH}"
+            )
 
         current_date = date.today().isoformat()
 
@@ -222,23 +89,30 @@ class QwenSession(QThread):
             "Sen GAKKO'nun ana Qwen modelisin.\n"
             f"Güncel sistem tarihi: {current_date}\n"
             "Aşağıdaki QWEN.md yalnız başlangıç kapısıdır.\n"
-            "Bir dosyanın içeriğine ihtiyaç duyduğunda DOSYA_OKU aracını çağır.\n"
-            "Aktif proje klasörünün gerçek içeriğine ihtiyaç duyduğunda "
-            "list_project_directory aracını çağır.\n"
+            "Bir dosyanın içeriğine ihtiyaç duyduğunda "
+            "DOSYA_OKU aracını çağır.\n"
+            "Aktif proje klasörünün gerçek içeriğine ihtiyaç "
+            "duyduğunda list_project_directory aracını çağır.\n"
             "Bir dosyayı oluşturman veya değiştirmen gerektiğinde "
             "DOSYA_YAZ aracını çağır.\n"
             "Hangi dosyanın gerekli olduğuna yalnız sen karar ver.\n"
             "Python dosya, fihrist, prensip veya sonraki kaynak seçmez.\n"
-            "Python yalnız senin açıkça istediğin dosya okuma, yazma veya "
-            "klasör listeleme işlemini teknik olarak uygular ve sonucu sana "
-            "geri verir.\n\n"
+            "Python yalnız senin açıkça istediğin dosya okuma, yazma "
+            "veya klasör listeleme işlemini teknik olarak uygular ve "
+            "sonucu sana geri verir.\n\n"
             "===== QWEN.md =====\n"
             f"{text}\n"
             "===== /QWEN.md ====="
         )
 
     def _resolve_requested_path(self, path):
-        raw = str(path or "").strip().strip('"').strip("'")
+        raw = (
+            str(path or "")
+            .strip()
+            .strip('"')
+            .strip("'")
+        )
+
         if not raw:
             raise ValueError("Boş dosya yolu.")
 
@@ -253,102 +127,182 @@ class QwenSession(QThread):
         """
         Qwen'in açıkça istediği dosyanın ham metin içeriğini döndürür.
 
-        Bu fonksiyon dosya seçmez, fihrist takip etmez, prensip eşleştirmez
-        ve bir sonraki kaynağa karar vermez.
+        Bu fonksiyon dosya seçmez, fihrist takip etmez,
+        prensip eşleştirmez ve bir sonraki kaynağa karar vermez.
         """
         try:
-            file_path = self._resolve_requested_path(path)
+            file_path = self._resolve_requested_path(
+                path
+            )
 
             if not file_path.exists():
-                return f"[DOSYA_OKU HATA] Dosya bulunamadı: {file_path}"
+                return (
+                    "[DOSYA_OKU HATA] "
+                    f"Dosya bulunamadı: {file_path}"
+                )
 
             if not file_path.is_file():
-                return f"[DOSYA_OKU HATA] Yol bir dosya değil: {file_path}"
+                return (
+                    "[DOSYA_OKU HATA] "
+                    f"Yol bir dosya değil: {file_path}"
+                )
 
             size = file_path.stat().st_size
+
             if size > MAX_FILE_BYTES:
                 return (
-                    "[DOSYA_OKU HATA] Dosya güvenlik sınırından büyük: "
-                    f"{size} bayt > {MAX_FILE_BYTES} bayt"
+                    "[DOSYA_OKU HATA] "
+                    "Dosya güvenlik sınırından büyük: "
+                    f"{size} bayt > "
+                    f"{MAX_FILE_BYTES} bayt"
                 )
 
             raw = file_path.read_bytes()
 
             if b"\x00" in raw[:8192]:
                 return (
-                    "[DOSYA_OKU HATA] Dosya metin olarak okunamıyor: "
+                    "[DOSYA_OKU HATA] "
+                    "Dosya metin olarak okunamıyor: "
                     f"{file_path}"
                 )
 
-            for encoding in ("utf-8-sig", "utf-8", "cp1254"):
+            for encoding in (
+                "utf-8-sig",
+                "utf-8",
+                "cp1254",
+            ):
                 try:
                     return raw.decode(encoding)
+
                 except UnicodeDecodeError:
                     continue
 
             return (
-                "[DOSYA_OKU HATA] Dosya metin olarak çözümlenemedi: "
+                "[DOSYA_OKU HATA] "
+                "Dosya metin olarak çözümlenemedi: "
                 f"{file_path}"
             )
 
         except Exception as error:
-            return f"[DOSYA_OKU HATA] {type(error).__name__}: {error}"
+            return (
+                "[DOSYA_OKU HATA] "
+                f"{type(error).__name__}: {error}"
+            )
 
-    def list_project_directory(self, relative_path=""):
+    def list_project_directory(
+        self,
+        relative_path="",
+    ):
         """
-        Qwen'in açıkça istediği aktif proje klasörünün gerçek içeriğini döndürür.
+        Qwen'in açıkça istediği aktif proje klasörünün
+        gerçek içeriğini döndürür.
 
-        Bu fonksiyon dosya veya klasör seçmez ve proje hakkında karar vermez.
-        Yalnız mevcut list_project_directory yardımcısını teknik olarak çağırır.
+        Bu fonksiyon dosya veya klasör seçmez ve proje
+        hakkında karar vermez.
         """
         if self.active_project_root is None:
-            return "[KLASOR_LISTELE HATA] Aktif proje seçili değil."
+            return (
+                "[KLASOR_LISTELE HATA] "
+                "Aktif proje seçili değil."
+            )
 
         try:
-            payload = list_project_directory_entries(
-                self.active_project_root,
-                relative_path,
+            payload = (
+                list_project_directory_entries(
+                    self.active_project_root,
+                    relative_path,
+                )
             )
+
         except (OSError, ValueError) as error:
-            return f"[KLASOR_LISTELE HATA] {error}"
+            return (
+                "[KLASOR_LISTELE HATA] "
+                f"{error}"
+            )
 
-        entries = payload.get("entries", [])
-        listed_path = payload.get("path", "") or "."
+        entries = payload.get(
+            "entries",
+            [],
+        )
 
-        lines = [f"[KLASOR_LISTELE OK] {listed_path}"]
+        listed_path = (
+            payload.get("path", "")
+            or "."
+        )
+
+        lines = [
+            f"[KLASOR_LISTELE OK] {listed_path}"
+        ]
+
         if not entries:
             lines.append("(boş)")
             return "\n".join(lines)
 
         for entry in entries:
-            entry_type = str(entry.get("type", ""))
-            entry_path = str(entry.get("path", ""))
-            lines.append(f"{entry_type}\t{entry_path}")
+            entry_type = str(
+                entry.get(
+                    "type",
+                    "",
+                )
+            )
+
+            entry_path = str(
+                entry.get(
+                    "path",
+                    "",
+                )
+            )
+
+            lines.append(
+                f"{entry_type}\t{entry_path}"
+            )
 
         return "\n".join(lines)
 
     def _resolve_write_path(self, path):
-        raw = str(path or "").strip().strip('"').strip("'")
+        raw = (
+            str(path or "")
+            .strip()
+            .strip('"')
+            .strip("'")
+        )
+
         if not raw:
             raise ValueError("Boş dosya yolu.")
 
         if self.active_project_root is None:
-            raise ValueError("Aktif proje seçili değil.")
-
-        project_root = Path(self.active_project_root).resolve()
-        if not project_root.exists() or not project_root.is_dir():
             raise ValueError(
-                f"Aktif proje kökü geçerli değil: {project_root}"
+                "Aktif proje seçili değil."
+            )
+
+        project_root = Path(
+            self.active_project_root
+        ).resolve()
+
+        if (
+            not project_root.exists()
+            or not project_root.is_dir()
+        ):
+            raise ValueError(
+                "Aktif proje kökü geçerli değil: "
+                f"{project_root}"
             )
 
         candidate = Path(raw)
+
         if not candidate.is_absolute():
-            candidate = project_root / candidate
+            candidate = (
+                project_root
+                / candidate
+            )
 
         file_path = candidate.resolve()
 
         try:
-            file_path.relative_to(project_root)
+            file_path.relative_to(
+                project_root
+            )
+
         except ValueError as error:
             raise ValueError(
                 "Dosya aktif proje kökü dışında: "
@@ -357,43 +311,68 @@ class QwenSession(QThread):
 
         return file_path
 
-    def DOSYA_YAZ(self, path, content, overwrite=False):
+    def DOSYA_YAZ(
+        self,
+        path,
+        content,
+        overwrite=False,
+    ):
         """
-        Qwen'in açıkça istediği metin içeriğini aktif proje içine yazar.
+        Qwen'in açıkça istediği metin içeriğini
+        aktif proje içine yazar.
 
-        Bu fonksiyon dosya veya içerik seçmez. Yalnız Qwen'in verdiği
-        yol ve içeriği teknik olarak uygular.
+        Bu fonksiyon dosya veya içerik seçmez.
         """
         temp_path = None
 
         try:
-            file_path = self._resolve_write_path(path)
-            overwrite = overwrite is True
+            file_path = (
+                self._resolve_write_path(
+                    path
+                )
+            )
+
+            overwrite = (
+                overwrite is True
+            )
 
             if file_path.exists():
                 if not file_path.is_file():
                     return (
-                        "[DOSYA_YAZ HATA] Yol bir dosya değil: "
+                        "[DOSYA_YAZ HATA] "
+                        "Yol bir dosya değil: "
                         f"{file_path}"
                     )
 
                 if not overwrite:
                     return (
-                        "[DOSYA_YAZ HATA] Dosya zaten var; "
-                        "üzerine yazma izni verilmedi: "
+                        "[DOSYA_YAZ HATA] "
+                        "Dosya zaten var; "
+                        "üzerine yazma izni "
+                        "verilmedi: "
                         f"{file_path}"
                     )
 
-            text = str(content or "")
-            encoded = text.encode("utf-8")
+            text = str(
+                content or ""
+            )
+
+            encoded = text.encode(
+                "utf-8"
+            )
 
             if len(encoded) > MAX_FILE_BYTES:
                 return (
-                    "[DOSYA_YAZ HATA] İçerik güvenlik sınırından büyük: "
-                    f"{len(encoded)} bayt > {MAX_FILE_BYTES} bayt"
+                    "[DOSYA_YAZ HATA] "
+                    "İçerik güvenlik sınırından büyük: "
+                    f"{len(encoded)} bayt > "
+                    f"{MAX_FILE_BYTES} bayt"
                 )
 
-            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.parent.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
 
             with tempfile.NamedTemporaryFile(
                 mode="w",
@@ -406,901 +385,148 @@ class QwenSession(QThread):
             ) as temp_file:
                 temp_file.write(text)
                 temp_file.flush()
-                temp_path = Path(temp_file.name)
 
-            temp_path.replace(file_path)
+                temp_path = Path(
+                    temp_file.name
+                )
+
+            temp_path.replace(
+                file_path
+            )
+
             temp_path = None
 
             print(
-                f"[QWEN DOSYA YAZDI] {file_path}",
+                "[QWEN DOSYA YAZDI] "
+                f"{file_path}",
                 flush=True,
             )
 
-            return f"[DOSYA_YAZ OK] {file_path}"
+            return (
+                "[DOSYA_YAZ OK] "
+                f"{file_path}"
+            )
 
         except Exception as error:
-            return f"[DOSYA_YAZ HATA] {type(error).__name__}: {error}"
+            return (
+                "[DOSYA_YAZ HATA] "
+                f"{type(error).__name__}: "
+                f"{error}"
+            )
 
         finally:
             if temp_path is not None:
                 try:
-                    temp_path.unlink(missing_ok=True)
+                    temp_path.unlink(
+                        missing_ok=True
+                    )
+
                 except OSError:
                     pass
 
-    def _image_path_from_attachment_line(self, line):
-        stripped = str(line or "").strip()
-
-        # + dosya ekleme akışı satırı "- @D:/dosya.png" biçiminde üretir.
-        # Doğrudan "@D:/dosya.png" biçimini de destekle.
-        if stripped.startswith("-"):
-            stripped = stripped[1:].lstrip()
-
-        if not stripped.startswith("@"):
-            return None
-
-        raw_path = stripped[1:].strip().strip('"').strip("'")
-        if not raw_path:
-            return None
-
-        # Ek dosya referanslarında boşluklar "\ " olarak kaçırılır.
-        raw_path = raw_path.replace("\\ ", " ")
-
-        try:
-            file_path = self._resolve_requested_path(raw_path)
-        except Exception:
-            return None
-
-        if file_path.suffix.lower() not in IMAGE_EXTENSIONS:
-            return None
-
-        return file_path
-
-    def _analyze_image(self, file_path, user_request):
-        try:
-            if not file_path.exists():
-                return f"[GÖRSEL ANALİZ HATA] Dosya bulunamadı: {file_path}"
-
-            if not file_path.is_file():
-                return f"[GÖRSEL ANALİZ HATA] Yol bir dosya değil: {file_path}"
-
-            if self._stopping:
-                return "[GÖRSEL ANALİZ DURDU]"
-
-            print(
-                f"[QWEN GÖRSEL İSTEDİ] {file_path}",
-                flush=True,
-            )
-
-            vision_prompt = (
-                "Bu görseli GAKKO'nun ana modeli için incele.\n"
-                "Kullanıcının isteğini dikkate al.\n"
-                "Yalnız görselden doğrulanabilen bilgileri aktar.\n"
-                "Görünen yazıları mümkün olduğunca doğru oku.\n"
-                "Nihai kullanıcı cevabını verme; yalnız görsel bağlamı üret.\n\n"
-                "Kullanıcı isteği:\n"
-                f"{user_request}"
-            )
-
-            response = self._chat(
-                model=VISION_MODEL,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": vision_prompt,
-                        "images": [str(file_path)],
-                    }
-                ],
-                stream=False,
-                options={"num_ctx": VISION_CONTEXT_SIZE},
-            )
-
-            if response is _CANCELLED:
-                return "[GÖRSEL ANALİZ DURDU]"
-
-            content = (
-                response.message.content or ""
-            ).strip()
-
-            if not content:
-                return (
-                    "[GÖRSEL ANALİZ HATA] "
-                    f"{VISION_MODEL} boş çıktı üretti: {file_path}"
-                )
-
-            return content
-
-        except Exception as error:
-            return (
-                "[GÖRSEL ANALİZ HATA] "
-                f"{type(error).__name__}: {error}"
-            )
-
-    def _pdf_path_from_attachment_line(self, line):
-        stripped = str(line or "").strip()
-
-        if stripped.startswith("-"):
-            stripped = stripped[1:].lstrip()
-
-        if not stripped.startswith("@"):
-            return None
-
-        raw_path = stripped[1:].strip().strip('"').strip("'")
-        if not raw_path:
-            return None
-
-        raw_path = raw_path.replace("\\ ", " ")
-
-        try:
-            file_path = self._resolve_requested_path(raw_path)
-        except Exception:
-            return None
-
-        if file_path.suffix.lower() not in PDF_EXTENSIONS:
-            return None
-
-        return file_path
-
-    def _extract_pdf_text(self, file_path):
-        """
-        PDF'yi yorumlamaz.
-        Yalnız pdftotext aracını teknik taşıma katmanı olarak kullanıp
-        çıkarılabilen metni UTF-8 olarak döndürür.
-        """
-        pdftotext_exe = shutil.which("pdftotext")
-        if not pdftotext_exe:
-            print(
-                "[PDF METİN] pdftotext bulunamadı; görsel yola geçiliyor.",
-                flush=True,
-            )
-            return ""
-
-        try:
-            with tempfile.TemporaryDirectory(
-                prefix="gakko-pdf-text-"
-            ) as temp_dir:
-                output_path = Path(temp_dir) / "pdf_metni.txt"
-
-                completed = subprocess.run(
-                    [
-                        pdftotext_exe,
-                        "-layout",
-                        "-enc",
-                        "UTF-8",
-                        str(file_path),
-                        str(output_path),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout=60,
-                    check=False,
-                )
-
-                if completed.returncode != 0:
-                    detail = (
-                        completed.stderr
-                        or completed.stdout
-                        or "bilinmeyen pdftotext hatası"
-                    ).strip()
-
-                    print(
-                        f"[PDF METİN] çıkarılamadı: {detail}",
-                        flush=True,
-                    )
-                    return ""
-
-                if not output_path.exists():
-                    print(
-                        "[PDF METİN] çıktı dosyası oluşmadı; "
-                        "görsel yola geçiliyor.",
-                        flush=True,
-                    )
-                    return ""
-
-                extracted = output_path.read_text(
-                    encoding="utf-8",
-                    errors="replace",
-                ).strip()
-
-                compact_length = len(
-                    "".join(extracted.split())
-                )
-
-                if compact_length < MIN_PDF_TEXT_CHARS:
-                    print(
-                        "[PDF METİN] anlamlı metin çıkmadı; "
-                        "görsel yola geçiliyor.",
-                        flush=True,
-                    )
-                    return ""
-
-                if len(extracted) > MAX_PDF_TEXT_CHARS:
-                    extracted = (
-                        extracted[:MAX_PDF_TEXT_CHARS]
-                        + "\n\n"
-                        "[PDF METİN SINIRI] Belgenin devamı bu istekte "
-                        "bağlama alınmadı."
-                    )
-
-                print(
-                    f"[QWEN PDF METNİ HAZIR] {file_path}",
-                    flush=True,
-                )
-
-                return extracted
-
-        except subprocess.TimeoutExpired:
-            print(
-                "[PDF METİN] pdftotext zaman aşımına uğradı; "
-                "görsel yola geçiliyor.",
-                flush=True,
-            )
-            return ""
-
-        except Exception as error:
-            print(
-                f"[PDF METİN] {type(error).__name__}: {error} | "
-                "görsel yola geçiliyor.",
-                flush=True,
-            )
-            return ""
-
-    def _render_pdf_pages(self, file_path, output_dir):
-        from PySide6.QtCore import QSize
-        from PySide6.QtPdf import QPdfDocument
-
-        document = QPdfDocument()
-
-        try:
-            document.load(str(file_path))
-            page_count = int(document.pageCount())
-
-            if page_count <= 0:
-                raise RuntimeError(
-                    f"PDF açılamadı veya sayfa bulunamadı: {file_path}"
-                )
-
-            page_limit = min(
-                page_count,
-                MAX_PDF_VISION_PAGES,
-            )
-
-            image_paths = []
-
-            for page_index in range(page_limit):
-                if self._stopping:
-                    break
-
-                page_size = document.pagePointSize(page_index)
-                page_width = float(page_size.width())
-                page_height = float(page_size.height())
-
-                if page_width <= 0 or page_height <= 0:
-                    render_width = PDF_RENDER_WIDTH
-                    render_height = PDF_RENDER_MAX_HEIGHT
-                else:
-                    render_width = PDF_RENDER_WIDTH
-                    render_height = max(
-                        1,
-                        round(
-                            render_width
-                            * (page_height / page_width)
-                        ),
-                    )
-
-                    if render_height > PDF_RENDER_MAX_HEIGHT:
-                        scale = (
-                            PDF_RENDER_MAX_HEIGHT
-                            / render_height
-                        )
-                        render_width = max(
-                            1,
-                            round(render_width * scale),
-                        )
-                        render_height = PDF_RENDER_MAX_HEIGHT
-
-                image = document.render(
-                    page_index,
-                    QSize(
-                        render_width,
-                        render_height,
-                    ),
-                )
-
-                if image.isNull():
-                    raise RuntimeError(
-                        "PDF sayfası görüntüye çevrilemedi: "
-                        f"{page_index + 1}"
-                    )
-
-                output_path = (
-                    output_dir
-                    / f"page_{page_index + 1:04d}.png"
-                )
-
-                if not image.save(
-                    str(output_path),
-                    "PNG",
-                ):
-                    raise RuntimeError(
-                        "PDF sayfa görüntüsü kaydedilemedi: "
-                        f"{page_index + 1}"
-                    )
-
-                image_paths.append(output_path)
-
-            return image_paths, page_count
-
-        finally:
-            try:
-                document.close()
-            except Exception:
-                pass
-
-    def _analyze_pdf_visually(self, file_path, user_request):
-        try:
-            if not file_path.exists():
-                return f"[PDF ANALİZ HATA] Dosya bulunamadı: {file_path}"
-
-            if not file_path.is_file():
-                return f"[PDF ANALİZ HATA] Yol bir dosya değil: {file_path}"
-
-            if self._stopping:
-                return "[PDF ANALİZ DURDU]"
-
-            with tempfile.TemporaryDirectory(
-                prefix="gakko-pdf-vision-"
-            ) as temp_dir:
-                image_paths, page_count = self._render_pdf_pages(
-                    file_path,
-                    Path(temp_dir),
-                )
-
-                if not image_paths:
-                    return "[PDF ANALİZ DURDU]"
-
-                print(
-                    f"[QWEN PDF GÖRSEL İSTEDİ] {file_path} | "
-                    f"sayfa={page_count} | "
-                    f"işlenecek={len(image_paths)}",
-                    flush=True,
-                )
-
-                page_note = ""
-                if page_count > len(image_paths):
-                    page_note = (
-                        f"\nBelge {page_count} sayfa; bu istekte "
-                        f"ilk {len(image_paths)} sayfa görüntü olarak "
-                        "işleniyor. Kalan sayfaları okumuş gibi davranma."
-                    )
-
-                vision_prompt = (
-                    "Bu görüntüler aynı PDF belgesinin sayfalarıdır ve "
-                    "sıraları korunmuştur.\n"
-                    "GAKKO'nun ana modeli için belge bağlamı üret.\n"
-                    "Kullanıcının isteğini dikkate al.\n"
-                    "Metin, tablo, başlık ve görselleri yalnız "
-                    "doğrulanabildiği ölçüde aktar.\n"
-                    "Görünen yazıları mümkün olduğunca doğru oku.\n"
-                    "Nihai kullanıcı cevabını verme; yalnız PDF bağlamı üret."
-                    f"{page_note}\n\n"
-                    "Kullanıcı isteği:\n"
-                    f"{user_request}"
-                )
-
-                response = self._chat(
-                    model=VISION_MODEL,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": vision_prompt,
-                            "images": [
-                                str(path)
-                                for path in image_paths
-                            ],
-                        }
-                    ],
-                    stream=False,
-                    options={"num_ctx": VISION_CONTEXT_SIZE},
-                )
-
-                if response is _CANCELLED:
-                    return "[PDF ANALİZ DURDU]"
-
-                content = (
-                    response.message.content or ""
-                ).strip()
-
-                if not content:
-                    return (
-                        "[PDF ANALİZ HATA] "
-                        f"{VISION_MODEL} boş çıktı üretti: {file_path}"
-                    )
-
-                return content
-
-        except Exception as error:
-            return (
-                "[PDF ANALİZ HATA] "
-                f"{type(error).__name__}: {error}"
-            )
-
-    def _prepare_user_text(self, text):
-        original_text = str(text or "")
-        kept_lines = []
-        image_paths = []
-        pdf_paths = []
-        seen_image_paths = set()
-        seen_pdf_paths = set()
-
-        for line in original_text.splitlines():
-            image_path = self._image_path_from_attachment_line(line)
-
-            if image_path is not None:
-                path_key = str(image_path).casefold()
-
-                if path_key not in seen_image_paths:
-                    seen_image_paths.add(path_key)
-                    image_paths.append(image_path)
-
-                continue
-
-            pdf_path = self._pdf_path_from_attachment_line(line)
-
-            if pdf_path is not None:
-                path_key = str(pdf_path).casefold()
-
-                if path_key not in seen_pdf_paths:
-                    seen_pdf_paths.add(path_key)
-                    pdf_paths.append(pdf_path)
-
-                continue
-
-            kept_lines.append(line)
-
-        if not image_paths and not pdf_paths:
-            return original_text
-
-        user_request = "\n".join(kept_lines).strip()
-        if not user_request:
-            user_request = "Ekli dosyaları incele."
-
-        context_sections = []
-
-        for image_path in image_paths:
-            if self._stopping:
-                break
-
-            analysis = self._analyze_image(
-                image_path,
-                user_request,
-            )
-
-            context_sections.append(
-                "----- GÖRSEL -----\n"
-                f"Dosya: {image_path}\n"
-                f"{analysis}\n"
-                "----- /GÖRSEL -----"
-            )
-
-        for pdf_path in pdf_paths:
-            if self._stopping:
-                break
-
-            pdf_text = self._extract_pdf_text(pdf_path)
-
-            if pdf_text:
-                context_sections.append(
-                    "----- PDF METNİ -----\n"
-                    f"Dosya: {pdf_path}\n"
-                    "Kaynak: pdftotext teknik metin çıkarımı\n"
-                    f"{pdf_text}\n"
-                    "----- /PDF METNİ -----"
-                )
-                continue
-
-            pdf_analysis = self._analyze_pdf_visually(
-                pdf_path,
-                user_request,
-            )
-
-            context_sections.append(
-                "----- PDF GÖRSEL ANALİZİ -----\n"
-                f"Dosya: {pdf_path}\n"
-                f"Kaynak model: {VISION_MODEL}\n"
-                f"{pdf_analysis}\n"
-                "----- /PDF GÖRSEL ANALİZİ -----"
-            )
-
-        if not context_sections:
-            return user_request
-
-        attachment_context = "\n\n".join(
-            context_sections
-        )
-
-        return (
-            f"{user_request}\n\n"
-            "===== EKLİ DOSYA BAĞLAMI =====\n"
-            "Aşağıdaki içerik ekli dosyalardan teknik olarak "
-            "hazırlanmıştır.\n"
-            "Metin tabanlı PDF'lerde pdftotext kullanılmıştır.\n"
-            f"Taranmış/görüntü PDF veya görsellerde {VISION_MODEL} "
-            "yardımcı model olarak kullanılmıştır.\n"
-            "Nihai cevabı ana model olarak sen üret.\n"
-            "PDF dosyaları için DOSYA_OKU aracını çağırma.\n"
-            "SVG görsel analizi hata verdiyse SVG dosyasının kaynak "
-            "içeriğini DOSYA_OKU ile okuyabilirsin.\n\n"
-            f"{attachment_context}\n"
-            "===== /EKLİ DOSYA BAĞLAMI ====="
-        )
-
-    def _tool_definition(self):
-        return {
-            "type": "function",
-            "function": {
-                "name": "DOSYA_OKU",
-                "description": (
-                    "İhtiyaç duyduğun metin dosyasını oku. "
-                    "Hangi dosyanın gerekli olduğuna yalnız sen karar verirsin. "
-                    "Python dosya, fihrist veya prensip seçmez."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "required": ["path"],
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": (
-                                "Okunacak dosyanın tam yolu veya "
-                                "D:\\Gakko köküne göre göreli yolu."
-                            ),
-                        }
-                    },
-                },
-            },
-        }
-
-    def _directory_tool_definition(self):
-        return {
-            "type": "function",
-            "function": {
-                "name": "list_project_directory",
-                "description": (
-                    "Aktif proje kökü içindeki bir klasörün gerçek dosya ve "
-                    "klasör adlarını listeler. Proje yapısını görmek gerektiğinde "
-                    "dosya adı tahmin etmek yerine bu aracı kullan."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "relative_path": {
-                            "type": "string",
-                            "description": (
-                                "Aktif proje köküne göre listelenecek klasör yolu. "
-                                "Proje kökü için boş bırak."
-                            ),
-                            "default": "",
-                        },
-                    },
-                },
-            },
-        }
-
-    def _write_tool_definition(self):
-        return {
-            "type": "function",
-            "function": {
-                "name": "DOSYA_YAZ",
-                "description": (
-                    "Kullanıcının isteği veya onayı kapsamındaki metin "
-                    "dosyasını aktif proje kökü içinde oluştur veya değiştir. "
-                    "Dosya yolu ve içeriğine yalnız sen karar verirsin. "
-                    "Python yalnız teknik yazma işlemini uygular."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "required": ["path", "content"],
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": (
-                                "Yazılacak dosyanın tam yolu veya aktif "
-                                "proje köküne göre göreli yolu."
-                            ),
-                        },
-                        "content": {
-                            "type": "string",
-                            "description": (
-                                "Dosyaya UTF-8 olarak yazılacak tam metin."
-                            ),
-                        },
-                        "overwrite": {
-                            "type": "boolean",
-                            "description": (
-                                "Mevcut dosyanın üzerine yazılacaksa true. "
-                                "Varsayılan false."
-                            ),
-                            "default": False,
-                        },
-                    },
-                },
-            },
-        }
-
     def submit_prompt(self, text):
-        text = str(text or "").strip()
+        text = str(
+            text or ""
+        ).strip()
 
         if not text:
-            self.error_ready.emit("Boş mesaj gönderilemez.")
+            self.error_ready.emit(
+                "Boş mesaj gönderilemez."
+            )
             return False
 
         if not self._ready:
-            self.error_ready.emit("Qwen henüz hazır değil.")
+            self.error_ready.emit(
+                "Qwen henüz hazır değil."
+            )
             return False
 
         self._cancel_requested.clear()
-        self._prompt_queue.put(text)
+
+        self._prompt_queue.put(
+            text
+        )
+
         return True
 
     def reset_context(self):
         if not self._ready:
-            self.error_ready.emit("Qwen henüz hazır değil.")
+            self.error_ready.emit(
+                "Qwen henüz hazır değil."
+            )
             return False
 
         with self._messages_lock:
             self._messages.clear()
 
-        self.context_remaining.emit(100.0)
+        self.context_remaining.emit(
+            100.0
+        )
+
         return True
 
-    def _messages_for_prompt(self, text):
+    def _messages_for_prompt(
+        self,
+        text,
+    ):
         with self._messages_lock:
             return [
                 self._system_message,
                 *self._messages,
-                {"role": "user", "content": text},
+                {
+                    "role": "user",
+                    "content": text,
+                },
             ]
 
-    def _remember_exchange(self, user_text, assistant_text):
+    def _remember_exchange(
+        self,
+        user_text,
+        assistant_text,
+    ):
         with self._messages_lock:
             self._messages.append(
-                {"role": "user", "content": user_text}
+                {
+                    "role": "user",
+                    "content": user_text,
+                }
             )
+
             self._messages.append(
-                {"role": "assistant", "content": assistant_text}
+                {
+                    "role": "assistant",
+                    "content": assistant_text,
+                }
             )
-
-    def _emit_context_remaining(self, response):
-        try:
-            prompt_tokens = int(
-                getattr(response, "prompt_eval_count", 0) or 0
-            )
-            eval_tokens = int(
-                getattr(response, "eval_count", 0) or 0
-            )
-
-            used = max(0, prompt_tokens + eval_tokens)
-            used = min(used, OLLAMA_CONTEXT_SIZE)
-
-            remaining = 100.0 * (
-                1.0 - (used / OLLAMA_CONTEXT_SIZE)
-            )
-
-            self.context_remaining.emit(
-                max(0.0, min(100.0, remaining))
-            )
-
-        except Exception:
-            return
-
-    def _create_measurement_totals(self):
-        return {
-            "total_duration": 0,
-            "load_duration": 0,
-            "prompt_eval_count": 0,
-            "prompt_eval_duration": 0,
-            "eval_count": 0,
-            "eval_duration": 0,
-        }
-
-    def _add_response_measurement(self, totals, response):
-        for metric_name in totals:
-            try:
-                value = getattr(response, metric_name, 0) or 0
-                totals[metric_name] += int(value)
-            except (TypeError, ValueError):
-                continue
-
-    def _print_measurement(self, started_at, totals, rounds):
-        elapsed_seconds = time.perf_counter() - started_at
-
-        model_seconds = (
-            totals["total_duration"] / 1_000_000_000
-        )
-        load_seconds = (
-            totals["load_duration"] / 1_000_000_000
-        )
-        prompt_seconds = (
-            totals["prompt_eval_duration"] / 1_000_000_000
-        )
-        eval_seconds = (
-            totals["eval_duration"] / 1_000_000_000
-        )
-
-        prompt_tokens = totals["prompt_eval_count"]
-        eval_tokens = totals["eval_count"]
-
-        if eval_seconds > 0:
-            tokens_per_second = eval_tokens / eval_seconds
-        else:
-            tokens_per_second = 0.0
-
-        print(
-            "[QWEN ÖLÇÜM] "
-            f"toplam={elapsed_seconds:.2f} sn | "
-            f"model={model_seconds:.2f} sn | "
-            f"yükleme={load_seconds:.2f} sn | "
-            f"giriş={prompt_seconds:.2f} sn / "
-            f"{prompt_tokens} tok | "
-            f"üretim={eval_seconds:.2f} sn / "
-            f"{eval_tokens} tok / "
-            f"{tokens_per_second:.1f} tok/sn | "
-            f"tur={rounds}",
-            flush=True,
-        )
-
-    def _chat_with_tools(self, user_text):
-        messages = self._messages_for_prompt(user_text)
-        read_tool = self._tool_definition()
-        directory_tool = self._directory_tool_definition()
-        write_tool = self._write_tool_definition()
-        tools = [read_tool, directory_tool, write_tool, *INTERNET_TOOLS]
-        last_response = None
-
-        started_at = time.perf_counter()
-        rounds = 0
-        totals = self._create_measurement_totals()
-
-        for _ in range(MAX_TOOL_ROUNDS):
-            if self._stopping:
-                return None
-            if self._cancel_requested.is_set():
-                return _CANCELLED
-
-            response = self._chat(
-                model=OLLAMA_MODEL,
-                messages=messages,
-                tools=tools,
-                stream=False,
-                options={"num_ctx": OLLAMA_CONTEXT_SIZE},
-            )
-
-            if response is _CANCELLED:
-                return _CANCELLED
-
-            last_response = response
-            rounds += 1
-
-            self._add_response_measurement(
-                totals,
-                response,
-            )
-
-            assistant_message = response.message
-            messages.append(assistant_message)
-
-            tool_calls = assistant_message.tool_calls or []
-
-            if not tool_calls:
-                self._emit_context_remaining(response)
-
-                self._print_measurement(
-                    started_at,
-                    totals,
-                    rounds,
-                )
-
-                return (
-                    assistant_message.content or ""
-                ).strip()
-
-            for tool_call in tool_calls:
-                if self._stopping:
-                    return None
-                if self._cancel_requested.is_set():
-                    return _CANCELLED
-
-                tool_name = tool_call.function.name
-                arguments = (
-                    tool_call.function.arguments or {}
-                )
-
-                if tool_name == "DOSYA_OKU":
-                    requested_path = str(
-                        arguments.get("path", "")
-                    )
-
-                    print(
-                        f"[QWEN DOSYA İSTEDİ] "
-                        f"{requested_path}"
-                    )
-
-                    result = self.DOSYA_OKU(
-                        requested_path
-                    )
-                elif tool_name == "list_project_directory":
-                    relative_path = str(
-                        arguments.get("relative_path", "")
-                    )
-
-                    print(
-                        f"[QWEN KLASÖR İSTEDİ] "
-                        f"{relative_path or '.'}"
-                    )
-
-                    result = self.list_project_directory(
-                        relative_path
-                    )
-                elif tool_name == "DOSYA_YAZ":
-                    result = self.DOSYA_YAZ(
-                        arguments.get("path", ""),
-                        arguments.get("content", ""),
-                        arguments.get("overwrite", False),
-                    )
-                elif tool_name in INTERNET_TOOL_NAMES:
-                    result = internet_araci_calistir(
-                        tool_name,
-                        arguments,
-                    )
-                else:
-                    result = (
-                        "[TOOL HATA] Bilinmeyen araç: "
-                        f"{tool_name}"
-                    )
-
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_name": tool_name,
-                        "content": result,
-                    }
-                )
-
-        if last_response is not None:
-            self._emit_context_remaining(
-                last_response
-            )
-
-        self._print_measurement(
-            started_at,
-            totals,
-            rounds,
-        )
-
-        raise RuntimeError(
-            f"Qwen {MAX_TOOL_ROUNDS} araç turu içinde "
-            "nihai cevap üretmedi."
-        )
 
     def _notify_cancelled(self):
         self._cancel_requested.clear()
-        print("[QWEN] İşlem durduruldu.", flush=True)
+
+        print(
+            "[QWEN] İşlem durduruldu.",
+            flush=True,
+        )
+
         self.cancelled.emit()
 
     def run(self):
         self._ready = True
-        self.context_remaining.emit(100.0)
+
+        self.context_remaining.emit(
+            100.0
+        )
+
         self.ready.emit()
 
         try:
             while not self._stopping:
                 try:
-                    item = self._prompt_queue.get(
-                        timeout=0.1
+                    item = (
+                        self._prompt_queue.get(
+                            timeout=0.1
+                        )
                     )
+
                 except queue.Empty:
                     continue
 
@@ -1308,26 +534,41 @@ class QwenSession(QThread):
                     break
 
                 user_text = str(item)
-                prepared_user_text = self._prepare_user_text(
-                    user_text
+
+                prepared_user_text = (
+                    self._prepare_user_text(
+                        user_text
+                    )
                 )
 
                 try:
-                    reply = self._chat_with_tools(
-                        prepared_user_text
+                    reply = (
+                        self._chat_with_tools(
+                            prepared_user_text
+                        )
                     )
+
                 except Exception as error:
                     if self._stopping:
                         break
-                    if self._cancel_requested.is_set():
+
+                    if (
+                        self._cancel_requested
+                        .is_set()
+                    ):
                         self._notify_cancelled()
+
                     else:
                         self.error_ready.emit(
                             str(error)
                         )
+
                     continue
 
-                if self._stopping or reply is None:
+                if (
+                    self._stopping
+                    or reply is None
+                ):
                     break
 
                 if reply is _CANCELLED:
@@ -1339,7 +580,9 @@ class QwenSession(QThread):
                     reply,
                 )
 
-                self.reply_ready.emit(reply)
+                self.reply_ready.emit(
+                    reply
+                )
 
         finally:
             self._ready = False
@@ -1347,5 +590,9 @@ class QwenSession(QThread):
     def stop(self):
         self._stopping = True
         self._ready = False
+
         self.cancel_current()
-        self._prompt_queue.put(_STOP)
+
+        self._prompt_queue.put(
+            _STOP
+        )
