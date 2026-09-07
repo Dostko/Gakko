@@ -406,23 +406,37 @@
           <span class="nav-label">Dosya</span>
         </button>
 
-        <button
-          class="nav-btn"
-          id="projectButton"
-          type="button"
-          title="Yeni Proje"
-        >
-          <span class="nav-icon" aria-hidden="true">
-            <svg class="menu-icon-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ff8a2a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 3px rgba(255,138,42,.72));">
-              <rect x="9.5" y="3" width="5" height="4" rx="1"/>
-              <path d="M12 7v4.2M5.5 15v-2.2h13V15"/>
-              <rect x="3.2" y="15" width="4.6" height="4.6" rx="1"/>
-              <rect x="9.7" y="15" width="4.6" height="4.6" rx="1"/>
-              <rect x="16.2" y="15" width="4.6" height="4.6" rx="1"/>
-            </svg>
-          </span>
-          <span class="nav-label">Yeni Proje</span>
-        </button>
+        <div class="project-nav">
+          <button
+            class="nav-btn"
+            id="projectButton"
+            type="button"
+            title="Proje"
+            aria-expanded="false"
+          >
+            <span class="nav-icon" aria-hidden="true">
+              <svg class="menu-icon-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ff8a2a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 3px rgba(255,138,42,.72));">
+                <rect x="9.5" y="3" width="5" height="4" rx="1"/>
+                <path d="M12 7v4.2M5.5 15v-2.2h13V15"/>
+                <rect x="3.2" y="15" width="4.6" height="4.6" rx="1"/>
+                <rect x="9.7" y="15" width="4.6" height="4.6" rx="1"/>
+                <rect x="16.2" y="15" width="4.6" height="4.6" rx="1"/>
+              </svg>
+            </span>
+            <span class="nav-label">Proje</span>
+          </button>
+
+          <div class="project-menu" id="projectMenu" hidden>
+            <button class="project-action" id="newProjectButton" type="button">Yeni Proje Başlat</button>
+            <button class="project-action" id="openProjectButton" type="button">Proje Aç</button>
+
+            <div class="active-project" id="activeProject" hidden>
+              <span>AKTİF PROJE</span>
+              <strong id="activeProjectName">—</strong>
+              <small id="activeProjectPath"></small>
+            </div>
+          </div>
+        </div>
       </nav>
 
       <button class="nav-btn settings" id="settingsButton" type="button" title="Ayarlar">

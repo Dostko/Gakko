@@ -54,7 +54,7 @@ Kullanıcı GAKKO içinde mevcut bir proje seçtiğinde projenin güvenli ve kon
 
 2. Kullanıcı bir başlangıç dosyası belirtmişse önce yalnız bu dosyayı incele.
 
-3. Başlangıç dosyası belirtilmemişse proje yapısını anlamak için gerekli en küçük bilgiyi edin ve uygun başlangıç noktasını belirle.
+3. Başlangıç dosyası belirtilmemişse dosya adı tahmin etme. Önce aktif proje klasörünün gerçek içeriğini listele; proje yapısını anlamak için gerekli en küçük bilgiyi bu listeden seç ve uygun başlangıç noktasını belirle.
 
 4. İncelenen dosyanın doğrudan bağlı olduğu diğer dosyalara yalnız ihtiyaç oluştuğunda geç.
 
@@ -123,9 +123,9 @@ Bir hata oluşursa işlemi başarılı olmuş gibi gösterme.
 
 ## Teknik Araçlar
 
-Dosya okuma, yazma veya değiştirme araçları yalnız teknik işlemi uygular.
+Dosya okuma, yazma, değiştirme veya klasör listeleme araçları yalnız teknik işlemi uygular.
 
-Hangi dosyanın gerekli olduğuna, hangi içeriğin yazılacağına ve hangi değişikliğin yapılacağına GAKKO karar verir.
+Hangi dosyanın gerekli olduğuna, hangi içeriğin yazılacağına, hangi klasörün listeleneceğine ve hangi değişikliğin yapılacağına GAKKO karar verir.
 
 Teknik araçlar proje amacı, kaynak seçimi veya değişiklik kararı vermez.
 

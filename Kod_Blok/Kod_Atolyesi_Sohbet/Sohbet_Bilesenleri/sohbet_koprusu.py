@@ -7,9 +7,7 @@ from PySide6.QtCore import QObject, QSettings, Signal, Slot
 from PySide6.QtWidgets import QApplication, QFileDialog
 
 from Sohbet_Bilesenleri.proje_dosya_yardimcilari import (
-    MEVCUT_PROJE_YONTEMI,
     PROJECT_ROOT,
-    YENI_PROJE_YONTEMI,
     build_attachment_history_message,
     build_attachment_prompt,
     list_project_directory,
@@ -19,6 +17,14 @@ from Sohbet_Bilesenleri.sohbet_gecmisi import (
     ChatHistoryStore,
     HISTORY_RETENTION_DAYS,
     get_history_db_path,
+)
+
+
+PROJELER_YONTEMI = (
+    PROJECT_ROOT
+    / "GAKKO_YUVA"
+    / "Calisma_Yontemleri"
+    / "projeler.md"
 )
 
 
@@ -126,7 +132,7 @@ class ChatBridge(QObject):
         old_session.wait(3000)
 
         if old_session.isRunning():
-            self.error_ready.emit("Mevcut Qwen Code oturumu kapatılamadı.")
+            self.error_ready.emit("Mevcut GAKKO oturumu kapatılamadı.")
             return False
 
         self.session = QwenSession(selected_root)
@@ -168,7 +174,7 @@ class ChatBridge(QObject):
     def _project_change_allowed(self):
         if self._busy:
             self.error_ready.emit(
-                "Qwen Code şu anda başka bir mesaja cevap veriyor."
+                "GAKKO şu anda başka bir mesaja cevap veriyor."
             )
             return False
         return True
@@ -190,7 +196,7 @@ class ChatBridge(QObject):
 
         self._activate_project(
             Path(selected_path),
-            MEVCUT_PROJE_YONTEMI,
+            PROJELER_YONTEMI,
         )
 
     @Slot()
@@ -244,7 +250,7 @@ class ChatBridge(QObject):
     def select_chat_files(self):
         if self._busy:
             self.error_ready.emit(
-                "Qwen Code şu anda başka bir mesaja cevap veriyor."
+                "GAKKO şu anda başka bir mesaja cevap veriyor."
             )
             return
 
@@ -261,7 +267,7 @@ class ChatBridge(QObject):
     def add_chat_files(self, paths_json):
         if self._busy:
             self.error_ready.emit(
-                "Qwen Code şu anda başka bir mesaja cevap veriyor."
+                "GAKKO şu anda başka bir mesaja cevap veriyor."
             )
             return
 
@@ -310,7 +316,7 @@ class ChatBridge(QObject):
 
         self._activate_project(
             selected_root,
-            YENI_PROJE_YONTEMI,
+            PROJELER_YONTEMI,
         )
 
     @Slot(result=str)
@@ -514,7 +520,7 @@ class ChatBridge(QObject):
             return
 
         if self._busy:
-            self.error_ready.emit("Qwen Code şu anda başka bir mesaja cevap veriyor.")
+            self.error_ready.emit("GAKKO şu anda başka bir mesaja cevap veriyor.")
             return
 
         history_session_id = self._ensure_history_session()
@@ -538,12 +544,12 @@ class ChatBridge(QObject):
     def reset_qwen_context(self):
         if self._busy:
             self.error_ready.emit(
-                "Qwen Code şu anda başka bir mesaja cevap veriyor."
+                "GAKKO şu anda başka bir mesaja cevap veriyor."
             )
             return
 
         if not self.session.is_ready:
-            self.error_ready.emit("Qwen Code henüz hazır değil.")
+            self.error_ready.emit("GAKKO henüz hazır değil.")
             return
 
         self.session.reset_context()

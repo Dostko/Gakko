@@ -13,6 +13,9 @@ from pathlib import Path
 from ollama import ChatResponse, Client
 from PySide6.QtCore import QThread, Signal
 
+from .proje_dosya_yardimcilari import (
+    list_project_directory as list_project_directory_entries,
+)
 from .internet_giris import (
     INTERNET_TOOL_NAMES,
     INTERNET_TOOLS,
@@ -220,10 +223,15 @@ class QwenSession(QThread):
             f"Güncel sistem tarihi: {current_date}\n"
             "Aşağıdaki QWEN.md yalnız başlangıç kapısıdır.\n"
             "Bir dosyanın içeriğine ihtiyaç duyduğunda DOSYA_OKU aracını çağır.\n"
+            "Aktif proje klasörünün gerçek içeriğine ihtiyaç duyduğunda "
+            "list_project_directory aracını çağır.\n"
+            "Bir dosyayı oluşturman veya değiştirmen gerektiğinde "
+            "DOSYA_YAZ aracını çağır.\n"
             "Hangi dosyanın gerekli olduğuna yalnız sen karar ver.\n"
             "Python dosya, fihrist, prensip veya sonraki kaynak seçmez.\n"
-            "Python yalnız senin açıkça istediğin dosyayı diskten okur ve "
-            "içeriğini sana geri verir.\n\n"
+            "Python yalnız senin açıkça istediğin dosya okuma, yazma veya "
+            "klasör listeleme işlemini teknik olarak uygular ve sonucu sana "
+            "geri verir.\n\n"
             "===== QWEN.md =====\n"
             f"{text}\n"
             "===== /QWEN.md ====="
@@ -285,6 +293,140 @@ class QwenSession(QThread):
 
         except Exception as error:
             return f"[DOSYA_OKU HATA] {type(error).__name__}: {error}"
+
+    def list_project_directory(self, relative_path=""):
+        """
+        Qwen'in açıkça istediği aktif proje klasörünün gerçek içeriğini döndürür.
+
+        Bu fonksiyon dosya veya klasör seçmez ve proje hakkında karar vermez.
+        Yalnız mevcut list_project_directory yardımcısını teknik olarak çağırır.
+        """
+        if self.active_project_root is None:
+            return "[KLASOR_LISTELE HATA] Aktif proje seçili değil."
+
+        try:
+            payload = list_project_directory_entries(
+                self.active_project_root,
+                relative_path,
+            )
+        except (OSError, ValueError) as error:
+            return f"[KLASOR_LISTELE HATA] {error}"
+
+        entries = payload.get("entries", [])
+        listed_path = payload.get("path", "") or "."
+
+        lines = [f"[KLASOR_LISTELE OK] {listed_path}"]
+        if not entries:
+            lines.append("(boş)")
+            return "\n".join(lines)
+
+        for entry in entries:
+            entry_type = str(entry.get("type", ""))
+            entry_path = str(entry.get("path", ""))
+            lines.append(f"{entry_type}\t{entry_path}")
+
+        return "\n".join(lines)
+
+    def _resolve_write_path(self, path):
+        raw = str(path or "").strip().strip('"').strip("'")
+        if not raw:
+            raise ValueError("Boş dosya yolu.")
+
+        if self.active_project_root is None:
+            raise ValueError("Aktif proje seçili değil.")
+
+        project_root = Path(self.active_project_root).resolve()
+        if not project_root.exists() or not project_root.is_dir():
+            raise ValueError(
+                f"Aktif proje kökü geçerli değil: {project_root}"
+            )
+
+        candidate = Path(raw)
+        if not candidate.is_absolute():
+            candidate = project_root / candidate
+
+        file_path = candidate.resolve()
+
+        try:
+            file_path.relative_to(project_root)
+        except ValueError as error:
+            raise ValueError(
+                "Dosya aktif proje kökü dışında: "
+                f"{file_path}"
+            ) from error
+
+        return file_path
+
+    def DOSYA_YAZ(self, path, content, overwrite=False):
+        """
+        Qwen'in açıkça istediği metin içeriğini aktif proje içine yazar.
+
+        Bu fonksiyon dosya veya içerik seçmez. Yalnız Qwen'in verdiği
+        yol ve içeriği teknik olarak uygular.
+        """
+        temp_path = None
+
+        try:
+            file_path = self._resolve_write_path(path)
+            overwrite = overwrite is True
+
+            if file_path.exists():
+                if not file_path.is_file():
+                    return (
+                        "[DOSYA_YAZ HATA] Yol bir dosya değil: "
+                        f"{file_path}"
+                    )
+
+                if not overwrite:
+                    return (
+                        "[DOSYA_YAZ HATA] Dosya zaten var; "
+                        "üzerine yazma izni verilmedi: "
+                        f"{file_path}"
+                    )
+
+            text = str(content or "")
+            encoded = text.encode("utf-8")
+
+            if len(encoded) > MAX_FILE_BYTES:
+                return (
+                    "[DOSYA_YAZ HATA] İçerik güvenlik sınırından büyük: "
+                    f"{len(encoded)} bayt > {MAX_FILE_BYTES} bayt"
+                )
+
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                newline="",
+                delete=False,
+                dir=str(file_path.parent),
+                prefix=f".{file_path.name}.",
+                suffix=".gakko-tmp",
+            ) as temp_file:
+                temp_file.write(text)
+                temp_file.flush()
+                temp_path = Path(temp_file.name)
+
+            temp_path.replace(file_path)
+            temp_path = None
+
+            print(
+                f"[QWEN DOSYA YAZDI] {file_path}",
+                flush=True,
+            )
+
+            return f"[DOSYA_YAZ OK] {file_path}"
+
+        except Exception as error:
+            return f"[DOSYA_YAZ HATA] {type(error).__name__}: {error}"
+
+        finally:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     def _image_path_from_attachment_line(self, line):
         stripped = str(line or "").strip()
@@ -821,6 +963,73 @@ class QwenSession(QThread):
             },
         }
 
+    def _directory_tool_definition(self):
+        return {
+            "type": "function",
+            "function": {
+                "name": "list_project_directory",
+                "description": (
+                    "Aktif proje kökü içindeki bir klasörün gerçek dosya ve "
+                    "klasör adlarını listeler. Proje yapısını görmek gerektiğinde "
+                    "dosya adı tahmin etmek yerine bu aracı kullan."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "relative_path": {
+                            "type": "string",
+                            "description": (
+                                "Aktif proje köküne göre listelenecek klasör yolu. "
+                                "Proje kökü için boş bırak."
+                            ),
+                            "default": "",
+                        },
+                    },
+                },
+            },
+        }
+
+    def _write_tool_definition(self):
+        return {
+            "type": "function",
+            "function": {
+                "name": "DOSYA_YAZ",
+                "description": (
+                    "Kullanıcının isteği veya onayı kapsamındaki metin "
+                    "dosyasını aktif proje kökü içinde oluştur veya değiştir. "
+                    "Dosya yolu ve içeriğine yalnız sen karar verirsin. "
+                    "Python yalnız teknik yazma işlemini uygular."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "required": ["path", "content"],
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": (
+                                "Yazılacak dosyanın tam yolu veya aktif "
+                                "proje köküne göre göreli yolu."
+                            ),
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": (
+                                "Dosyaya UTF-8 olarak yazılacak tam metin."
+                            ),
+                        },
+                        "overwrite": {
+                            "type": "boolean",
+                            "description": (
+                                "Mevcut dosyanın üzerine yazılacaksa true. "
+                                "Varsayılan false."
+                            ),
+                            "default": False,
+                        },
+                    },
+                },
+            },
+        }
+
     def submit_prompt(self, text):
         text = str(text or "").strip()
 
@@ -945,8 +1154,10 @@ class QwenSession(QThread):
 
     def _chat_with_tools(self, user_text):
         messages = self._messages_for_prompt(user_text)
-        tool = self._tool_definition()
-        tools = [tool, *INTERNET_TOOLS]
+        read_tool = self._tool_definition()
+        directory_tool = self._directory_tool_definition()
+        write_tool = self._write_tool_definition()
+        tools = [read_tool, directory_tool, write_tool, *INTERNET_TOOLS]
         last_response = None
 
         started_at = time.perf_counter()
@@ -1019,6 +1230,25 @@ class QwenSession(QThread):
 
                     result = self.DOSYA_OKU(
                         requested_path
+                    )
+                elif tool_name == "list_project_directory":
+                    relative_path = str(
+                        arguments.get("relative_path", "")
+                    )
+
+                    print(
+                        f"[QWEN KLASÖR İSTEDİ] "
+                        f"{relative_path or '.'}"
+                    )
+
+                    result = self.list_project_directory(
+                        relative_path
+                    )
+                elif tool_name == "DOSYA_YAZ":
+                    result = self.DOSYA_YAZ(
+                        arguments.get("path", ""),
+                        arguments.get("content", ""),
+                        arguments.get("overwrite", False),
                     )
                 elif tool_name in INTERNET_TOOL_NAMES:
                     result = internet_araci_calistir(

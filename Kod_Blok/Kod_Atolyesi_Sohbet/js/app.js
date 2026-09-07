@@ -28,6 +28,7 @@ const fileOpenProjectButton = document.getElementById("fileOpenProjectButton");
 const fileRemoveProjectButton = document.getElementById("fileRemoveProjectButton");
 const fileActiveProjectName = document.getElementById("fileActiveProjectName");
 const fileTreeList = document.getElementById("fileTreeList");
+const fileReaderPane = document.getElementById("fileReaderPane");
 const fileContent = document.getElementById("fileContent");
 const fileViewResizer = document.getElementById("fileViewResizer");
 
@@ -40,6 +41,12 @@ const historyDeleteBefore = document.getElementById("historyDeleteBefore");
 const historyDeleteBeforeButton = document.getElementById("historyDeleteBeforeButton");
 const historyRetentionNote = document.getElementById("historyRetentionNote");
 const projectButton = document.getElementById("projectButton");
+const projectMenu = document.getElementById("projectMenu");
+const newProjectButton = document.getElementById("newProjectButton");
+const openProjectButton = document.getElementById("openProjectButton");
+const activeProject = document.getElementById("activeProject");
+const activeProjectName = document.getElementById("activeProjectName");
+const activeProjectPathLabel = document.getElementById("activeProjectPath");
 const sidebarResizer = document.getElementById("sidebarResizer");
 const contextPanel = document.createElement("div");
 contextPanel.style.display = "grid";
@@ -102,8 +109,9 @@ let selectedHistoryId = null;
 let historySearchTimer = null;
 let selectedChatFiles = [];
 let activeProjectPath = "";
-const projectDirectoryCache = new Map();
-const expandedProjectDirectories = new Set();
+let fileBrowserPath = "";
+const fileDirectoryCache = new Map();
+const expandedFileDirectories = new Set();
 
 const SIDEBAR_MIN_WIDTH = 150;
 const SIDEBAR_MAX_WIDTH = 520;
@@ -254,25 +262,26 @@ function applySidebarWidth(width) {
   appShell.style.setProperty("--sidebar-open-width", `${sidebarOpenWidth}px`);
 }
 
-function requestProjectDirectory(relativePath = "") {
-  if (!bridge || typeof bridge.list_project_directory !== "function") {
+function requestFileDirectory(relativePath = "") {
+  if (!bridge || typeof bridge.list_file_browser_directory !== "function") {
     return;
   }
 
-  bridge.list_project_directory(String(relativePath || ""));
+  bridge.list_file_browser_directory(String(relativePath || ""));
 }
 
-function refreshVisibleProjectDirectories() {
-  if (!activeProjectPath) {
+function refreshVisibleFileDirectories() {
+  if (!fileBrowserPath) {
     return;
   }
 
-  requestProjectDirectory("");
-  expandedProjectDirectories.forEach(path => requestProjectDirectory(path));
+  requestFileDirectory("");
+  expandedFileDirectories.forEach(path => requestFileDirectory(path));
 }
 
 function createFileTreeRow(entry, depth) {
-  const row = document.createElement(entry.type === "directory" ? "button" : "div");
+  const row = document.createElement("button");
+  row.type = "button";
   row.className = `file-tree-item ${entry.type}`;
   row.style.paddingLeft = `${8 + depth * 14}px`;
   row.title = entry.path;
@@ -281,7 +290,7 @@ function createFileTreeRow(entry, depth) {
   marker.className = "file-tree-marker";
 
   if (entry.type === "directory") {
-    const opened = expandedProjectDirectories.has(entry.path);
+    const opened = expandedFileDirectories.has(entry.path);
     marker.textContent = opened ? "⌄" : "›";
   } else {
     marker.textContent = "·";
@@ -295,19 +304,28 @@ function createFileTreeRow(entry, depth) {
   row.appendChild(label);
 
   if (entry.type === "directory") {
-    row.type = "button";
     row.addEventListener("click", () => {
-      if (expandedProjectDirectories.has(entry.path)) {
-        expandedProjectDirectories.delete(entry.path);
+      if (expandedFileDirectories.has(entry.path)) {
+        expandedFileDirectories.delete(entry.path);
         renderFileTree();
         return;
       }
 
-      expandedProjectDirectories.add(entry.path);
-      if (!projectDirectoryCache.has(entry.path)) {
-        requestProjectDirectory(entry.path);
+      expandedFileDirectories.add(entry.path);
+      if (!fileDirectoryCache.has(entry.path)) {
+        requestFileDirectory(entry.path);
       }
       renderFileTree();
+    });
+  } else {
+    row.addEventListener("click", () => {
+      if (!bridge || typeof bridge.read_file_browser_file !== "function") {
+        statusNote.textContent = "Dosya okuma bağlantısı henüz hazır değil";
+        return;
+      }
+
+      statusNote.textContent = "Dosya okunuyor...";
+      bridge.read_file_browser_file(entry.path);
     });
   }
 
@@ -315,7 +333,7 @@ function createFileTreeRow(entry, depth) {
 }
 
 function appendFileTreeBranch(container, relativePath, depth) {
-  const payload = projectDirectoryCache.get(relativePath);
+  const payload = fileDirectoryCache.get(relativePath);
   if (!payload) {
     return;
   }
@@ -325,8 +343,8 @@ function appendFileTreeBranch(container, relativePath, depth) {
 
     if (
       entry.type === "directory"
-      && expandedProjectDirectories.has(entry.path)
-      && projectDirectoryCache.has(entry.path)
+      && expandedFileDirectories.has(entry.path)
+      && fileDirectoryCache.has(entry.path)
     ) {
       appendFileTreeBranch(container, entry.path, depth + 1);
     }
@@ -342,9 +360,9 @@ function showFileTreeMessage(message) {
 }
 
 function renderFileTree() {
-  const rootPayload = projectDirectoryCache.get("");
+  const rootPayload = fileDirectoryCache.get("");
 
-  if (!activeProjectPath) {
+  if (!fileBrowserPath) {
     showFileTreeMessage("Proje Aç ile bir klasör seç.");
     return;
   }
@@ -364,18 +382,105 @@ function renderFileTree() {
   appendFileTreeBranch(fileTreeList, "", 0);
 }
 
+function showFileReaderEmpty(message = "Okumak için soldan bir dosya seç.") {
+  if (!fileReaderPane) {
+    return;
+  }
+
+  const header = document.createElement("div");
+  header.className = "file-pane-header";
+  header.textContent = "DOSYA OKUMA";
+
+  const empty = document.createElement("div");
+  empty.className = "file-pane-empty";
+  empty.textContent = message;
+
+  fileReaderPane.replaceChildren(header, empty);
+}
+
+function renderFileBrowserFile(payload) {
+  if (!fileReaderPane || !payload) {
+    return;
+  }
+
+  const header = document.createElement("div");
+  header.className = "file-pane-header";
+  header.textContent = payload.name
+    ? `DOSYA OKUMA · ${payload.name}`
+    : "DOSYA OKUMA";
+
+  if (payload.kind === "image" && payload.data_url) {
+    const wrapper = document.createElement("div");
+    wrapper.style.padding = "18px";
+    wrapper.style.display = "flex";
+    wrapper.style.justifyContent = "center";
+    wrapper.style.alignItems = "flex-start";
+
+    const image = document.createElement("img");
+    image.src = String(payload.data_url);
+    image.alt = String(payload.name || "Görsel");
+    image.style.maxWidth = "100%";
+    image.style.height = "auto";
+    image.style.objectFit = "contain";
+
+    wrapper.appendChild(image);
+    fileReaderPane.replaceChildren(header, wrapper);
+    statusNote.textContent = "Dosya açıldı";
+    return;
+  }
+
+  const text = document.createElement("pre");
+  text.textContent = String(payload.content || "");
+  text.style.margin = "0";
+  text.style.padding = "18px";
+  text.style.boxSizing = "border-box";
+  text.style.minHeight = "100%";
+  text.style.whiteSpace = "pre-wrap";
+  text.style.overflowWrap = "anywhere";
+  text.style.fontFamily = "Consolas, 'Courier New', monospace";
+  text.style.fontSize = "12px";
+  text.style.lineHeight = "1.55";
+  text.style.color = "#dfe7f0";
+
+  fileReaderPane.replaceChildren(header, text);
+  statusNote.textContent = "Dosya açıldı";
+}
+
+function showFileBrowserRoot(path) {
+  const browserPath = String(path || "").trim();
+  if (!browserPath) {
+    return;
+  }
+
+  const cleanPath = browserPath.replace(/[\\/]+$/, "");
+  const parts = cleanPath.split(/[\\/]/);
+  const projectName = parts[parts.length - 1] || cleanPath;
+
+  fileBrowserPath = browserPath;
+  fileActiveProjectName.textContent = projectName;
+  fileActiveProjectName.title = browserPath;
+  fileRemoveProjectButton.hidden = false;
+
+  fileDirectoryCache.clear();
+  expandedFileDirectories.clear();
+  renderFileTree();
+  showFileReaderEmpty();
+  requestFileDirectory("");
+}
+
 function resetFileTree() {
-  projectDirectoryCache.clear();
-  expandedProjectDirectories.clear();
+  fileDirectoryCache.clear();
+  expandedFileDirectories.clear();
   renderFileTree();
 }
 
 function clearFileProjectView() {
-  activeProjectPath = "";
+  fileBrowserPath = "";
   fileActiveProjectName.textContent = "Yok";
   fileActiveProjectName.removeAttribute("title");
   fileRemoveProjectButton.hidden = true;
   resetFileTree();
+  showFileReaderEmpty();
 }
 
 function formatRemainingPercentage(value) {
@@ -692,12 +797,12 @@ function showActiveProject(path, startsProjectMethod) {
   const projectName = parts[parts.length - 1] || cleanPath;
 
   activeProjectPath = projectPath;
-  fileActiveProjectName.textContent = projectName;
-  fileActiveProjectName.title = projectPath;
-  fileRemoveProjectButton.hidden = false;
 
-  resetFileTree();
-  requestProjectDirectory("");
+  activeProjectName.textContent = projectName;
+  activeProjectPathLabel.textContent = projectPath;
+  activeProject.hidden = false;
+  projectMenu.hidden = false;
+  projectButton.setAttribute("aria-expanded", "true");
 
   if (startsProjectMethod) {
     setWaiting(true);
@@ -999,17 +1104,44 @@ function connectBridge() {
       });
     }
 
-    bridge.project_directory_ready.connect(payloadText => {
-      try {
-        const payload = JSON.parse(String(payloadText || "{}"));
-        const path = String(payload.path || "");
-        const entries = Array.isArray(payload.entries) ? payload.entries : [];
-        projectDirectoryCache.set(path, { path, entries });
-        renderFileTree();
-      } catch (error) {
-        statusNote.textContent = "Proje dosya ağacı okunamadı";
-      }
-    });
+    if (
+      bridge.file_browser_project_selected
+      && typeof bridge.file_browser_project_selected.connect === "function"
+    ) {
+      bridge.file_browser_project_selected.connect(path => {
+        showFileBrowserRoot(path);
+      });
+    }
+
+    if (
+      bridge.file_browser_directory_ready
+      && typeof bridge.file_browser_directory_ready.connect === "function"
+    ) {
+      bridge.file_browser_directory_ready.connect(payloadText => {
+        try {
+          const payload = JSON.parse(String(payloadText || "{}"));
+          const path = String(payload.path || "");
+          const entries = Array.isArray(payload.entries) ? payload.entries : [];
+          fileDirectoryCache.set(path, { path, entries });
+          renderFileTree();
+        } catch (error) {
+          statusNote.textContent = "Dosya klasörü okunamadı";
+        }
+      });
+    }
+
+    if (
+      bridge.file_browser_file_ready
+      && typeof bridge.file_browser_file_ready.connect === "function"
+    ) {
+      bridge.file_browser_file_ready.connect(payloadText => {
+        try {
+          renderFileBrowserFile(JSON.parse(String(payloadText || "{}")));
+        } catch (error) {
+          statusNote.textContent = "Dosya açılamadı";
+        }
+      });
+    }
 
     bridge.history_sessions_ready.connect(payloadText => {
       try {
@@ -1066,7 +1198,7 @@ function connectBridge() {
     bridge.reply_ready.connect(reply => {
       addMessage(reply, "assistant");
       setWaiting(false);
-      refreshVisibleProjectDirectories();
+      refreshVisibleFileDirectories();
     });
 
     if (
@@ -1089,6 +1221,11 @@ function connectBridge() {
   });
 }
 
+function closeProjectMenu() {
+  projectMenu.hidden = true;
+  projectButton.setAttribute("aria-expanded", "false");
+}
+
 function setSidebarOpen(opened) {
   appShell.classList.toggle("sidebar-open", opened);
   sidebarToggle.setAttribute("aria-expanded", String(opened));
@@ -1096,6 +1233,9 @@ function setSidebarOpen(opened) {
     ? "Menüyü kapat"
     : "Menüyü aç";
 
+  if (!opened) {
+    closeProjectMenu();
+  }
 }
 
 resetContextButton.addEventListener("click", () => {
@@ -1134,12 +1274,12 @@ if (fileButton) {
 
 if (fileOpenProjectButton) {
   fileOpenProjectButton.addEventListener("click", () => {
-    if (!bridge || typeof bridge.select_project_folder !== "function") {
-      statusNote.textContent = "Proje seçici henüz hazır değil";
+    if (!bridge || typeof bridge.select_file_browser_folder !== "function") {
+      statusNote.textContent = "Dosya klasörü seçici henüz hazır değil";
       return;
     }
 
-    bridge.select_project_folder();
+    bridge.select_file_browser_folder();
   });
 }
 
@@ -1180,12 +1320,35 @@ historyDeleteBeforeButton.addEventListener("click", () => {
 });
 
 projectButton.addEventListener("click", () => {
+  if (!appShell.classList.contains("sidebar-open")) {
+    setSidebarOpen(true);
+  }
+
+  const opened = projectMenu.hidden;
+  projectMenu.hidden = !opened;
+  projectButton.setAttribute("aria-expanded", String(opened));
+});
+
+newProjectButton.addEventListener("click", () => {
+  closeProjectMenu();
+
   if (!bridge || typeof bridge.start_new_project !== "function") {
     statusNote.textContent = "Yeni proje bağlantısı henüz hazır değil";
     return;
   }
 
   bridge.start_new_project();
+});
+
+openProjectButton.addEventListener("click", () => {
+  closeProjectMenu();
+
+  if (!bridge || typeof bridge.select_project_folder !== "function") {
+    statusNote.textContent = "Proje seçici henüz hazır değil";
+    return;
+  }
+
+  bridge.select_project_folder();
 });
 
 attachButton.addEventListener("click", () => {
