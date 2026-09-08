@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import json
+import os
 import time
+
+from mcp import Client as MCPClient, StdioServerParameters
 
 from ..internet_giris import (
     INTERNET_TOOL_NAMES,
@@ -12,103 +17,87 @@ from .qwen_ayarlar import (
     MAX_TOOL_ROUNDS,
     OLLAMA_CONTEXT_SIZE,
     OLLAMA_MODEL,
+    PROJECT_ROOT,
     _CANCELLED,
 )
 
 
+NODE_DIR = r"C:\Program Files\nodejs"
+
+
+def _mcp_tool_to_ollama(tool):
+    schema = getattr(tool, "input_schema", None)
+    if schema is None:
+        schema = getattr(tool, "inputSchema", None)
+
+    if hasattr(schema, "model_dump"):
+        schema = schema.model_dump(by_alias=True)
+
+    if not isinstance(schema, dict):
+        schema = {
+            "type": "object",
+            "properties": {},
+        }
+
+    return {
+        "type": "function",
+        "function": {
+            "name": str(tool.name),
+            "description": str(
+                getattr(tool, "description", "") or ""
+            ),
+            "parameters": schema,
+        },
+    }
+
+
+def _mcp_result_to_text(result):
+    parts = []
+
+    for block in list(getattr(result, "content", None) or []):
+        text = getattr(block, "text", None)
+        if isinstance(text, str) and text:
+            parts.append(text)
+            continue
+
+        if hasattr(block, "model_dump"):
+            payload = block.model_dump(
+                mode="json",
+                by_alias=True,
+            )
+            parts.append(
+                json.dumps(
+                    payload,
+                    ensure_ascii=False,
+                )
+            )
+
+    structured = getattr(
+        result,
+        "structured_content",
+        None,
+    )
+
+    if structured is not None and not parts:
+        parts.append(
+            json.dumps(
+                structured,
+                ensure_ascii=False,
+            )
+        )
+
+    text = "\n".join(parts).strip()
+
+    if not text:
+        text = "[MCP] Araç boş sonuç döndürdü."
+
+    if bool(getattr(result, "is_error", False)):
+        return f"[MCP HATA] {text}"
+
+    return text
+
+
 class QwenAraclariMixin:
-    def _tool_definition(self):
-        return {
-            "type": "function",
-            "function": {
-                "name": "DOSYA_OKU",
-                "description": (
-                    "İhtiyaç duyduğun metin dosyasını oku. "
-                    "Hangi dosyanın gerekli olduğuna yalnız sen karar verirsin. "
-                    "Python dosya, fihrist veya prensip seçmez."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "required": ["path"],
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": (
-                                "Okunacak dosyanın tam yolu veya "
-                                "D:\\Gakko köküne göre göreli yolu."
-                            ),
-                        }
-                    },
-                },
-            },
-        }
-
-    def _directory_tool_definition(self):
-        return {
-            "type": "function",
-            "function": {
-                "name": "list_project_directory",
-                "description": (
-                    "Aktif proje kökü içindeki bir klasörün gerçek dosya ve "
-                    "klasör adlarını listeler. Proje yapısını görmek gerektiğinde "
-                    "dosya adı tahmin etmek yerine bu aracı kullan."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "relative_path": {
-                            "type": "string",
-                            "description": (
-                                "Aktif proje köküne göre listelenecek klasör yolu. "
-                                "Proje kökü için boş bırak."
-                            ),
-                            "default": "",
-                        },
-                    },
-                },
-            },
-        }
-
-    def _write_tool_definition(self):
-        return {
-            "type": "function",
-            "function": {
-                "name": "DOSYA_YAZ",
-                "description": (
-                    "Kullanıcının isteği veya onayı kapsamındaki metin "
-                    "dosyasını aktif proje kökü içinde oluştur veya değiştir. "
-                    "Dosya yolu ve içeriğine yalnız sen karar verirsin. "
-                    "Python yalnız teknik yazma işlemini uygular."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "required": ["path", "content"],
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": (
-                                "Yazılacak dosyanın tam yolu veya aktif "
-                                "proje köküne göre göreli yolu."
-                            ),
-                        },
-                        "content": {
-                            "type": "string",
-                            "description": (
-                                "Dosyaya UTF-8 olarak yazılacak tam metin."
-                            ),
-                        },
-                        "overwrite": {
-                            "type": "boolean",
-                            "description": (
-                                "Mevcut dosyanın üzerine yazılacaksa true. "
-                                "Varsayılan false."
-                            ),
-                            "default": False,
-                        },
-                    },
-                },
-            },
-        }
 
     def _emit_context_remaining(self, response):
         try:
@@ -243,28 +232,142 @@ class QwenAraclariMixin:
             flush=True,
         )
 
+    def _filesystem_server_parameters(self):
+        allowed_directories = [
+            str(
+                (
+                    PROJECT_ROOT
+                    / "GAKKO_YUVA"
+                ).resolve()
+            )
+        ]
+
+        if self.active_project_root is not None:
+            active_project = str(
+                self.active_project_root.resolve()
+            )
+
+            if active_project not in allowed_directories:
+                allowed_directories.append(
+                    active_project
+                )
+
+        path_value = os.environ.get(
+            "PATH",
+            "",
+        )
+
+        if NODE_DIR.casefold() not in path_value.casefold():
+            path_value = (
+                NODE_DIR
+                + os.pathsep
+                + path_value
+            )
+
+        return StdioServerParameters(
+            command=os.environ.get(
+                "COMSPEC",
+                r"C:\Windows\System32\cmd.exe",
+            ),
+            args=[
+                "/c",
+                "npx",
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                *allowed_directories,
+            ],
+            env={
+                "PATH": path_value,
+            },
+        )
+
     def _chat_with_tools(self, user_text):
+        return asyncio.run(
+            self._chat_with_mcp(
+                user_text
+            )
+        )
+
+    async def _chat_with_mcp(self, user_text):
         messages = self._messages_for_prompt(
             user_text
         )
 
-        read_tool = self._tool_definition()
-
-        directory_tool = (
-            self._directory_tool_definition()
+        active_project_root = (
+            str(self.active_project_root.resolve())
+            if self.active_project_root is not None
+            else "Yok"
+        )
+        gakko_yuva_root = str(
+            (
+                PROJECT_ROOT
+                / "GAKKO_YUVA"
+            ).resolve()
         )
 
-        write_tool = (
-            self._write_tool_definition()
+        messages.insert(
+            1,
+            {
+                "role": "system",
+                "content": (
+                    "Çalışma bilgileri:\n"
+                    f"- Aktif proje kökü: {active_project_root}\n"
+                    f"- GAKKO_YUVA: {gakko_yuva_root}"
+                ),
+            },
         )
 
-        tools = [
-            read_tool,
-            directory_tool,
-            write_tool,
-            *INTERNET_TOOLS,
-        ]
+        server_parameters = (
+            self._filesystem_server_parameters()
+        )
 
+        async with MCPClient(
+            server_parameters
+        ) as mcp_client:
+            listed = await mcp_client.list_tools()
+
+            mcp_tools = list(
+                getattr(
+                    listed,
+                    "tools",
+                    listed,
+                )
+                or []
+            )
+
+            mcp_tool_names = {
+                str(tool.name)
+                for tool in mcp_tools
+            }
+
+            tools = [
+                *[
+                    _mcp_tool_to_ollama(tool)
+                    for tool in mcp_tools
+                ],
+                *INTERNET_TOOLS,
+            ]
+
+            print(
+                "[MCP DOSYA SISTEMI] "
+                f"{len(mcp_tools)} arac geldi.",
+                flush=True,
+            )
+
+            return await self._tool_loop(
+                messages,
+                tools,
+                mcp_client,
+                mcp_tool_names,
+            )
+
+    async def _tool_loop(
+        self,
+        messages,
+        tools,
+        mcp_client,
+        mcp_tool_names,
+    ):
         last_response = None
 
         started_at = time.perf_counter()
@@ -347,59 +450,25 @@ class QwenAraclariMixin:
                     or {}
                 )
 
-                if tool_name == "DOSYA_OKU":
-                    requested_path = str(
-                        arguments.get(
-                            "path",
-                            "",
-                        )
-                    )
-
+                if tool_name in mcp_tool_names:
                     print(
-                        "[QWEN DOSYA İSTEDİ] "
-                        f"{requested_path}"
+                        "[QWEN MCP] "
+                        f"arac={tool_name} | "
+                        f"arguments={arguments}",
+                        flush=True,
                     )
 
-                    result = self.DOSYA_OKU(
-                        requested_path
-                    )
-
-                elif (
-                    tool_name
-                    == "list_project_directory"
-                ):
-                    relative_path = str(
-                        arguments.get(
-                            "relative_path",
-                            "",
+                    mcp_result = (
+                        await mcp_client.call_tool(
+                            tool_name,
+                            arguments=arguments,
                         )
-                    )
-
-                    print(
-                        "[QWEN KLASÖR İSTEDİ] "
-                        f"{relative_path or '.'}"
                     )
 
                     result = (
-                        self.list_project_directory(
-                            relative_path
+                        _mcp_result_to_text(
+                            mcp_result
                         )
-                    )
-
-                elif tool_name == "DOSYA_YAZ":
-                    result = self.DOSYA_YAZ(
-                        arguments.get(
-                            "path",
-                            "",
-                        ),
-                        arguments.get(
-                            "content",
-                            "",
-                        ),
-                        arguments.get(
-                            "overwrite",
-                            False,
-                        ),
                     )
 
                 elif (
