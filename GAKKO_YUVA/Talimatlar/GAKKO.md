@@ -17,7 +17,9 @@ Görev için gerekli bilgi mevcut aktif sohbet içinde zaten varsa, bu bilgiyi k
 Kullanıcı önceki bir konuşmaya, daha önce yapılan bir çalışmaya, alınmış bir karara, eski bir test veya koda açıkça gönderme yapıyorsa:
 
 * Gerekli bilgi aktif sohbet içinde varsa doğrudan onu kullan.
+
 * Aktif sohbet içinde yoksa `GAKKO_YUVA/Talimatlar/Hafiza_Fihristi.md` üzerinden yalnız gerekli geçmiş kaynağına git.
+
 * Geçmiş kaynakta da bulunamazsa kullanıcıdan eksik bilgiyi iste.
 
 "Başta konuştuğumuz", "önceki konuşmada", "daha önce", "dün yaptığımız", "kaldığımız yerden devam et" gibi ifadeleri geçmişe gönderme olarak değerlendir.
@@ -29,6 +31,7 @@ Bir kaynak yeterliyse başka fihristlere geçme.
 ## Prensipler
 
 Davranış, doğruluk, belirsizlik, kaynak seçimi veya araç kullanımıyla ilgili bir ilke gerektiğinde:
+
 `GAKKO_YUVA/Talimatlar/Prensipler_Fihristi.md`
 
 Prensip kaynağı yalnız görevin nasıl değerlendirilmesi veya nasıl davranılması gerektiği için gerekli olduğunda kullanılır.
@@ -36,13 +39,17 @@ Prensip kaynağı yalnız görevin nasıl değerlendirilmesi veya nasıl davran�
 ## Calisma Yontemleri
 
 Bir işin nasıl yürütüleceği, hangi adımların izleneceği veya belirli bir çalışma yönteminin uygulanması gerektiğinde:
+
 `GAKKO_YUVA/Talimatlar/Calisma_Yontemleri_Fihristi.md`
+
+Aktif projedeki dosya, kod bölümü veya değişken üzerinde inceleme ve düzenleme yapılacaksa ilgili proje çalışma yöntemini kullan. Proje kodunda dosya türleri veya uzantılardan söz edilmesi, tek başına GAKKO’nun Bilgi kaynaklarına başvurma gerekçesi değildir.
 
 Çalışma yöntemi görev için yeterliyse ilgisiz Bilgi, Hafiza veya Kayitlar kaynaklarına geçme.
 
 ## Hafiza
 
 Geçmiş konuşmalar, önceki çalışma adımları, eski kodlar, testler, kararlar ve yakın geçmişte yapılan işler gerektiğinde:
+
 `GAKKO_YUVA/Talimatlar/Hafiza_Fihristi.md`
 
 Hafiza yalnız aktif sohbet içinde bulunmayan geçmiş konuşma ve çalışma bilgisini bulmak için kullanılır.
@@ -50,6 +57,7 @@ Hafiza yalnız aktif sohbet içinde bulunmayan geçmiş konuşma ve çalışma b
 ## Bilgi
 
 GAKKO'nun sistemi, yapısı, dosya formatları veya kayıtlı doğrulanmış teknik bilgi görev için gerçekten gerektiğinde:
+
 `GAKKO_YUVA/Talimatlar/Bilgi_Fihristi.md`
 
 Görev GAKKO sistem yapısını gerektirmiyorsa yalnız genel yön bulmak amacıyla Bilgi kaynaklarına girme.
@@ -57,6 +65,7 @@ Görev GAKKO sistem yapısını gerektirmiyorsa yalnız genel yön bulmak amacı
 ## Kayitlar
 
 GAKKO'nun kuruluşu, önemli revizeleri, gelişmeleri ve yapısal yön değişiklikleriyle ilgili bilgi gerektiğinde:
+
 `GAKKO_YUVA/Talimatlar/Kayitlar_Fihristi.md`
 
 Kayitlar, GAKKO'nun tarihsel gelişimini ve önemli yapısal değişimlerini anlatan bilgi amaçlı kaynaklardır. Geçmiş sohbet arşivi değildir.

@@ -18,6 +18,8 @@ Bu çalışma yöntemi, GAKKO'nun yeni veya mevcut projelerle güvenli, kontroll
 
 6. Proje içindeki dosya ve klasör işlemlerinde yalnız mevcut Filesystem MCP araçlarını kullan.
 
+7. Proje yalnız aktif edildiğinde ve henüz kullanıcı tarafından bir görev verilmediğinde proje içeriğini listeleme veya dosya okuma. Aktif proje kökünü kabul et ve kullanıcı görevini bekle.
+
 ---
 
 ## Yeni Proje

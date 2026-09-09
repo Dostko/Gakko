@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import json
 import os
-import re
 import time
 from pathlib import Path
 
@@ -24,11 +23,6 @@ from .qwen_ayarlar import (
     _CANCELLED,
 )
 
-
-_TOOL_CALL_PATTERN = re.compile(
-    r"<tool_call>\s*(.*?)\s*</tool_call>",
-    re.DOTALL,
-)
 
 
 @dataclass(slots=True)
@@ -62,82 +56,6 @@ def _mcp_tool_schema(tool):
         },
     }
 
-
-def _qwen_tool_prompt(tools):
-    tool_lines = "\n".join(
-        json.dumps(tool, ensure_ascii=False, separators=(",", ":"))
-        for tool in tools
-    )
-
-    return (
-        "# Tools\n\n"
-        "Kullanabileceğin araç şemaları <tools> etiketleri içindedir.\n"
-        "Bir araca ihtiyaç duyduğunda bir veya daha fazla çağrıyı "
-        "<tool_call> etiketleri içinde JSON olarak üret.\n"
-        "<tools>\n"
-        f"{tool_lines}\n"
-        "</tools>\n\n"
-        "Çağrı biçimi:\n"
-        "<tool_call>\n"
-        '{"name":"function_name","arguments":{}}\n'
-        "</tool_call>"
-    )
-
-
-def _parse_qwen_tool_calls(content):
-    text = str(content or "")
-
-    if "<think>" in text and "</think>" not in text:
-        return []
-
-    if "</think>" in text:
-        text = text.rsplit("</think>", 1)[-1]
-
-    blocks = _TOOL_CALL_PATTERN.findall(text)
-    calls = []
-
-    for block in blocks:
-        try:
-            payload = json.loads(block.strip())
-        except json.JSONDecodeError as error:
-            raise RuntimeError(
-                f"Qwen geçersiz araç çağrısı üretti: {error}"
-            ) from error
-
-        if not isinstance(payload, dict):
-            raise RuntimeError("Qwen araç çağrısı JSON nesnesi olmalı.")
-
-        name = str(payload.get("name") or "").strip()
-        arguments = payload.get("arguments", {})
-
-        if not name:
-            raise RuntimeError("Qwen araç çağrısında araç adı yok.")
-
-        if isinstance(arguments, str):
-            try:
-                arguments = json.loads(arguments)
-            except json.JSONDecodeError as error:
-                raise RuntimeError(
-                    f"Qwen araç argümanları geçersiz JSON: {error}"
-                ) from error
-
-        if not isinstance(arguments, dict):
-            raise RuntimeError("Qwen araç argümanları JSON nesnesi olmalı.")
-
-        calls.append((name, arguments))
-
-    if "<tool_call>" in text and not calls:
-        raise RuntimeError("Qwen araç çağrısı tamamlanamadı.")
-
-    return calls
-
-
-def _qwen_tool_response_message(results):
-    content = "\n".join(
-        f"<tool_response>\n{result}\n</tool_response>"
-        for result in results
-    )
-    return {"role": "user", "content": content}
 
 
 def _mcp_text(result):
@@ -280,8 +198,8 @@ class QwenAraclariMixin:
             tools = [*mcp_tools, *INTERNET_TOOLS]
 
             print(
-                f"[MCP DOSYA SISTEMI] {len(remote_tools)} arac geldi. "
-                f"Qwen resmi arac formatinda {len(mcp_tools)} MCP araci kullaniyor.",
+                f"[MCP HAZIR] {len(remote_tools)} araç bulundu. "
+                f"Qwen'e resmî araç formatında {len(mcp_tools)} MCP aracı sunuldu.",
                 flush=True,
             )
 
@@ -309,17 +227,37 @@ class QwenAraclariMixin:
 
     async def _execute_qwen_tool(self, runtime, name, arguments):
         if name in runtime.tool_names:
+            tool_path = str(arguments.get("path") or "").replace("\\", "/")
             print(
-                f"[QWEN MCP] arac={name} | arguments={arguments}",
+                f"[MCP BAŞLADI] {tool_path}".rstrip(),
                 flush=True,
             )
-            result = await runtime.client.call_tool(
-                name,
-                arguments=arguments,
+            tool_started_at = time.perf_counter()
+            try:
+                result = await runtime.client.call_tool(
+                    name,
+                    arguments=arguments,
+                )
+                tool_text = _mcp_text(result)
+            except Exception as exc:
+                print(
+                    "[MCP HATA] "
+                    f"Süre: {time.perf_counter() - tool_started_at:.2f} sn | "
+                    f"{type(exc).__name__}: {exc}",
+                    flush=True,
+                )
+                raise
+
+            print(
+                "[MCP TAMAMLANDI] "
+                f"Süre: {time.perf_counter() - tool_started_at:.2f} sn | "
+                f"Durum: {'Hata' if bool(getattr(result, 'is_error', False)) else 'Başarılı'} | "
+                f"Sonuç: {len(tool_text)} karakter",
+                flush=True,
             )
-            tool_text = _mcp_text(result)
 
             if bool(getattr(result, "is_error", False)):
+                print(f"[MCP HATA] {tool_text}", flush=True)
                 return f"[MCP HATA] {tool_text}"
 
             return tool_text
@@ -331,11 +269,6 @@ class QwenAraclariMixin:
 
     async def _chat_with_tools(self, user_text, runtime):
         messages = self._messages_for_prompt(user_text)
-        messages[0] = dict(messages[0])
-        messages[0]["content"] = (
-            f"{messages[0]['content']}\n\n"
-            f"{_qwen_tool_prompt(runtime.tools)}"
-        )
 
         started_at = time.perf_counter()
         totals = self._measurement_totals()
@@ -349,11 +282,33 @@ class QwenAraclariMixin:
             if self._cancel_requested.is_set():
                 return _CANCELLED
 
-            response = self._chat(
-                model=OLLAMA_MODEL,
-                messages=messages,
-                stream=False,
-                options={"num_ctx": OLLAMA_CONTEXT_SIZE},
+            model_started_at = time.perf_counter()
+            print(
+                f"[QWEN YANITI BEKLENİYOR] Tur: {rounds + 1}",
+                flush=True,
+            )
+            try:
+                response = self._chat(
+                    model=OLLAMA_MODEL,
+                    messages=messages,
+                    tools=runtime.tools,
+                    stream=False,
+                    options={"num_ctx": OLLAMA_CONTEXT_SIZE},
+                )
+            except Exception as exc:
+                print(
+                    f"[QWEN HATA] Tur: {rounds + 1} | "
+                    f"Süre: {time.perf_counter() - model_started_at:.2f} sn | "
+                    f"{type(exc).__name__}: {exc}",
+                    flush=True,
+                )
+                raise
+
+            print(
+                f"[{'QWEN İPTAL EDİLDİ' if response is _CANCELLED else 'QWEN YANITI GELDİ'}] "
+                f"Tur: {rounds + 1} | "
+                f"Süre: {time.perf_counter() - model_started_at:.2f} sn",
+                flush=True,
             )
 
             if response is _CANCELLED:
@@ -363,32 +318,39 @@ class QwenAraclariMixin:
             rounds += 1
             self._add_measurement(totals, response)
 
-            assistant_content = str(response.message.content or "").strip()
-            messages.append(
-                {"role": "assistant", "content": assistant_content}
-            )
-            calls = _parse_qwen_tool_calls(assistant_content)
+            assistant_message = response.message
+            messages.append(assistant_message)
 
-            if not calls:
+            tool_calls = assistant_message.tool_calls or []
+
+            if not tool_calls:
                 self._emit_context_remaining(response)
                 self._print_measurement(started_at, totals, rounds)
-                return assistant_content
+                return str(assistant_message.content or "").strip()
 
-            results = []
-
-            for name, arguments in calls:
+            for tool_call in tool_calls:
                 if self._stopping or self._cancel_requested.is_set():
                     return _CANCELLED
 
-                results.append(
-                    await self._execute_qwen_tool(
-                        runtime,
-                        name,
-                        arguments,
-                    )
+                name = str(tool_call.function.name or "").strip()
+                arguments = tool_call.function.arguments or {}
+
+                if not name:
+                    raise RuntimeError("Qwen araç çağrısında araç adı yok.")
+
+                result = await self._execute_qwen_tool(
+                    runtime,
+                    name,
+                    arguments,
                 )
 
-            messages.append(_qwen_tool_response_message(results))
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_name": name,
+                        "content": result,
+                    }
+                )
 
         if last_response is not None:
             self._emit_context_remaining(last_response)
