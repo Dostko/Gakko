@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import queue
 import threading
 from datetime import date
 from pathlib import Path
 
 from PySide6.QtCore import QThread, Signal
-
 
 from .Qwen_oturum.qwen_ayarlar import (
     PROJECT_ROOT,
@@ -42,241 +42,149 @@ class QwenSession(
 
         self._ready = False
         self._stopping = False
-
         self._cancel_requested = threading.Event()
-
         self._active_process_lock = threading.Lock()
         self._active_process = None
-
         self._prompt_queue = queue.Queue()
-
         self._messages_lock = threading.Lock()
         self._messages = []
-
-        self._system_message = {
-            "role": "system",
-            "content": self._load_startup_context(),
-        }
+        self._system_message = None
 
     @property
     def is_ready(self):
         return self._ready
 
-    def _load_startup_context(self):
-        if not QWEN_MD_PATH.exists() or not QWEN_MD_PATH.is_file():
-            raise RuntimeError(
-                f"QWEN.md bulunamadı: {QWEN_MD_PATH}"
-            )
-
-        text = QWEN_MD_PATH.read_text(
-            encoding="utf-8",
-            errors="replace",
-        ).strip()
-
-        if not text:
-            raise RuntimeError(
-                f"QWEN.md boş: {QWEN_MD_PATH}"
-            )
-
-        current_date = date.today().isoformat()
-
-        return (
-            "Sen GAKKO'nun ana Qwen modelisin.\n"
-            f"Güncel sistem tarihi: {current_date}\n"
-            "Aşağıdaki QWEN.md yalnız başlangıç kapısıdır.\n"
-            "===== QWEN.md =====\n"
-            f"{text}\n"
-            "===== /QWEN.md ====="
+    def _startup_message(self, qwen_md_text):
+        active_project = (
+            str(self.active_project_root)
+            if self.active_project_root is not None
+            else "Yok"
         )
 
-    def _resolve_requested_path(self, path):
-        raw = (
-            str(path or "")
-            .strip()
-            .strip('"')
-            .strip("'")
-        )
-
-        if not raw:
-            raise ValueError("Boş dosya yolu.")
-
-        candidate = Path(raw)
-
-        if not candidate.is_absolute():
-            candidate = PROJECT_ROOT / candidate
-
-        return candidate.resolve()
-
+        return {
+            "role": "system",
+            "content": (
+                "Sen GAKKO'nun ana Qwen modelisin.\n"
+                f"Güncel sistem tarihi: {date.today().isoformat()}\n"
+                f"GAKKO_YUVA: {(PROJECT_ROOT / 'GAKKO_YUVA').resolve()}\n"
+                f"Aktif proje kökü: {active_project}\n"
+                "Aşağıdaki QWEN.md yalnız başlangıç kapısıdır.\n"
+                "===== QWEN.md =====\n"
+                f"{qwen_md_text.strip()}\n"
+                "===== /QWEN.md ====="
+            ),
+        }
 
     def submit_prompt(self, text):
-        text = str(
-            text or ""
-        ).strip()
+        text = str(text or "").strip()
 
         if not text:
-            self.error_ready.emit(
-                "Boş mesaj gönderilemez."
-            )
+            self.error_ready.emit("Boş mesaj gönderilemez.")
             return False
 
         if not self._ready:
-            self.error_ready.emit(
-                "Qwen henüz hazır değil."
-            )
+            self.error_ready.emit("Qwen henüz hazır değil.")
             return False
 
         self._cancel_requested.clear()
-
-        self._prompt_queue.put(
-            text
-        )
-
+        self._prompt_queue.put(text)
         return True
 
     def reset_context(self):
         if not self._ready:
-            self.error_ready.emit(
-                "Qwen henüz hazır değil."
-            )
+            self.error_ready.emit("Qwen henüz hazır değil.")
             return False
 
         with self._messages_lock:
             self._messages.clear()
 
-        self.context_remaining.emit(
-            100.0
-        )
-
+        self.context_remaining.emit(100.0)
         return True
 
-    def _messages_for_prompt(
-        self,
-        text,
-    ):
+    def _messages_for_prompt(self, text):
+        if self._system_message is None:
+            raise RuntimeError("Qwen başlangıç bağlamı hazır değil.")
+
         with self._messages_lock:
             return [
                 self._system_message,
                 *self._messages,
-                {
-                    "role": "user",
-                    "content": text,
-                },
+                {"role": "user", "content": text},
             ]
 
-    def _remember_exchange(
-        self,
-        user_text,
-        assistant_text,
-    ):
+    def _remember_exchange(self, user_text, assistant_text):
         with self._messages_lock:
-            self._messages.append(
-                {
-                    "role": "user",
-                    "content": user_text,
-                }
-            )
-
-            self._messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_text,
-                }
+            self._messages.extend(
+                (
+                    {"role": "user", "content": user_text},
+                    {"role": "assistant", "content": assistant_text},
+                )
             )
 
     def _notify_cancelled(self):
         self._cancel_requested.clear()
-
-        print(
-            "[QWEN] İşlem durduruldu.",
-            flush=True,
-        )
-
+        print("[QWEN] İşlem durduruldu.", flush=True)
         self.cancelled.emit()
 
-    def run(self):
-        self._ready = True
+    async def _run_async(self):
+        async with self._mcp_runtime() as runtime:
+            qwen_md_text = await self._mcp_read_text(runtime, QWEN_MD_PATH)
+            self._system_message = self._startup_message(qwen_md_text)
 
-        self.context_remaining.emit(
-            100.0
-        )
+            self._ready = True
+            self.context_remaining.emit(100.0)
+            self.ready.emit()
 
-        self.ready.emit()
-
-        try:
             while not self._stopping:
-                try:
-                    item = (
-                        self._prompt_queue.get(
-                            timeout=0.1
-                        )
-                    )
-
-                except queue.Empty:
-                    continue
+                item = await asyncio.to_thread(self._prompt_queue.get)
 
                 if item is _STOP:
                     break
 
                 user_text = str(item)
-
-                prepared_user_text = (
-                    self._prepare_user_text(
-                        user_text
-                    )
-                )
+                prepared_user_text = self._prepare_user_text(user_text)
 
                 try:
-                    reply = (
-                        self._chat_with_tools(
-                            prepared_user_text
-                        )
+                    reply = await self._chat_with_tools(
+                        prepared_user_text,
+                        runtime,
                     )
 
                 except Exception as error:
                     if self._stopping:
                         break
 
-                    if (
-                        self._cancel_requested
-                        .is_set()
-                    ):
+                    if self._cancel_requested.is_set():
                         self._notify_cancelled()
-
                     else:
-                        self.error_ready.emit(
-                            str(error)
-                        )
+                        self.error_ready.emit(str(error))
 
                     continue
 
-                if (
-                    self._stopping
-                    or reply is None
-                ):
+                if self._stopping or reply is None:
                     break
 
                 if reply is _CANCELLED:
                     self._notify_cancelled()
                     continue
 
-                self._remember_exchange(
-                    prepared_user_text,
-                    reply,
-                )
+                self._remember_exchange(prepared_user_text, reply)
+                self.reply_ready.emit(reply)
 
-                self.reply_ready.emit(
-                    reply
+    def run(self):
+        try:
+            asyncio.run(self._run_async())
+        except Exception as error:
+            if not self._stopping:
+                self.error_ready.emit(
+                    f"GAKKO oturumu başlatılamadı: {error}"
                 )
-
         finally:
             self._ready = False
+            self._system_message = None
 
     def stop(self):
         self._stopping = True
         self._ready = False
-
         self.cancel_current()
-
-        self._prompt_queue.put(
-            _STOP
-        )
+        self._prompt_queue.put(_STOP)
