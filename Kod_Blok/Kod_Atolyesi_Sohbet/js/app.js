@@ -801,11 +801,16 @@ function showActiveProject(path, startsProjectMethod) {
   activeProjectName.textContent = projectName;
   activeProjectPathLabel.textContent = projectPath;
   activeProject.hidden = false;
-  projectMenu.hidden = false;
-  projectButton.setAttribute("aria-expanded", "true");
 
   if (startsProjectMethod) {
+    projectMenu.hidden = false;
+    projectButton.setAttribute("aria-expanded", "true");
+    syncSidebarActiveState(true);
     setWaiting(true);
+  } else {
+    projectMenu.hidden = true;
+    projectButton.setAttribute("aria-expanded", "false");
+    syncSidebarActiveState(false);
   }
 }
 
@@ -821,6 +826,21 @@ function formatHistoryDate(value) {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+
+function syncSidebarActiveState(projectOpen = false) {
+  const historyOpen = currentView === "history";
+  const filesOpen = currentView === "files";
+  const chatOpen = currentView === "chat";
+
+  projectButton.classList.toggle("active", projectOpen);
+  historyButton.classList.toggle("active", !projectOpen && historyOpen);
+
+  if (fileButton) {
+    fileButton.classList.toggle("active", !projectOpen && filesOpen);
+  }
+
+  chatButton.classList.toggle("active", !projectOpen && chatOpen);
 }
 
 function setMainView(view) {
@@ -845,13 +865,12 @@ function setMainView(view) {
   stage.hidden = !chatOpen;
   composerArea.hidden = !chatOpen;
 
-  historyButton.classList.toggle("active", historyOpen);
-
-  if (fileButton) {
-    fileButton.classList.toggle("active", filesOpen);
+  if (!projectMenu.hidden) {
+    projectMenu.hidden = true;
+    projectButton.setAttribute("aria-expanded", "false");
   }
 
-  chatButton.classList.toggle("active", chatOpen);
+  syncSidebarActiveState(false);
 
   if (chatOpen) {
     input.focus();
@@ -1224,6 +1243,7 @@ function connectBridge() {
 function closeProjectMenu() {
   projectMenu.hidden = true;
   projectButton.setAttribute("aria-expanded", "false");
+  syncSidebarActiveState(false);
 }
 
 function setSidebarOpen(opened) {
@@ -1327,6 +1347,7 @@ projectButton.addEventListener("click", () => {
   const opened = projectMenu.hidden;
   projectMenu.hidden = !opened;
   projectButton.setAttribute("aria-expanded", String(opened));
+  syncSidebarActiveState(opened);
 });
 
 newProjectButton.addEventListener("click", () => {

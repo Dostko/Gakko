@@ -47,7 +47,6 @@ class ChatBridge(QObject):
     error_ready = Signal(str)
     connection_ready = Signal()
     project_selected = Signal(str)
-    project_directory_ready = Signal(str)
     file_browser_project_selected = Signal(str)
     file_browser_directory_ready = Signal(str)
     file_browser_file_ready = Signal(str)
@@ -303,17 +302,6 @@ class ChatBridge(QObject):
             self.error_ready.emit("Seçilen proje klasörü geçerli değil.")
             return
 
-        try:
-            if any(selected_root.iterdir()):
-                self.error_ready.emit(
-                    "Yeni proje için boş bir klasör seç veya oluştur. "
-                    "Mevcut bir proje için Proje Aç seçeneğini kullan."
-                )
-                return
-        except OSError as error:
-            self.error_ready.emit(f"Proje klasörü okunamadı: {error}")
-            return
-
         self._activate_project(
             selected_root,
             PROJELER_YONTEMI,
@@ -324,24 +312,6 @@ class ChatBridge(QObject):
         if self.active_project_root is None:
             return ""
         return str(self.active_project_root)
-
-    @Slot(str)
-    def list_project_directory(self, relative_path):
-        if self.active_project_root is None:
-            return
-
-        try:
-            payload = list_project_directory(
-                self.active_project_root,
-                relative_path,
-            )
-        except (OSError, ValueError) as error:
-            self.error_ready.emit(f"Proje dosyaları okunamadı: {error}")
-            return
-
-        self.project_directory_ready.emit(
-            json.dumps(payload, ensure_ascii=False)
-        )
 
     @Slot(str)
     def list_file_browser_directory(self, relative_path):
