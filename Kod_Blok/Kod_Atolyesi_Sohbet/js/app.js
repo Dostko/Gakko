@@ -174,12 +174,12 @@ function renderAttachmentStrip() {
       const preview = document.createElement("img");
       preview.src = attachmentPreviewUrl(file.path);
       preview.alt = "";
-      preview.style.width = "44px";
-      preview.style.height = "44px";
+      preview.style.width = "84px";
+      preview.style.height = "84px";
       preview.style.objectFit = "cover";
       preview.style.flex = "0 0 auto";
       preview.style.borderRadius = "6px";
-      preview.style.border = "1px solid #253142";
+      preview.style.border = "1px solid #28374c";
       chip.style.minHeight = "52px";
       chip.style.padding = "4px 8px 4px 4px";
       icon.hidden = true;
@@ -498,7 +498,7 @@ function formatRemainingPercentage(value) {
 
 function resize() {
   input.style.height = "40px";
-  input.style.height = Math.max(40, Math.min(input.scrollHeight, 170)) + "px";
+  input.style.height = Math.max(40, Math.min(input.scrollHeight, 280)) + "px";
 }
 
 function escapeHtml(value) {
@@ -710,8 +710,8 @@ function renderUserMessage(container, text, attachments = []) {
       const preview = document.createElement("img");
       preview.src = attachmentPreviewUrl(file.path);
       preview.alt = "";
-      preview.style.width = "44px";
-      preview.style.height = "44px";
+      preview.style.width = "84px";
+      preview.style.height = "84px";
       preview.style.objectFit = "cover";
       preview.style.flex = "0 0 auto";
       preview.style.borderRadius = "6px";

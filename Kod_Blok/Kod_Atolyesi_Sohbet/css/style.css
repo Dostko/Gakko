@@ -597,8 +597,9 @@ button {
     width: min(960px,100%);
     min-height: 62px;
     margin: 0 auto;
+    position: relative;
     display: grid;
-    grid-template-columns: 40px minmax(0,1fr) 42px;
+    grid-template-columns: 40px minmax(0,1fr);
     align-items: end;
     gap: 8px;
     padding: 10px;
@@ -633,11 +634,15 @@ button {
 }
 
 .send {
+    position: absolute;
+    right: 32px;
+    bottom: 10px;
+    z-index: 2;
     width: 40px;
     height: 40px;
     border: 0;
     border-radius: 50%;
-    background: linear-gradient(135deg, #ff9a3d, #d96a00);
+    background: linear-gradient(135deg, #6f3805, #f97a03);
     color: #ffffff;
     font-size: 20px;
     font-weight: 700;
@@ -662,9 +667,11 @@ button {
     line-height: 1.45;
     overflow-y: auto;
 }
-
+#messageInput {
+    scrollbar-color: #68613959 transparent;
+}
 #messageInput::placeholder {
-    color: #697587;
+    color: #bca777;
 }
 
 .note {
