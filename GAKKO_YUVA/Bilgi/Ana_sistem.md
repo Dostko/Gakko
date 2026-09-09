@@ -1,132 +1,234 @@
 # GAKKO — ANA SİSTEM
 
-## 1. Yapay Zekâ Modelleri
+## 1. GAKKO'nun Amacı
+
+GAKKO, yerel yapay zekâ modeli Qwen merkezli çalışan bir yapay zekâ ve proje çalışma ortamıdır.
+
+Temel amaç; anlama, yorumlama, kaynak seçimi, araç kullanımı ve karar verme görevlerini yapay zekâya bırakırken teknik katmanları mümkün olduğunca sade tutmaktır.
+
+Ana ilkeler:
+
+- GAKKO'nun ana karar merkezi Qwen'dir.
+- Teknik katmanlar Qwen adına karar vermez.
+- Qwen ile kaynaklar arasına mümkün olan en az teknik katman konulur.
+- Kod yalnızca bağlantı, araç erişimi, kullanıcı arayüzü ve çalıştırma gibi teknik görevleri yerine getirir.
+
+
+## 2. Yapay Zekâ Modelleri
 
 ### Ana Model
 
 **gakko-qwen38-64k-gpu:latest**
 
-- GAKKO'nun asıl yapay zekâ modelidir.
+- GAKKO'nun ana yapay zekâ modelidir.
 - Qwen 3.8 27B tabanlıdır.
-- 64K context ile çalışır.
-- Anlama, düşünme, karar verme ve cevap üretme görevlerini yürütür.
-- GAKKO'nun ana karar merkezi bu modeldir.
+- 64K bağlam ile çalışır.
+- Anlama, düşünme, karar verme, araç seçme ve cevap üretme görevlerini yürütür.
+- GAKKO'nun ana karar merkezidir.
 
 ### Yardımcı Görsel Model
 
 **qwen3-vl:8b**
 
-- GAKKO'nun görsel işlemler için kullandığı yardımcı yapay zekâ modelidir.
-- Resim ve ekran görüntülerini incelemek için kullanılır.
-- OCR ile görsellerdeki yazıların okunmasına yardımcı olur.
-- Görsel içeriklerin tanınması ve açıklanmasını sağlar.
-- Video işlemlerinde gerekli görsel/kare analizlerinde yardımcı model olarak kullanılabilir.
-- Nihai karar ve cevap üretimi ana Qwen modeli tarafından yapılır.
+- Görsel ve ekran görüntülerinin analizinde kullanılır.
+- Görsellerdeki yazıların ve görsel içeriğin anlaşılmasına yardımcı olur.
+- Yardımcı görsel analiz üretir.
+- Nihai değerlendirme, karar ve cevap ana Qwen modeli tarafından yapılır.
 
-## 2. Model Çalıştırma Servisi
 
-**Ollama**
+## 3. Model Çalıştırma Altyapısı
 
-- GAKKO'nun yerel yapay zekâ modellerini bilgisayarda çalıştırır.
-- Ana model `gakko-qwen38-64k-gpu:latest` ve yardımcı görsel model `qwen3-vl:8b` Ollama üzerinden çalışır.
-- Modeller ile bilgisayar donanımı arasındaki çalışma altyapısını sağlar.
+### Ollama
 
-## 3. Çalışma ve Erişim Katmanı
+GAKKO'nun yerel yapay zekâ modellerini çalıştıran servistir.
 
-- GAKKO ile yerel Qwen modeli arasındaki mümkün olan en sade teknik köprüdür.
-- Kullanıcı mesajını doğrudan Qwen'e ulaştırır.
-- Qwen'in sistemin ana giriş noktası olan `QWEN.md` üzerinden GAKKO_YUVA yapısına erişebilmesini sağlar.
-- Qwen hangi dosyaya veya kaynağa ihtiyaç duyacağını kendisi belirler.
-- Python dosya seçmez, fihrist takip etmez, belge içeriğini yorumlamaz ve karar vermez.
-- Python, Qwen'in istediği dosyanın içeriğini diskten teknik olarak okur ve Qwen'e taşır.
-- Bu teknik okuma yalnızca içeriğin modele ulaştırılması içindir; Python içerikten anlam çıkarmaz, filtreleme yapmaz veya karar üretmez.
-- Dosyalarda değişiklik yapmaz ve içerik hakkında kendi adına işlem veya değerlendirme yapmaz.
-- Kaynaktan alınan içerik tekrar Qwen'e verilir; değerlendirme, yorumlama, karar ve cevap tamamen Qwen tarafından üretilir.
+- Ana Qwen modeli Ollama üzerinden çalışır.
+- Yardımcı görsel model Ollama üzerinden çalışır.
+- Model ile bilgisayar donanımı arasındaki çalışma altyapısını sağlar.
+- Ana model 64K bağlam profiliyle kullanılmaktadır.
 
-## 4. Gakko
 
-- Kullanıcı ile ana Qwen modeli arasındaki ana uygulamadır.
-- Kullanıcı mesajlarını Qwen'e ulaştırır.
-- Qwen'in ürettiği cevapları kullanıcıya sunar.
-- Sohbet, dosya, geçmiş ve diğer kullanıcı arayüzü işlevlerini sağlar.
-- Karar verme, kaynak seçme ve içerik yorumlama görevlerini üstlenmez.
-- Yapay zekâ kararları Qwen tarafından verilir.
+## 4. GAKKO Uygulaması
+
+GAKKO, kullanıcı ile Qwen arasındaki ana uygulamadır.
+
+Başlıca görevleri:
+
+- Kullanıcı mesajlarını Qwen'e ulaştırmak.
+- Qwen cevaplarını kullanıcıya göstermek.
+- Sohbet arayüzünü sağlamak.
+- Sohbet geçmişini sunmak.
+- Aktif proje çalışma alanını sunmak.
+- Dosya ve araç erişimleri için gerekli teknik bağlantıyı sağlamak.
+- Görsel ve diğer desteklenen içerikleri gerekli modellere ulaştırmak.
+
+GAKKO uygulaması:
+
+- Qwen adına karar vermez.
+- Kaynak seçmez.
+- Kaynak içeriğini kendi başına yorumlamaz.
+- Hangi dosyanın gerekli olduğuna karar vermez.
+- Hangi aracın kullanılacağını belirlemez.
+
 
 ## 5. GAKKO_YUVA
 
-- GAKKO_YUVA, Qwen'in ana çalışma ve karar evidir.
-- Talimatlar, Prensipler, Calisma_Yontemleri, Bilgi ve Bellek kaynaklarını barındırır.
-- Qwen bu yapı içinde ihtiyaç duyduğu kaynağı kendisi seçer, okur, yorumlar ve karar verir.
-- Fihristler, Qwen'in doğru kaynağa ulaşmasını sağlayan yönlendirme noktalarıdır.
-- GAKKO_YUVA kendi başına karar veren bir sistem değildir; karar veren Qwen'dir.
-- GAKKO_YUVA, Qwen'in karar verirken dayandığı düzenli ve kalıcı ana kaynak merkezidir.
+GAKKO_YUVA, Qwen'in kalıcı çalışma ve kaynak merkezidir.
 
-## 6. Temel Çalışma Akışı
+Ana kaynak alanları:
 
+- Talimatlar
+- Prensipler
+- Calisma_Yontemleri
+- Bilgi
+- Hafiza
+- Kayitlar
+- Projeler
+
+Qwen ihtiyaç duyduğu kaynağı kendisi seçer, okur, yorumlar ve karar verir.
+
+### QWEN.md
+
+`QWEN.md`, GAKKO_YUVA'nın ana başlangıç noktasıdır.
+
+Qwen buradan ana kaynak haritası olan:
+
+`GAKKO_YUVA/Talimatlar/GAKKO.md`
+
+dosyasına ulaşır.
+
+### GAKKO.md
+
+`GAKKO.md`, ana kaynak haritasıdır.
+
+Göreve göre Qwen'in:
+
+- doğrudan cevap vermesine,
+- ilgili fihriste gitmesine,
+- aktif proje üzerinde çalışmasına,
+- gerekli Bilgi kaynağını kullanmasına,
+- gerekli Hafiza kaynağını kullanmasına,
+- gerekli Prensip veya Calisma_Yontemi kaynağına ulaşmasına
+
+yön verir.
+
+Kaynak seçimi ve karar Qwen'e aittir.
+
+
+## 6. Projeler
+
+GAKKO aktif projeler üzerinde çalışabilir.
+
+Aktif proje kökü Qwen'in araç erişimine açılır.
+
+Qwen gerektiğinde:
+
+- proje yapısını inceleyebilir,
+- dosya içeriklerinde arama yapabilir,
+- gerekli dosyaları okuyabilir,
+- kullanıcı onayı kapsamındaki değişiklikleri gerçekleştirebilir.
+
+Aktif proje kökü ve görev için gerekli dosya bilgisi zaten biliniyorsa Qwen doğrudan aktif proje üzerinde çalışabilir.
+
+Gereksiz proje keşfi ve kaynak dolaşması yapılmaması hedeflenir.
+
+
+## 7. MCP Dosya ve Araç Erişimi
+
+GAKKO'nun dosya ve proje erişimi MCP tabanlıdır.
+
+Temel yapı:
+
+Qwen  
+↓  
+MCP istemci katmanı  
+↓  
+MCP araçları  
+↓  
+Dosya sistemi
+
+### Filesystem MCP
+
+Dosya ve klasör işlemlerini sağlar.
+
+Başlıca görevleri:
+
+- dosya okuma,
+- dosya oluşturma ve düzenleme,
+- klasör işlemleri,
+- dosya bilgisi alma,
+- izin verilen dosya sistemi alanlarına erişim.
+
+Eski `read_file` aracı Qwen'e sunulmaz.
+
+Eski `search_files` aracı aktif içerik arama aracı olarak kullanılmaz.
+
+### Ripgrep
+
+Dosya içeriklerinde hızlı metin araması için kullanılır.
+
+- Dosyanın tamamını modele taşımadan içerikte arama yapabilir.
+- Eşleşen satırları bulabilir.
+- Büyük kod ve metin dosyalarında gereksiz bağlam kullanımını azaltır.
+
+Arama aracını kullanıp kullanmamaya Qwen karar verir.
+
+
+## 8. Teknik Katmanın Sorumluluğu
+
+Teknik bağlantı katmanı:
+
+- MCP bağlantısını kurar.
+- Araçları Qwen'e sunar.
+- Qwen'in istediği aracı teknik olarak çalıştırır.
+- Araç sonucunu tekrar Qwen'e taşır.
+
+Teknik katman:
+
+- dosya seçmez,
+- fihrist seçmez,
+- kaynakların anlamını yorumlamaz,
+- Qwen adına karar vermez.
+
+Araç sonucunun yorumlanması ve sonraki adıma karar verilmesi Qwen'e aittir.
+
+
+## 9. Temel Çalışma Akışı
+
+Kullanıcı  
+↓  
+GAKKO  
+↓  
+Ana Qwen modeli  
+↓  
+QWEN.md  
+↓  
+GAKKO.md  
+↓  
+Görev için gerekli kaynak veya araç  
+↓  
+Qwen değerlendirmesi ve kararı  
+↓  
+Gerekirse MCP araç kullanımı  
+↓  
+Araç sonucu Qwen'e döner  
+↓  
+Qwen nihai cevabı üretir  
+↓  
+GAKKO  
+↓  
 Kullanıcı
 
-↓
+Kaynak, proje veya araç gerektirmeyen basit sohbetlerde Qwen doğrudan cevap verebilir.
 
-Gakko
 
-↓
+## 10. Ana Mimari İlkesi
 
-Ana Qwen modeli
+GAKKO'nun merkezinde Qwen bulunur.
 
-↓
+- GAKKO_YUVA, Qwen'in düzenli ve kalıcı kaynak merkezidir.
+- MCP, Qwen'in dosya sistemi ve araçlarla teknik bağlantısını sağlar.
+- Ollama yapay zekâ modellerini çalıştırır.
+- GAKKO kullanıcı ile sistem arasındaki uygulama katmanıdır.
 
-QWEN.md
-
-↓
-
-GAKKO.md — Ana Fihrist / Harita
-
-↓
-
-Göreve göre doğrudan ilgili hedef
-
-- ilgili Fihrist
-- ilgili Prensip
-- ilgili Bilgi
-- ilgili Bellek
-- ilgili Calisma_Yontemi
-
-↓
-
-Qwen ilgili kaynağı okur, yorumlar ve karar verir
-
-↓
-
-Gerekirse yeni bir kaynak için GAKKO.md ana haritasına döner
-
-↓
-
-İlgili diğer kaynağa doğrudan yönelir
-
-↓
-
-Görev tamamlandığında cevap üretir
-
-↓
-
-Gakko
-
-↓
-
-Kullanıcı
-
-### Dosya Erişimi Gerektiğinde
-
-Qwen dosyayı ister
-
-↓
-
-Python dosyayı teknik olarak açar ve içeriği taşır
-
-↓
-
-içerik Qwen'e geri verilir
-
-↓
-
-Qwen içeriği okur, yorumlar ve karar vermeye devam eder
+**Karar veren katman Qwen'dir.**

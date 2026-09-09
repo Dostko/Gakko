@@ -24,11 +24,19 @@ from .qwen_ayarlar import (
 )
 
 
+FILESYSTEM_HIDDEN_TOOLS = frozenset({"read_file", "search_files"})
+RIPGREP_PACKAGE = "@atef_andrus/mcp-ripgrep@1.2.0"
+RIPGREP_TOOL_NAMES = frozenset({"search"})
+RIPGREP_MAX_RESULT_CHARS = 12000
+RIPGREP_MAX_OUTPUT_BYTES = 1000000
+
 
 @dataclass(slots=True)
 class MCPRuntime:
     client: Client
+    search_client: Client
     tool_names: frozenset[str]
+    search_tool_names: frozenset[str]
     tools: list[dict]
 
 
@@ -156,7 +164,7 @@ class QwenAraclariMixin:
 
         return unique
 
-    def _mcp_server_parameters(self):
+    def _mcp_environment(self):
         current_path = os.environ.get("PATH", "")
         default_node_dir = (
             Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
@@ -171,6 +179,9 @@ class QwenAraclariMixin:
                 else node_path
             )
 
+        return {"PATH": current_path}
+
+    def _mcp_server_parameters(self):
         return StdioServerParameters(
             command=os.environ.get("COMSPEC", "cmd.exe"),
             args=[
@@ -180,34 +191,99 @@ class QwenAraclariMixin:
                 "@modelcontextprotocol/server-filesystem",
                 *self._mcp_allowed_paths(),
             ],
-            env={"PATH": current_path},
+            env=self._mcp_environment(),
+        )
+
+    def _ripgrep_server_parameters(self):
+        args = [
+            "/c",
+            "npx",
+            "-y",
+            RIPGREP_PACKAGE,
+        ]
+
+        for path in self._mcp_allowed_paths():
+            args.extend(["--allow-dir", path])
+
+        args.extend(
+            [
+                "--max-result-chars",
+                str(RIPGREP_MAX_RESULT_CHARS),
+                "--max-output-bytes",
+                str(RIPGREP_MAX_OUTPUT_BYTES),
+            ]
+        )
+
+        return StdioServerParameters(
+            command=os.environ.get("COMSPEC", "cmd.exe"),
+            args=args,
+            env=self._mcp_environment(),
         )
 
     @asynccontextmanager
     async def _mcp_runtime(self):
         async with Client(self._mcp_server_parameters()) as client:
-            response = await client.list_tools()
-            remote_tools = list(getattr(response, "tools", response) or ())
-            visible_tools = [
-                tool
-                for tool in remote_tools
-                if str(tool.name) != "read_file"
-            ]
-            mcp_tools = [_mcp_tool_schema(tool) for tool in visible_tools]
-            names = frozenset(str(tool.name) for tool in visible_tools)
-            tools = [*mcp_tools, *INTERNET_TOOLS]
+            async with Client(self._ripgrep_server_parameters()) as search_client:
+                response = await client.list_tools()
+                remote_tools = list(getattr(response, "tools", response) or ())
+                visible_tools = [
+                    tool
+                    for tool in remote_tools
+                    if str(tool.name) not in FILESYSTEM_HIDDEN_TOOLS
+                ]
 
-            print(
-                f"[MCP HAZIR] {len(remote_tools)} araç bulundu. "
-                f"Qwen'e resmî araç formatında {len(mcp_tools)} MCP aracı sunuldu.",
-                flush=True,
-            )
+                search_response = await search_client.list_tools()
+                remote_search_tools = list(
+                    getattr(search_response, "tools", search_response) or ()
+                )
+                visible_search_tools = [
+                    tool
+                    for tool in remote_search_tools
+                    if str(tool.name) in RIPGREP_TOOL_NAMES
+                ]
 
-            yield MCPRuntime(
-                client=client,
-                tool_names=names,
-                tools=tools,
-            )
+                if not visible_search_tools:
+                    raise RuntimeError(
+                        "Ripgrep MCP 'search' aracını sunmadı."
+                    )
+
+                mcp_tools = [_mcp_tool_schema(tool) for tool in visible_tools]
+                search_tools = [
+                    _mcp_tool_schema(tool)
+                    for tool in visible_search_tools
+                ]
+                names = frozenset(str(tool.name) for tool in visible_tools)
+                search_names = frozenset(
+                    str(tool.name)
+                    for tool in visible_search_tools
+                )
+
+                if search_names & names:
+                    raise RuntimeError(
+                        "Filesystem MCP ile Ripgrep MCP araç adları çakışıyor."
+                    )
+
+                if search_names & INTERNET_TOOL_NAMES:
+                    raise RuntimeError(
+                        "Ripgrep MCP ile internet araç adları çakışıyor."
+                    )
+
+                tools = [*mcp_tools, *search_tools, *INTERNET_TOOLS]
+
+                print(
+                    f"[MCP HAZIR] {len(remote_tools)} Filesystem aracı bulundu; "
+                    f"{len(mcp_tools)} tanesi Qwen'e sunuldu. "
+                    "Eski search_files kaldırıldı; Ripgrep search etkin.",
+                    flush=True,
+                )
+
+                yield MCPRuntime(
+                    client=client,
+                    search_client=search_client,
+                    tool_names=names,
+                    search_tool_names=search_names,
+                    tools=tools,
+                )
 
     async def _mcp_read_text(self, runtime, path):
         result = await runtime.client.call_tool(
@@ -225,42 +301,57 @@ class QwenAraclariMixin:
 
         return text
 
-    async def _execute_qwen_tool(self, runtime, name, arguments):
-        if name in runtime.tool_names:
-            tool_path = str(arguments.get("path") or "").replace("\\", "/")
-            print(
-                f"[MCP BAŞLADI] {tool_path}".rstrip(),
-                flush=True,
-            )
-            tool_started_at = time.perf_counter()
-            try:
-                result = await runtime.client.call_tool(
-                    name,
-                    arguments=arguments,
-                )
-                tool_text = _mcp_text(result)
-            except Exception as exc:
-                print(
-                    "[MCP HATA] "
-                    f"Süre: {time.perf_counter() - tool_started_at:.2f} sn | "
-                    f"{type(exc).__name__}: {exc}",
-                    flush=True,
-                )
-                raise
+    async def _call_mcp_tool(self, client, name, arguments):
+        tool_path = str(arguments.get("path") or "").replace("\\", "/")
+        print(
+            f"[MCP BAŞLADI] {tool_path}".rstrip(),
+            flush=True,
+        )
+        tool_started_at = time.perf_counter()
 
+        try:
+            result = await client.call_tool(
+                name,
+                arguments=arguments,
+            )
+            tool_text = _mcp_text(result)
+        except Exception as exc:
             print(
-                "[MCP TAMAMLANDI] "
+                "[MCP HATA] "
                 f"Süre: {time.perf_counter() - tool_started_at:.2f} sn | "
-                f"Durum: {'Hata' if bool(getattr(result, 'is_error', False)) else 'Başarılı'} | "
-                f"Sonuç: {len(tool_text)} karakter",
+                f"{type(exc).__name__}: {exc}",
                 flush=True,
             )
+            raise
 
-            if bool(getattr(result, "is_error", False)):
-                print(f"[MCP HATA] {tool_text}", flush=True)
-                return f"[MCP HATA] {tool_text}"
+        print(
+            "[MCP TAMAMLANDI] "
+            f"Süre: {time.perf_counter() - tool_started_at:.2f} sn | "
+            f"Durum: {'Hata' if bool(getattr(result, 'is_error', False)) else 'Başarılı'} | "
+            f"Sonuç: {len(tool_text)} karakter",
+            flush=True,
+        )
 
-            return tool_text
+        if bool(getattr(result, "is_error", False)):
+            print(f"[MCP HATA] {tool_text}", flush=True)
+            return f"[MCP HATA] {tool_text}"
+
+        return tool_text
+
+    async def _execute_qwen_tool(self, runtime, name, arguments):
+        if name in runtime.search_tool_names:
+            return await self._call_mcp_tool(
+                runtime.search_client,
+                name,
+                arguments,
+            )
+
+        if name in runtime.tool_names:
+            return await self._call_mcp_tool(
+                runtime.client,
+                name,
+                arguments,
+            )
 
         if name in INTERNET_TOOL_NAMES:
             return internet_araci_calistir(name, arguments)

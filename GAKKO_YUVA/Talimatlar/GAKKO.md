@@ -42,7 +42,7 @@ Bir işin nasıl yürütüleceği, hangi adımların izleneceği veya belirli bi
 
 `GAKKO_YUVA/Talimatlar/Calisma_Yontemleri_Fihristi.md`
 
-Aktif projedeki dosya, kod bölümü veya değişken üzerinde inceleme ve düzenleme yapılacaksa ilgili proje çalışma yöntemini kullan. Proje kodunda dosya türleri veya uzantılardan söz edilmesi, tek başına GAKKO’nun Bilgi kaynaklarına başvurma gerekçesi değildir.
+“Aktif proje kökü ve görev için gerekli dosya bilgisi zaten biliniyorsa doğrudan aktif proje üzerinde çalış. Yalnız çalışma yöntemi gerçekten gerektiğinde ilgili proje çalışma yöntemini kullan. Proje kodunda dosya türleri veya uzantılardan söz edilmesi, tek başına GAKKO’nun Bilgi kaynaklarına başvurma gerekçesi değildir.”
 
 Çalışma yöntemi görev için yeterliyse ilgisiz Bilgi, Hafiza veya Kayitlar kaynaklarına geçme.
 

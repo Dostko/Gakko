@@ -5,6 +5,21 @@ Bu fihrist, görev için gerekli doğrulanmış Bilgi kaynağını gösterir.
 Göreve uygun kaynağı seç ve yalnız ilgili MD dosyasını oku.
 
 ## Ana Sistem
+## Proje Ağacı ve Mimari
+
+**Dosya:**
+
+`../Bilgi/Proje_Agaci_ve_Mimari.md`
+
+**Kullan:**
+
+- GAKKO'nun güncel fiziksel proje ağacı, klasörleri veya dosya yapısı gerekiyorsa.
+
+- Bir ana bileşenin, klasörün veya dosyanın sistem içindeki görevi ve sorumluluğu anlaşılacaksa.
+
+- GAKKO_YUVA, Kod_Blok veya model alanlarının mimari konumu hakkında bilgi gerekiyorsa.
+
+---
 
 **Dosya:**
 
