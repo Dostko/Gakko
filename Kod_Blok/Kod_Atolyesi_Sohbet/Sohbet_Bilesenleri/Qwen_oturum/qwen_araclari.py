@@ -429,6 +429,13 @@ class QwenAraclariMixin:
                 if not name:
                     raise RuntimeError("Qwen araç çağrısında araç adı yok.")
 
+                activity = {"name": name}
+                for key in ("path", "query", "pattern", "url"):
+                    value = arguments.get(key)
+                    if value not in (None, ""):
+                        activity[key] = str(value)[:240]
+                self.tool_activity.emit(json.dumps(activity, ensure_ascii=False))
+
                 result = await self._execute_qwen_tool(
                     runtime,
                     name,

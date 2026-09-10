@@ -108,6 +108,9 @@ let currentView = "chat";
 let selectedHistoryId = null;
 let historySearchTimer = null;
 let selectedChatFiles = [];
+let thinkingMessage = null;
+let thinkingActivityList = null;
+let thinkingActivityKeys = new Set();
 let activeProjectPath = "";
 let fileBrowserPath = "";
 const fileDirectoryCache = new Map();
@@ -752,6 +755,148 @@ function addMessage(text, role, attachments = []) {
   });
 }
 
+function showThinkingMessage() {
+  removeThinkingMessage();
+
+  const el = document.createElement("div");
+  el.className = "message assistant";
+  el.dataset.transient = "thinking";
+
+  const title = document.createElement("div");
+  title.textContent = "GAKKO düşünüyor...";
+  title.style.fontWeight = "600";
+
+  const activityList = document.createElement("div");
+  activityList.style.display = "grid";
+  activityList.style.gap = "3px";
+  activityList.style.marginTop = "6px";
+  activityList.style.fontSize = "12px";
+  activityList.style.color = "#8f9bad";
+
+  el.appendChild(title);
+  el.appendChild(activityList);
+  messages.appendChild(el);
+  welcome.classList.add("hidden");
+
+  thinkingMessage = el;
+  thinkingActivityList = activityList;
+  thinkingActivityKeys = new Set();
+
+  stage.scrollTo({
+    top: stage.scrollHeight,
+    behavior: "smooth"
+  });
+}
+
+function removeThinkingMessage() {
+  if (thinkingMessage) {
+    thinkingMessage.remove();
+  }
+
+  thinkingMessage = null;
+  thinkingActivityList = null;
+  thinkingActivityKeys = new Set();
+}
+
+function activityDetail(payload) {
+  const rawPath = String(payload.path || "").trim().replace(/\\/g, "/");
+  const fileName = rawPath ? rawPath.split("/").pop() : "";
+  const query = String(payload.query || payload.pattern || "").trim();
+
+  return {
+    fileName,
+    query: query.length > 70 ? `${query.slice(0, 67)}...` : query
+  };
+}
+
+function formatThinkingActivity(payload) {
+  const name = String(payload.name || "").trim();
+  const detail = activityDetail(payload);
+
+  if (name === "search") {
+    return detail.query
+      ? `Dosyalarda aranıyor · ${detail.query}`
+      : "Dosyalarda aranıyor";
+  }
+
+  if (name === "read_text_file" || name === "read_media_file") {
+    return detail.fileName
+      ? `Dosya okunuyor · ${detail.fileName}`
+      : "Dosya okunuyor";
+  }
+
+  if (name === "read_multiple_files") {
+    return "Dosyalar okunuyor";
+  }
+
+  if (["list_directory", "list_directory_with_sizes", "directory_tree"].includes(name)) {
+    return "Klasör inceleniyor";
+  }
+
+  if (name === "get_file_info") {
+    return detail.fileName
+      ? `Dosya bilgisi kontrol ediliyor · ${detail.fileName}`
+      : "Dosya bilgisi kontrol ediliyor";
+  }
+
+  if (name === "edit_file" || name === "write_file") {
+    return detail.fileName
+      ? `Dosya düzenleniyor · ${detail.fileName}`
+      : "Dosya düzenleniyor";
+  }
+
+  if (name === "create_directory") {
+    return "Klasör oluşturuluyor";
+  }
+
+  if (name === "move_file") {
+    return "Dosya taşınıyor";
+  }
+
+  if (name === "web_search") {
+    return "İnternette araştırılıyor";
+  }
+
+  if (name === "web_fetch") {
+    return "Web sayfası okunuyor";
+  }
+
+  if (payload.url) {
+    return "İnternette işlem yapılıyor";
+  }
+
+  return name ? `Araç kullanılıyor · ${name}` : "";
+}
+
+function appendThinkingActivity(payloadText) {
+  if (!thinkingMessage || !thinkingActivityList) {
+    return;
+  }
+
+  let payload = null;
+  try {
+    payload = JSON.parse(String(payloadText || "{}"));
+  } catch (error) {
+    return;
+  }
+
+  const text = formatThinkingActivity(payload);
+  if (!text || thinkingActivityKeys.has(text)) {
+    return;
+  }
+
+  thinkingActivityKeys.add(text);
+
+  const line = document.createElement("div");
+  line.textContent = `↳ ${text}`;
+  thinkingActivityList.appendChild(line);
+
+  stage.scrollTo({
+    top: stage.scrollHeight,
+    behavior: "smooth"
+  });
+}
+
 function setWaiting(value) {
   waiting = Boolean(value);
   if (!waiting) {
@@ -777,9 +922,7 @@ function setWaiting(value) {
   resetContextButton.style.opacity = waiting ? "0.45" : "1";
   input.disabled = waiting;
 
-  statusNote.textContent = waiting
-    ? "Gakko düşünüyor..."
-    : "Gakko AI";
+  statusNote.textContent = "Gakko AI";
 
   if (!waiting) {
     input.focus();
@@ -1215,16 +1358,27 @@ function connectBridge() {
     });
 
     bridge.reply_ready.connect(reply => {
+      removeThinkingMessage();
       addMessage(reply, "assistant");
       setWaiting(false);
       refreshVisibleFileDirectories();
     });
 
     if (
+      bridge.tool_activity
+      && typeof bridge.tool_activity.connect === "function"
+    ) {
+      bridge.tool_activity.connect(payloadText => {
+        appendThinkingActivity(payloadText);
+      });
+    }
+
+    if (
       bridge.generation_cancelled
       && typeof bridge.generation_cancelled.connect === "function"
     ) {
       bridge.generation_cancelled.connect(() => {
+        removeThinkingMessage();
         addMessage("İşlem durduruldu.", "assistant");
         setWaiting(false);
         statusNote.textContent = "İşlem durduruldu";
@@ -1232,6 +1386,7 @@ function connectBridge() {
     }
 
     bridge.error_ready.connect(error => {
+      removeThinkingMessage();
       addMessage("Hata: " + error, "assistant");
       setWaiting(false);
     });
@@ -1457,6 +1612,7 @@ form.addEventListener("submit", event => {
   }
 
   addMessage(text, "user", attachments);
+  showThinkingMessage();
 
   input.value = "";
   selectedChatFiles = [];

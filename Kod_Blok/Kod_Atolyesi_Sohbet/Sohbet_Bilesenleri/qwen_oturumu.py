@@ -30,6 +30,7 @@ class QwenSession(
     error_ready = Signal(str)
     cancelled = Signal()
     context_remaining = Signal(float)
+    tool_activity = Signal(str)
 
     def __init__(self, active_project_root=None):
         super().__init__()
