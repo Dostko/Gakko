@@ -656,15 +656,96 @@ function createCodeBlock(codeText, language) {
   return wrapper;
 }
 
+function assistantImageUrl(reference) {
+  let path = String(reference || "").trim();
+  if (!path) {
+    return "";
+  }
+
+  path = path.replace(/^<|>$/g, "").replace(/^['\"]|['\"]$/g, "").trim();
+
+  if (/^file:\/\/\//i.test(path)) {
+    return encodeURI(path.replace(/\\/g, "/"));
+  }
+
+  if (/^[A-Za-z]:[\\/]/.test(path)) {
+    return attachmentPreviewUrl(path);
+  }
+
+  if (!activeProjectPath || /^[a-z][a-z0-9+.-]*:/i.test(path)) {
+    return "";
+  }
+
+  const base = String(activeProjectPath).replace(/[\\/]+$/, "");
+  const relative = path.replace(/^[.][\\/]/, "");
+  return attachmentPreviewUrl(`${base}/${relative}`);
+}
+
+function parseAssistantImages(text) {
+  const source = String(text || "");
+  const images = [];
+  const seen = new Set();
+
+  const add = reference => {
+    const path = String(reference || "").trim();
+    const key = path.replace(/\\/g, "/").toLowerCase();
+    if (path && !seen.has(key)) {
+      seen.add(key);
+      images.push(path);
+    }
+  };
+
+  const markdownPattern = /!\[[^\]]*\]\(\s*<?([^\r\n>]+?\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?))>?\s*\)/gi;
+  const visibleText = source.replace(markdownPattern, (full, reference) => {
+    add(reference);
+    return "";
+  });
+
+  const absolutePattern = /(?:file:\/\/\/)?[A-Za-z]:[\\/][^\r\n<>"|?*`]*?\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?)/gi;
+  for (const match of source.matchAll(absolutePattern)) {
+    add(match[0]);
+  }
+
+  source.split(/\r?\n/).forEach(line => {
+    const path = line.trim().replace(/^`+|`+$/g, "").trim();
+    if (
+      /^(?:\.{0,2}[\\/])?[\w .()@+\-\\/]+\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?)$/i.test(path)
+      && /[\\/]/.test(path)
+    ) {
+      add(path);
+    }
+  });
+
+  return { visibleText, images };
+}
+
 function appendPlainAssistantText(container, text) {
   if (!text) {
     return;
   }
 
-  const part = document.createElement("span");
-  part.className = "message-text";
-  part.textContent = text;
-  container.appendChild(part);
+  const parsed = parseAssistantImages(text);
+
+  parsed.images.forEach(path => {
+    const src = assistantImageUrl(path);
+    if (!src) {
+      return;
+    }
+
+    const image = document.createElement("img");
+    image.className = "assistant-image";
+    image.src = src;
+    image.alt = "GAKKO görseli";
+    image.addEventListener("error", () => image.remove());
+    container.appendChild(image);
+  });
+
+  if (parsed.visibleText) {
+    const part = document.createElement("span");
+    part.className = "message-text";
+    part.textContent = parsed.visibleText;
+    container.appendChild(part);
+  }
 }
 
 function renderAssistantContent(container, text) {

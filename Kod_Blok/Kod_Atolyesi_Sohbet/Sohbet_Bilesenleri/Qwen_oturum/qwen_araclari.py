@@ -66,14 +66,33 @@ def _mcp_tool_schema(tool):
 
 
 
-def _mcp_text(result):
+def _mcp_text(result, arguments=None):
     chunks = []
+    path = ""
+
+    if isinstance(arguments, dict):
+        path = str(arguments.get("path") or "").replace("\\", "/")
 
     for item in getattr(result, "content", None) or ():
         value = getattr(item, "text", None)
         if isinstance(value, str) and value:
             chunks.append(value)
-        elif hasattr(item, "model_dump"):
+            continue
+
+        item_type = str(getattr(item, "type", "") or "")
+        if item_type in {"image", "audio"}:
+            mime_type = (
+                getattr(item, "mime_type", None)
+                or getattr(item, "mimeType", None)
+                or "application/octet-stream"
+            )
+            media_text = f"[MCP MEDYA] tür={item_type} | mime={mime_type}"
+            if path:
+                media_text += f" | yol={path}"
+            chunks.append(media_text)
+            continue
+
+        if hasattr(item, "model_dump"):
             chunks.append(
                 json.dumps(
                     item.model_dump(mode="json", by_alias=True),
@@ -314,7 +333,7 @@ class QwenAraclariMixin:
                 name,
                 arguments=arguments,
             )
-            tool_text = _mcp_text(result)
+            tool_text = _mcp_text(result, arguments)
         except Exception as exc:
             print(
                 "[MCP HATA] "
