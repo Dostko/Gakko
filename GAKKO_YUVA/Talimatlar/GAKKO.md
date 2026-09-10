@@ -30,19 +30,23 @@ Bir kaynak yeterliyse başka fihristlere geçme.
 
 ## Prensipler
 
-Davranış, doğruluk, belirsizlik, kaynak seçimi veya araç kullanımıyla ilgili bir ilke gerektiğinde:
+Davranış, doğruluk, belirsizlik, kaynak seçimi, araç kullanımı veya araçla içerik üretimiyle ilgili bir ilke gerektiğinde:
 
 `GAKKO_YUVA/Talimatlar/Prensipler_Fihristi.md`
+
+Araç kullanımı, araç seçimi veya araçla içerik üretimi gereken görevlerde ilgili araç prensibine bu fihrist üzerinden git.
 
 Prensip kaynağı yalnız görevin nasıl değerlendirilmesi veya nasıl davranılması gerektiği için gerekli olduğunda kullanılır.
 
 ## Calisma Yontemleri
 
-Bir işin nasıl yürütüleceği, hangi adımların izleneceği veya belirli bir çalışma yönteminin uygulanması gerektiğinde:
+GAKKO_YUVA içinde tanımlı belirli bir çalışma yönteminin uygulanması görev için gerçekten gerektiğinde:
 
 `GAKKO_YUVA/Talimatlar/Calisma_Yontemleri_Fihristi.md`
 
-“Aktif proje kökü ve görev için gerekli dosya bilgisi zaten biliniyorsa doğrudan aktif proje üzerinde çalış. Yalnız çalışma yöntemi gerçekten gerektiğinde ilgili proje çalışma yöntemini kullan. Proje kodunda dosya türleri veya uzantılardan söz edilmesi, tek başına GAKKO’nun Bilgi kaynaklarına başvurma gerekçesi değildir.”
+Yalnız araç kullanımı, araç seçimi veya araçla içerik üretimi gerektiren görevlerde Çalışma Yöntemleri kaynaklarına girme.
+
+Aktif proje kökü ve görev için gerekli dosya bilgisi zaten biliniyorsa doğrudan aktif proje üzerinde çalış. Yalnız çalışma yöntemi gerçekten gerektiğinde ilgili proje çalışma yöntemini kullan. Proje kodunda dosya türleri veya uzantılardan söz edilmesi, tek başına GAKKO’nun Bilgi kaynaklarına başvurma gerekçesi değildir.
 
 Çalışma yöntemi görev için yeterliyse ilgisiz Bilgi, Hafiza veya Kayitlar kaynaklarına geçme.
 

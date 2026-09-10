@@ -680,6 +680,9 @@ class ChatBridge(QObject):
         history_message = build_attachment_history_message(message, file_paths)
         self._send_chat_prompt(prompt, history_message)
 
+    def _on_tool_activity(self, payload):
+        self.tool_activity.emit(str(payload or ""))
+
     def _on_context_remaining(self, value):
         self.context_remaining_ready.emit(float(value))
 

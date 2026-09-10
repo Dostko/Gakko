@@ -719,7 +719,7 @@ function parseAssistantImages(text) {
   return { visibleText, images };
 }
 
-function appendPlainAssistantText(container, text) {
+function appendPlainAssistantText(container, text, renderedImageKeys) {
   if (!text) {
     return;
   }
@@ -727,10 +727,17 @@ function appendPlainAssistantText(container, text) {
   const parsed = parseAssistantImages(text);
 
   parsed.images.forEach(path => {
+    const key = String(path || "").trim().replace(/\\/g, "/").toLowerCase();
+    if (!key || renderedImageKeys.has(key)) {
+      return;
+    }
+
     const src = assistantImageUrl(path);
     if (!src) {
       return;
     }
+
+    renderedImageKeys.add(key);
 
     const image = document.createElement("img");
     image.className = "assistant-image";
@@ -751,16 +758,17 @@ function appendPlainAssistantText(container, text) {
 function renderAssistantContent(container, text) {
   const source = String(text || "");
   const fencePattern = /```([^\n`]*)\n([\s\S]*?)```/g;
+  const renderedImageKeys = new Set();
   let cursor = 0;
   let match = null;
 
   while ((match = fencePattern.exec(source)) !== null) {
-    appendPlainAssistantText(container, source.slice(cursor, match.index));
+    appendPlainAssistantText(container, source.slice(cursor, match.index), renderedImageKeys);
     container.appendChild(createCodeBlock(match[2].replace(/\n$/, ""), match[1]));
     cursor = match.index + match[0].length;
   }
 
-  appendPlainAssistantText(container, source.slice(cursor));
+  appendPlainAssistantText(container, source.slice(cursor), renderedImageKeys);
 }
 
 function renderUserMessage(container, text, attachments = []) {

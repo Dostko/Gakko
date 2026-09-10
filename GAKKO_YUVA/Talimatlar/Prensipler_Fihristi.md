@@ -62,7 +62,7 @@ Göreve uygun kaynağı seç ve yalnız ilgili MD dosyasını oku.
 
 **Kullan:**
 
-- Görev teknik bir araç veya capability gerektiriyorsa.
+- Görev teknik bir araç veya yetenek gerektiriyorsa.
 - Hangi aracın kullanılacağına karar verilecekse.
 - Araç çağrısının gerekli olup olmadığı değerlendirilecekse.
 - Teknik işlemin sonucu doğrulanacaksa.
