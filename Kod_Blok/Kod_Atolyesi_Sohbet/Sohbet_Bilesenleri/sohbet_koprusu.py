@@ -2,7 +2,7 @@ import base64
 import binascii
 import json
 import sqlite3
-import tempfile
+import shutil
 import uuid
 from pathlib import Path
 
@@ -43,6 +43,8 @@ CHAT_IMAGE_EXTENSIONS = frozenset({
     ".tiff",
     ".webp",
 })
+
+GORSELLER_ROOT = PROJECT_ROOT / "Gorseller"
 
 
 
@@ -111,8 +113,6 @@ class ChatBridge(QObject):
         self.session = QwenSession(self.active_project_root)
         self._busy = False
         self._pending_message = None
-        self._clipboard_temp_files = set()
-        self._clipboard_inflight_files = set()
 
         self._bind_session(self.session)
 
@@ -263,23 +263,66 @@ class ChatBridge(QObject):
 
     def _emit_chat_files(self, selected_paths):
         files = []
+        image_mime_types = {
+            ".bmp": "image/bmp",
+            ".gif": "image/gif",
+            ".ico": "image/x-icon",
+            ".jpeg": "image/jpeg",
+            ".jpg": "image/jpeg",
+            ".png": "image/png",
+            ".svg": "image/svg+xml",
+            ".tif": "image/tiff",
+            ".tiff": "image/tiff",
+            ".webp": "image/webp",
+        }
 
         for selected_path in selected_paths:
             path = Path(str(selected_path or "").strip())
             if not path.exists() or not path.is_file():
                 continue
 
-            files.append(
-                {
-                    "path": str(path),
-                    "name": path.name,
-                    "type": (
-                        "image"
-                        if path.suffix.lower() in CHAT_IMAGE_EXTENSIONS
-                        else "file"
-                    ),
-                }
-            )
+            suffix = path.suffix.lower()
+            is_image = suffix in CHAT_IMAGE_EXTENSIONS
+
+            if is_image:
+                try:
+                    GORSELLER_ROOT.mkdir(parents=True, exist_ok=True)
+                    source = path.resolve()
+                    image_root = GORSELLER_ROOT.resolve()
+
+                    if source != image_root and not source.is_relative_to(image_root):
+                        target = GORSELLER_ROOT / path.name
+                        if target.exists():
+                            target = GORSELLER_ROOT / (
+                                f"{path.stem}_{uuid.uuid4().hex[:8]}{path.suffix.lower()}"
+                            )
+                        shutil.copy2(path, target)
+                        path = target
+                except OSError as error:
+                    self.error_ready.emit(f"Görsel Gorseller klasörüne alınamadı: {error}")
+                    continue
+
+            item = {
+                "path": str(path),
+                "name": path.name,
+                "type": "image" if is_image else "file",
+            }
+
+            if is_image:
+                mime_type = image_mime_types.get(suffix)
+                try:
+                    file_size = path.stat().st_size
+                except OSError:
+                    file_size = 0
+
+                if mime_type and 0 < file_size <= 12 * 1024 * 1024:
+                    try:
+                        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+                        item["data_url"] = f"data:{mime_type};base64,{encoded}"
+                    except OSError:
+                        pass
+
+            files.append(item)
 
         if not files:
             return
@@ -326,26 +369,6 @@ class ChatBridge(QObject):
         self._emit_chat_files(selected_paths[:1])
 
 
-    def _cleanup_clipboard_files(self, paths=None):
-        targets = (
-            set(self._clipboard_temp_files)
-            if paths is None
-            else {str(path) for path in paths}
-        )
-
-        for raw_path in targets:
-            try:
-                Path(raw_path).unlink(missing_ok=True)
-            except OSError:
-                pass
-            self._clipboard_temp_files.discard(raw_path)
-            self._clipboard_inflight_files.discard(raw_path)
-
-    def _cleanup_inflight_clipboard_files(self):
-        if not self._clipboard_inflight_files:
-            return
-        self._cleanup_clipboard_files(self._clipboard_inflight_files)
-
     @Slot(str)
     def add_clipboard_image(self, data_url):
         if self._busy:
@@ -357,16 +380,13 @@ class ChatBridge(QObject):
         try:
             _mime_type, suffix, raw = _decode_clipboard_image_data_url(data_url)
 
-            temp_root = Path(tempfile.gettempdir()) / "Gakko" / "Pano"
-            temp_root.mkdir(parents=True, exist_ok=True)
-
-            target = temp_root / f"gakko_pano_{uuid.uuid4().hex}{suffix}"
+            GORSELLER_ROOT.mkdir(parents=True, exist_ok=True)
+            target = GORSELLER_ROOT / f"gakko_pano_{uuid.uuid4().hex}{suffix}"
             target.write_bytes(raw)
         except (OSError, ValueError) as error:
             self.error_ready.emit(f"Pano görseli eklenemedi: {error}")
             return
 
-        self._clipboard_temp_files.add(str(target))
         self._emit_chat_files([str(target)])
 
     @Slot()
@@ -670,12 +690,6 @@ class ChatBridge(QObject):
             self.error_ready.emit("Seçilen ek dosyalar bulunamadı.")
             return
 
-        self._clipboard_inflight_files = {
-            path
-            for path in file_paths
-            if path in self._clipboard_temp_files
-        }
-
         prompt = build_attachment_prompt(message, file_paths)
         history_message = build_attachment_history_message(message, file_paths)
         self._send_chat_prompt(prompt, history_message)
@@ -699,24 +713,20 @@ class ChatBridge(QObject):
             )
         self._history_capture_reply = False
         self.reply_ready.emit(text)
-        self._cleanup_inflight_clipboard_files()
 
     def _on_error(self, text):
         self._busy = False
         self._history_capture_reply = False
         self.error_ready.emit(text)
-        self._cleanup_inflight_clipboard_files()
 
     def _on_cancelled(self):
         self._busy = False
         self._history_capture_reply = False
         self.generation_cancelled.emit()
-        self._cleanup_inflight_clipboard_files()
 
     def close(self):
         self._pending_message = None
         self._history_capture_reply = False
-        self._cleanup_clipboard_files()
         self.session.stop()
         if self.session.wait(10000):
             return True

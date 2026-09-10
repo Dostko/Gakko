@@ -139,6 +139,20 @@ function attachmentPreviewUrl(path) {
   return encodeURI(`file:///${normalized.replace(/^\/+/, "")}`);
 }
 
+function attachmentImageSrc(file) {
+  const fileUrl = attachmentPreviewUrl(file?.path);
+  if (fileUrl) {
+    return fileUrl;
+  }
+
+  const dataUrl = String(file?.data_url || "").trim();
+  if (/^data:image\//i.test(dataUrl)) {
+    return dataUrl;
+  }
+
+  return "";
+}
+
 function isImageAttachment(file) {
   if (file && file.type === "image") {
     return true;
@@ -175,7 +189,7 @@ function renderAttachmentStrip() {
     if (imageAttachment && !previewShown) {
       previewShown = true;
       const preview = document.createElement("img");
-      preview.src = attachmentPreviewUrl(file.path);
+      preview.src = attachmentImageSrc(file);
       preview.alt = "";
       preview.style.width = "84px";
       preview.style.height = "84px";
@@ -238,7 +252,8 @@ function mergeSelectedChatFiles(files) {
     byPath.set(path.toLowerCase(), {
       path,
       name: String(file.name || path.split(/[\\/]/).pop() || "dosya"),
-      type: file.type === "image" ? "image" : "file"
+      type: file.type === "image" ? "image" : "file",
+      data_url: String(file.data_url || "")
     });
   });
 
@@ -800,7 +815,7 @@ function renderUserMessage(container, text, attachments = []) {
 
     if (isImageAttachment(file)) {
       const preview = document.createElement("img");
-      preview.src = attachmentPreviewUrl(file.path);
+      preview.src = attachmentImageSrc(file);
       preview.alt = "";
       preview.style.width = "84px";
       preview.style.height = "84px";
