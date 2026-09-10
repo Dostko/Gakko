@@ -44,6 +44,8 @@ Dosya adı içeriği açıklayan kısa ve anlaşılır bir ad taşımalı; mevcu
 
 Görsel oluşturulduğunda son cevapta görselin tam dosya yolunu belirt. Böylece sohbet arayüzü görseli gösterebilir.
 
+Görsel başarıyla oluşturulup kaydedildiyse son cevapta yalnız görselin gösterilmesi için gerekli dosya yolunu ver; SVG kaynak kodunu, görsel içeriğini veya ek açıklamaları tekrar üretme.
+
 Gerçek bir ekran görüntüsü mevcut değilse ekran görüntüsü varmış gibi davranma veya sahte ekran görüntüsü üretme. Görsel anlatım gerekiyorsa uygun bir açıklayıcı SVG oluştur.
 
 Mevcut araçlarla üretilemeyecek bir görsel türü istenirse bunu uydurma; mevcut yetenek sınırını açıkça belirt.
