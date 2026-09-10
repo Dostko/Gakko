@@ -1710,6 +1710,65 @@ form.addEventListener("submit", event => {
 
 input.addEventListener("input", resize);
 
+
+input.addEventListener("paste", event => {
+  const clipboard = event.clipboardData;
+  if (!clipboard) {
+    return;
+  }
+
+  const imageItem = Array.from(clipboard.items || []).find(
+    item => item.kind === "file" && String(item.type || "").startsWith("image/")
+  );
+
+  if (!imageItem) {
+    return;
+  }
+
+  if (waiting) {
+    event.preventDefault();
+    statusNote.textContent = "GAKKO yanıt verirken görsel eklenemez";
+    return;
+  }
+
+  if (!bridge || typeof bridge.add_clipboard_image !== "function") {
+    event.preventDefault();
+    statusNote.textContent = "Pano görsel bağlantısı henüz hazır değil";
+    return;
+  }
+
+  const file = imageItem.getAsFile();
+  if (!file) {
+    return;
+  }
+
+  event.preventDefault();
+
+  if (file.size > 12 * 1024 * 1024) {
+    statusNote.textContent = "Pano görseli 12 MB sınırını aşıyor";
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.addEventListener("load", () => {
+    const dataUrl = String(reader.result || "");
+    if (!dataUrl) {
+      statusNote.textContent = "Pano görseli okunamadı";
+      return;
+    }
+
+    statusNote.textContent = "Görsel ekleniyor...";
+    bridge.add_clipboard_image(dataUrl);
+  });
+
+  reader.addEventListener("error", () => {
+    statusNote.textContent = "Pano görseli okunamadı";
+  });
+
+  reader.readAsDataURL(file);
+});
+
 input.addEventListener("keydown", event => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();

@@ -1,6 +1,9 @@
 import base64
+import binascii
 import json
 import sqlite3
+import tempfile
+import uuid
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QSettings, Signal, Slot
@@ -42,6 +45,42 @@ CHAT_IMAGE_EXTENSIONS = frozenset({
 })
 
 
+
+def _decode_clipboard_image_data_url(data_url):
+    value = str(data_url or "").strip()
+    header, separator, payload = value.partition(",")
+
+    if not separator or not header.lower().startswith("data:image/"):
+        raise ValueError("Pano görsel verisi geçerli değil.")
+
+    parts = header[5:].split(";")
+    mime_type = parts[0].strip().lower()
+    if "base64" not in {part.strip().lower() for part in parts[1:]}:
+        raise ValueError("Pano görseli Base64 biçiminde değil.")
+
+    mime_extensions = {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/webp": ".webp",
+    }
+    suffix = mime_extensions.get(mime_type)
+    if suffix is None:
+        raise ValueError(f"Desteklenmeyen pano görsel türü: {mime_type}")
+
+    try:
+        raw = base64.b64decode(payload, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise ValueError("Pano görseli çözümlenemedi.") from error
+
+    if not raw:
+        raise ValueError("Pano görseli boş.")
+
+    if len(raw) > 12 * 1024 * 1024:
+        raise ValueError("Pano görseli 12 MB sınırını aşıyor.")
+
+    return mime_type, suffix, raw
+
+
 class ChatBridge(QObject):
     reply_ready = Signal(str)
     error_ready = Signal(str)
@@ -72,6 +111,8 @@ class ChatBridge(QObject):
         self.session = QwenSession(self.active_project_root)
         self._busy = False
         self._pending_message = None
+        self._clipboard_temp_files = set()
+        self._clipboard_inflight_files = set()
 
         self._bind_session(self.session)
 
@@ -283,6 +324,50 @@ class ChatBridge(QObject):
             return
 
         self._emit_chat_files(selected_paths[:1])
+
+
+    def _cleanup_clipboard_files(self, paths=None):
+        targets = (
+            set(self._clipboard_temp_files)
+            if paths is None
+            else {str(path) for path in paths}
+        )
+
+        for raw_path in targets:
+            try:
+                Path(raw_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+            self._clipboard_temp_files.discard(raw_path)
+            self._clipboard_inflight_files.discard(raw_path)
+
+    def _cleanup_inflight_clipboard_files(self):
+        if not self._clipboard_inflight_files:
+            return
+        self._cleanup_clipboard_files(self._clipboard_inflight_files)
+
+    @Slot(str)
+    def add_clipboard_image(self, data_url):
+        if self._busy:
+            self.error_ready.emit(
+                "GAKKO şu anda başka bir mesaja cevap veriyor."
+            )
+            return
+
+        try:
+            _mime_type, suffix, raw = _decode_clipboard_image_data_url(data_url)
+
+            temp_root = Path(tempfile.gettempdir()) / "Gakko" / "Pano"
+            temp_root.mkdir(parents=True, exist_ok=True)
+
+            target = temp_root / f"gakko_pano_{uuid.uuid4().hex}{suffix}"
+            target.write_bytes(raw)
+        except (OSError, ValueError) as error:
+            self.error_ready.emit(f"Pano görseli eklenemedi: {error}")
+            return
+
+        self._clipboard_temp_files.add(str(target))
+        self._emit_chat_files([str(target)])
 
     @Slot()
     def start_new_project(self):
@@ -585,6 +670,12 @@ class ChatBridge(QObject):
             self.error_ready.emit("Seçilen ek dosyalar bulunamadı.")
             return
 
+        self._clipboard_inflight_files = {
+            path
+            for path in file_paths
+            if path in self._clipboard_temp_files
+        }
+
         prompt = build_attachment_prompt(message, file_paths)
         history_message = build_attachment_history_message(message, file_paths)
         self._send_chat_prompt(prompt, history_message)
@@ -605,20 +696,24 @@ class ChatBridge(QObject):
             )
         self._history_capture_reply = False
         self.reply_ready.emit(text)
+        self._cleanup_inflight_clipboard_files()
 
     def _on_error(self, text):
         self._busy = False
         self._history_capture_reply = False
         self.error_ready.emit(text)
+        self._cleanup_inflight_clipboard_files()
 
     def _on_cancelled(self):
         self._busy = False
         self._history_capture_reply = False
         self.generation_cancelled.emit()
+        self._cleanup_inflight_clipboard_files()
 
     def close(self):
         self._pending_message = None
         self._history_capture_reply = False
+        self._cleanup_clipboard_files()
         self.session.stop()
         if self.session.wait(10000):
             return True
