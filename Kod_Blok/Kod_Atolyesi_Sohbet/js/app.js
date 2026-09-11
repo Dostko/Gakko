@@ -192,6 +192,7 @@ function renderAttachmentStrip() {
       const preview = document.createElement("img");
       preview.src = attachmentImageSrc(file);
       preview.alt = "";
+      enableImagePreview(preview);
       preview.style.width = "84px";
       preview.style.height = "84px";
       preview.style.objectFit = "cover";
@@ -789,6 +790,7 @@ function appendPlainAssistantText(container, text, renderedImageKeys) {
     image.referrerPolicy = "no-referrer";
     image.src = src;
     image.alt = "GAKKO görseli";
+    enableImagePreview(image);
     image.addEventListener("error", () => image.remove());
     container.appendChild(image);
   });
@@ -828,6 +830,7 @@ function renderAssistantAttachmentImages(container, attachments = []) {
     image.className = "assistant-image";
     image.src = src;
     image.alt = String(file.name || "GAKKO görseli");
+    enableImagePreview(image);
     image.addEventListener("error", () => image.remove());
     container.appendChild(image);
   });
@@ -882,6 +885,7 @@ function renderUserMessage(container, text, attachments = []) {
       const preview = document.createElement("img");
       preview.src = attachmentImageSrc(file);
       preview.alt = "";
+      enableImagePreview(preview);
       preview.style.width = "84px";
       preview.style.height = "84px";
       preview.style.objectFit = "cover";
@@ -1874,3 +1878,54 @@ input.addEventListener("keydown", event => {
 applySidebarWidth(sidebarOpenWidth);
 resize();
 connectBridge();
+
+// GÖRSEL BÜYÜK ÖNİZLEME: BAŞLANGIÇ
+function enableImagePreview(image) {
+  image.classList.add("image-preview-trigger");
+  image.tabIndex = 0;
+  image.setAttribute("role", "button");
+  image.setAttribute("aria-label", "Görseli büyüt");
+  image.addEventListener("click", () => openImagePreview(image));
+  image.addEventListener("keydown", event => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openImagePreview(image);
+    }
+  });
+}
+
+function openImagePreview(source) {
+  const src = source.currentSrc || source.src;
+  if (!src) return;
+
+  const dialog = document.createElement("dialog");
+  dialog.className = "image-preview-dialog";
+  dialog.setAttribute("aria-label", "Görsel büyük önizleme");
+
+  const closeButton = document.createElement("button");
+  closeButton.type = "button";
+  closeButton.className = "image-preview-close";
+  closeButton.textContent = "×";
+  closeButton.setAttribute("aria-label", "Önizlemeyi kapat");
+
+  const image = document.createElement("img");
+  image.className = "image-preview-full";
+  image.referrerPolicy = source.referrerPolicy;
+  image.alt = source.alt || "Görsel";
+  image.src = src;
+
+  closeButton.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", event => {
+    if (event.target === dialog) dialog.close();
+  });
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (source.isConnected) source.focus({ preventScroll: true });
+  }, { once: true });
+
+  dialog.append(closeButton, image);
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  closeButton.focus();
+}
+// GÖRSEL BÜYÜK ÖNİZLEME: BİTİŞ
