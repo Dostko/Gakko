@@ -3,6 +3,7 @@ import binascii
 import json
 import sqlite3
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -113,6 +114,8 @@ class ChatBridge(QObject):
         self.session = QwenSession(self.active_project_root)
         self._busy = False
         self._pending_message = None
+        self._clipboard_temp_files = set()
+        self._clipboard_inflight_files = set()
 
         self._bind_session(self.session)
 
@@ -159,6 +162,7 @@ class ChatBridge(QObject):
             self._busy = True
             if not self.session.submit_prompt(pending):
                 self._busy = False
+                self._cleanup_inflight_clipboard_files()
 
     def _build_project_start_prompt(self, selected_root, method_path):
         return (
@@ -261,7 +265,7 @@ class ChatBridge(QObject):
         self.file_browser_root = selected_root
         self.file_browser_project_selected.emit(str(selected_root))
 
-    def _emit_chat_files(self, selected_paths):
+    def _emit_chat_files(self, selected_paths, copy_images_to_gorseller=True):
         files = []
         image_mime_types = {
             ".bmp": "image/bmp",
@@ -284,7 +288,7 @@ class ChatBridge(QObject):
             suffix = path.suffix.lower()
             is_image = suffix in CHAT_IMAGE_EXTENSIONS
 
-            if is_image:
+            if is_image and copy_images_to_gorseller:
                 try:
                     GORSELLER_ROOT.mkdir(parents=True, exist_ok=True)
                     source = path.resolve()
@@ -368,6 +372,25 @@ class ChatBridge(QObject):
 
         self._emit_chat_files(selected_paths[:1])
 
+    def _cleanup_clipboard_files(self, paths=None):
+        targets = (
+            set(self._clipboard_temp_files)
+            if paths is None
+            else {str(path) for path in paths}
+        )
+
+        for raw_path in targets:
+            try:
+                Path(raw_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+            self._clipboard_temp_files.discard(raw_path)
+            self._clipboard_inflight_files.discard(raw_path)
+
+    def _cleanup_inflight_clipboard_files(self):
+        if not self._clipboard_inflight_files:
+            return
+        self._cleanup_clipboard_files(self._clipboard_inflight_files)
 
     @Slot(str)
     def add_clipboard_image(self, data_url):
@@ -380,14 +403,16 @@ class ChatBridge(QObject):
         try:
             _mime_type, suffix, raw = _decode_clipboard_image_data_url(data_url)
 
-            GORSELLER_ROOT.mkdir(parents=True, exist_ok=True)
-            target = GORSELLER_ROOT / f"gakko_pano_{uuid.uuid4().hex}{suffix}"
+            temp_root = Path(tempfile.gettempdir()) / "Gakko" / "Pano"
+            temp_root.mkdir(parents=True, exist_ok=True)
+            target = temp_root / f"gakko_pano_{uuid.uuid4().hex}{suffix}"
             target.write_bytes(raw)
         except (OSError, ValueError) as error:
             self.error_ready.emit(f"Pano görseli eklenemedi: {error}")
             return
 
-        self._emit_chat_files([str(target)])
+        self._clipboard_temp_files.add(str(target))
+        self._emit_chat_files([str(target)], copy_images_to_gorseller=False)
 
     @Slot()
     def start_new_project(self):
@@ -637,6 +662,7 @@ class ChatBridge(QObject):
             self._pending_message = None
             self._history_capture_reply = False
             self._busy = False
+            self._cleanup_inflight_clipboard_files()
             self.generation_cancelled.emit()
             return
 
@@ -692,6 +718,12 @@ class ChatBridge(QObject):
 
         prompt = build_attachment_prompt(message, file_paths)
         history_message = build_attachment_history_message(message, file_paths)
+
+        if not self._busy:
+            self._clipboard_inflight_files.update(
+                path for path in file_paths if path in self._clipboard_temp_files
+            )
+
         self._send_chat_prompt(prompt, history_message)
 
     def _on_tool_activity(self, payload):
@@ -705,6 +737,7 @@ class ChatBridge(QObject):
 
     def _on_reply(self, text):
         self._busy = False
+        self._cleanup_inflight_clipboard_files()
         if self._history_capture_reply and self.history_session_id is not None:
             self.history.add_message(
                 self.history_session_id,
@@ -716,17 +749,20 @@ class ChatBridge(QObject):
 
     def _on_error(self, text):
         self._busy = False
+        self._cleanup_inflight_clipboard_files()
         self._history_capture_reply = False
         self.error_ready.emit(text)
 
     def _on_cancelled(self):
         self._busy = False
+        self._cleanup_inflight_clipboard_files()
         self._history_capture_reply = False
         self.generation_cancelled.emit()
 
     def close(self):
         self._pending_message = None
         self._history_capture_reply = False
+        self._cleanup_clipboard_files()
         self.session.stop()
         if self.session.wait(10000):
             return True
