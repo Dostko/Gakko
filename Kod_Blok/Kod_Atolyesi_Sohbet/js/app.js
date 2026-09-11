@@ -108,6 +108,7 @@ let currentView = "chat";
 let selectedHistoryId = null;
 let historySearchTimer = null;
 let selectedChatFiles = [];
+let pendingAssistantImageAttachments = [];
 let thinkingMessage = null;
 let thinkingActivityList = null;
 let thinkingActivityKeys = new Set();
@@ -677,7 +678,20 @@ function assistantImageUrl(reference) {
     return "";
   }
 
-  path = path.replace(/^<|>$/g, "").replace(/^['\"]|['\"]$/g, "").trim();
+  path = path
+    .replace(/\\([()[\]_*&])/g, "$1")
+    .replace(/^<|>$/g, "")
+    .replace(/^[\'"]|[\'"]$/g, "")
+    .trim();
+
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      const url = new URL(path);
+      return url.username || url.password ? "" : url.toString();
+    } catch (error) {
+      return "";
+    }
+  }
 
   if (/^file:\/\/\//i.test(path)) {
     return encodeURI(path.replace(/\\/g, "/"));
@@ -698,30 +712,46 @@ function assistantImageUrl(reference) {
 
 function parseAssistantImages(text) {
   const source = String(text || "");
+  const parseSource = source.replace(/\\([()[\]_*&])/g, "$1");
   const images = [];
   const seen = new Set();
 
   const add = reference => {
     const path = String(reference || "").trim();
-    const key = path.replace(/\\/g, "/").toLowerCase();
+    const normalized = assistantImageUrl(path) || path;
+    const key = normalized.replace(/\\/g, "/").toLowerCase();
     if (path && !seen.has(key)) {
       seen.add(key);
       images.push(path);
     }
   };
 
-  const markdownPattern = /!\[[^\]]*\]\(\s*<?([^\r\n>]+?\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?))>?\s*\)/gi;
-  const visibleText = source.replace(markdownPattern, (full, reference) => {
+  const markdownPattern = /!\[[^\]]*\]\(\s*<?(https?:\/\/[^\s<>\[\]]+|[^\r\n>\[]+?\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?)(?:\?[^\r\n>)]*)?)>?\s*\)/gi;
+  let visibleText = parseSource.replace(markdownPattern, (full, reference) => {
     add(reference);
     return "";
   });
 
-  const absolutePattern = /(?:file:\/\/\/)?[A-Za-z]:[\\/][^\r\n<>"|?*`]*?\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?)/gi;
-  for (const match of source.matchAll(absolutePattern)) {
+  const absolutePattern = /\b(?:file:\/\/\/)?[A-Za-z]:[\\/][^\r\n<>"|?*`]*?\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?)/gi;
+  for (const match of parseSource.matchAll(absolutePattern)) {
     add(match[0]);
   }
 
-  source.split(/\r?\n/).forEach(line => {
+  const remotePattern = /https?:\/\/[^\s<>"'\[\]]+/gi;
+  for (const match of visibleText.matchAll(remotePattern)) {
+    let reference = match[0];
+    let extraClosing = (reference.match(/\)/g) || []).length
+      - (reference.match(/\(/g) || []).length;
+    while (extraClosing > 0 && reference.endsWith(")")) {
+      reference = reference.slice(0, -1);
+      extraClosing -= 1;
+    }
+    if (/\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?)(?:[?#]|$)/i.test(reference)) {
+      add(reference);
+    }
+  }
+
+  parseSource.split(/\r?\n/).forEach(line => {
     const path = line.trim().replace(/^`+|`+$/g, "").trim();
     if (
       /^(?:\.{0,2}[\\/])?[\w .()@+\-\\/]+\.(?:png|jpe?g|webp|gif|bmp|svg|ico|tiff?)$/i.test(path)
@@ -756,6 +786,7 @@ function appendPlainAssistantText(container, text, renderedImageKeys) {
 
     const image = document.createElement("img");
     image.className = "assistant-image";
+    image.referrerPolicy = "no-referrer";
     image.src = src;
     image.alt = "GAKKO görseli";
     image.addEventListener("error", () => image.remove());
@@ -770,7 +801,41 @@ function appendPlainAssistantText(container, text, renderedImageKeys) {
   }
 }
 
-function renderAssistantContent(container, text) {
+function shouldOpenAttachedImageInAssistant(text) {
+  const request = String(text || "").toLocaleLowerCase("tr-TR");
+  const mentionsImage = /(?:görsel|resim|foto(?:ğraf)?|ekran görüntüsü)/i.test(request);
+  const requestsOpen = /(?:aç|göster|görüntüle|sohbet penceresinde)/i.test(request);
+  return mentionsImage && requestsOpen;
+}
+
+function renderAssistantAttachmentImages(container, attachments = []) {
+  const files = Array.isArray(attachments) ? attachments : [];
+  const rendered = new Set();
+
+  files.forEach(file => {
+    if (!isImageAttachment(file)) {
+      return;
+    }
+
+    const src = attachmentImageSrc(file);
+    if (!src || rendered.has(src)) {
+      return;
+    }
+
+    rendered.add(src);
+
+    const image = document.createElement("img");
+    image.className = "assistant-image";
+    image.src = src;
+    image.alt = String(file.name || "GAKKO görseli");
+    image.addEventListener("error", () => image.remove());
+    container.appendChild(image);
+  });
+}
+
+function renderAssistantContent(container, text, attachments = []) {
+  renderAssistantAttachmentImages(container, attachments);
+
   const source = String(text || "");
   const fencePattern = /```([^\n`]*)\n([\s\S]*?)```/g;
   const renderedImageKeys = new Set();
@@ -845,7 +910,7 @@ function addMessage(text, role, attachments = []) {
   el.className = "message " + role;
 
   if (role === "assistant") {
-    renderAssistantContent(el, text);
+    renderAssistantContent(el, text, attachments);
   } else {
     renderUserMessage(el, text, attachments);
   }
@@ -1463,7 +1528,9 @@ function connectBridge() {
 
     bridge.reply_ready.connect(reply => {
       removeThinkingMessage();
-      addMessage(reply, "assistant");
+      const assistantImages = pendingAssistantImageAttachments;
+      pendingAssistantImageAttachments = [];
+      addMessage(reply, "assistant", assistantImages);
       setWaiting(false);
       refreshVisibleFileDirectories();
     });
@@ -1482,6 +1549,7 @@ function connectBridge() {
       && typeof bridge.generation_cancelled.connect === "function"
     ) {
       bridge.generation_cancelled.connect(() => {
+        pendingAssistantImageAttachments = [];
         removeThinkingMessage();
         addMessage("İşlem durduruldu.", "assistant");
         setWaiting(false);
@@ -1490,6 +1558,7 @@ function connectBridge() {
     }
 
     bridge.error_ready.connect(error => {
+      pendingAssistantImageAttachments = [];
       removeThinkingMessage();
       addMessage("Hata: " + error, "assistant");
       setWaiting(false);
@@ -1716,6 +1785,9 @@ form.addEventListener("submit", event => {
   }
 
   addMessage(text, "user", attachments);
+  pendingAssistantImageAttachments = shouldOpenAttachedImageInAssistant(text)
+    ? attachments.filter(isImageAttachment)
+    : [];
   showThinkingMessage();
 
   input.value = "";

@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -384,6 +385,7 @@ class QwenAraclariMixin:
         totals = self._measurement_totals()
         last_response = None
         rounds = 0
+        pending_image_markdown = ""
 
         for _ in range(MAX_TOOL_ROUNDS):
             if self._stopping:
@@ -436,7 +438,31 @@ class QwenAraclariMixin:
             if not tool_calls:
                 self._emit_context_remaining(response)
                 self._print_measurement(started_at, totals, rounds)
-                return str(assistant_message.content or "").strip()
+
+                final_text = str(assistant_message.content or "").strip()
+                if pending_image_markdown:
+                    # Kod örneklerini görsel gösterimi olarak sayma.
+                    visible_text = re.sub(
+                        r"(?ms)^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?"
+                        r"^ {0,3}\1[ \t]*(?:\n|$)",
+                        "",
+                        final_text,
+                    )
+                    visible_text = re.sub(r"(`+).*?\1", "", visible_text)
+                    has_image = re.search(
+                        r"(?<!\\)!\[[^\]\n]*\]\(\s*"
+                        r"(?:<[^<>\n]+>|[^\s)]+)"
+                        r"(?:[ \t]+[\"'][^\n]*?[\"'])?\s*\)",
+                        visible_text,
+                    )
+                    if not has_image:
+                        final_text = (
+                            f"{final_text}\n\n{pending_image_markdown}"
+                            if final_text
+                            else pending_image_markdown
+                        )
+
+                return final_text
 
             for tool_call in tool_calls:
                 if self._stopping or self._cancel_requested.is_set():
@@ -460,6 +486,25 @@ class QwenAraclariMixin:
                     name,
                     arguments,
                 )
+
+                if name == "image_search":
+                    try:
+                        image_payload = json.loads(result)
+                        primary = str(
+                            image_payload.get("primary_markdown_image", "") or ""
+                        ).strip()
+
+                        if not primary:
+                            image_results = image_payload.get("results") or []
+                            if image_results and isinstance(image_results[0], dict):
+                                primary = str(
+                                    image_results[0].get("markdown_image") or ""
+                                ).strip()
+
+                        if primary:
+                            pending_image_markdown = primary
+                    except (json.JSONDecodeError, TypeError, AttributeError):
+                        pass
 
                 messages.append(
                     {

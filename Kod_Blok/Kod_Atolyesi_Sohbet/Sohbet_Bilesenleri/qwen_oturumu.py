@@ -50,6 +50,7 @@ class QwenSession(
         self._messages_lock = threading.Lock()
         self._messages = []
         self._system_message = None
+        self._active_image_path = None
 
     @property
     def is_ready(self):
@@ -99,6 +100,7 @@ class QwenSession(
         with self._messages_lock:
             self._messages.clear()
 
+        self._active_image_path = None
         self.context_remaining.emit(100.0)
         return True
 

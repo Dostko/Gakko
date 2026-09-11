@@ -20,6 +20,22 @@ from .qwen_ayarlar import (
 
 
 class QwenDosyaEkleriMixin:
+    def _resolve_attachment_path(self, raw_path):
+        value = str(raw_path or "").strip()
+
+        if not value:
+            raise ValueError("Dosya yolu boş.")
+
+        path = Path(value).expanduser()
+
+        if not path.is_absolute():
+            if self.active_project_root is not None:
+                path = Path(self.active_project_root) / path
+            else:
+                path = Path.cwd() / path
+
+        return path.resolve()
+
     def _image_path_from_attachment_line(self, line):
         stripped = str(line or "").strip()
 
@@ -40,7 +56,7 @@ class QwenDosyaEkleriMixin:
         raw_path = raw_path.replace("\\ ", " ")
 
         try:
-            file_path = self._resolve_requested_path(raw_path)
+            file_path = self._resolve_attachment_path(raw_path)
         except Exception:
             return None
 
@@ -115,6 +131,55 @@ class QwenDosyaEkleriMixin:
                 f"{type(error).__name__}: {error}"
             )
 
+    def _find_active_image_reference(self, user_request):
+        active_image_path = getattr(self, "_active_image_path", None)
+
+        if active_image_path is None:
+            return None
+
+        active_image_path = Path(active_image_path)
+
+        if not active_image_path.exists() or not active_image_path.is_file():
+            self._active_image_path = None
+            return None
+
+        request_text = str(user_request or "").strip()
+
+        if not request_text:
+            return active_image_path
+
+        lowered = request_text.casefold()
+
+        image_reference_keywords = (
+            "görsel",
+            "resim",
+            "foto",
+            "fotoğraf",
+            "ekran görüntüsü",
+            "ekrandaki",
+            "resimde",
+            "görselde",
+            "fotoğrafta",
+            "fotoda",
+        )
+
+        image_text_keywords = (
+            "ne yazıyor",
+            "neler yazıyor",
+            "yazıları oku",
+            "metinleri oku",
+            "metinleri söyle",
+            "yazıları söyle",
+        )
+
+        if any(keyword in lowered for keyword in image_reference_keywords):
+            return active_image_path
+
+        if any(keyword in lowered for keyword in image_text_keywords):
+            return active_image_path
+
+        return None
+
     def _pdf_path_from_attachment_line(self, line):
         stripped = str(line or "").strip()
 
@@ -132,7 +197,7 @@ class QwenDosyaEkleriMixin:
         raw_path = raw_path.replace("\\ ", " ")
 
         try:
-            file_path = self._resolve_requested_path(raw_path)
+            file_path = self._resolve_attachment_path(raw_path)
         except Exception:
             return None
 
@@ -489,12 +554,24 @@ class QwenDosyaEkleriMixin:
 
             kept_lines.append(line)
 
-        if not image_paths and not pdf_paths:
-            return original_text
-
         user_request = "\n".join(
             kept_lines
         ).strip()
+
+        if image_paths:
+            self._active_image_path = image_paths[-1]
+
+        reused_active_image_path = None
+
+        if not image_paths and not pdf_paths:
+            reused_active_image_path = self._find_active_image_reference(
+                user_request
+            )
+
+            if reused_active_image_path is None:
+                return original_text
+
+            image_paths = [reused_active_image_path]
 
         if not user_request:
             user_request = "Ekli dosyaları incele."
@@ -510,11 +587,16 @@ class QwenDosyaEkleriMixin:
                 user_request,
             )
 
+            section_title = "GÖRSEL"
+
+            if reused_active_image_path is not None:
+                section_title = "AKTİF GÖRSEL"
+
             context_sections.append(
-                "----- GÖRSEL -----\n"
+                f"----- {section_title} -----\n"
                 f"Dosya: {image_path}\n"
                 f"{analysis}\n"
-                "----- /GÖRSEL -----"
+                f"----- /{section_title} -----"
             )
 
         for pdf_path in pdf_paths:

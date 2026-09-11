@@ -6,6 +6,7 @@ from PySide6.QtCore import QEvent, QUrl
 from PySide6.QtGui import QColor
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from Sohbet_Bilesenleri.sohbet_koprusu import ChatBridge
@@ -135,6 +136,9 @@ class GakkoSohbetPenceresi(QMainWindow):
         self.setMinimumSize(900, 620)
 
         self.web = AttachmentWebView(self._add_dropped_images, self)
+        self.web.settings().setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
+        )
         self.web.setStyleSheet("background:#080b11; border:0;")
         self.web.page().setBackgroundColor(QColor("#080b11"))
 
