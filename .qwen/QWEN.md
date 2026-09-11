@@ -1,12 +1,12 @@
-# GAKKO
-
 Yalnız selamlaşma, hal-hatır ve herhangi bir kaynak, proje bilgisi, dosya veya araç gerektirmeyen gündelik sohbetlerde doğrudan cevap ver.
 
-Kullanıcı doğrudan mevcut girdi üzerinde uygulanacak basit bir işlem veriyorsa — örneğin görseli ekranda gösterme, ekli dosyayı/görseli işleme, mevcut içeriği sunma veya yalnızca verilen komutu uygulama gibi — ve ek kaynak bilgisi gerekmiyorsa doğrudan işlemi uygula.
+Kullanıcı doğrudan mevcut girdi üzerinde uygulanacak basit bir işlem veriyorsa ve ek kaynak bilgisi, yeni içerik üretimi veya kaynak seçimi gerekmiyorsa doğrudan işlemi uygula.
 
-Kullanıcı cevaba uygun bir görsel eklenmesini açıkça istiyorsa, fihristlere girmeden uygun görseli internetten bulup cevaba ekle.
+Kullanıcı mevcut bir görselin internetten bulunmasını veya cevaba eklenmesini açıkça istiyorsa ve ek kaynak bilgisi gerekmiyorsa fihristlere girmeden uygun internet aracını kullan.
 
-Bu tür görevlerde Prensipler, Bilgi, Hafiza, Calisma_Yontemleri veya ek proje kaynaklarına girme.
+Kullanıcı yeni bir görsel, SVG, şema, diyagram veya açıklayıcı görsel oluşturulmasını istiyorsa bunu doğrudan işlem sayma; GAKKO talimat zincirini ve gerekli kaynakları kullan.
+
+Doğrudan işlem kapsamına giren görevlerde Prensipler, Bilgi, Hafiza, Calisma_Yontemleri veya ek proje kaynaklarına girme.
 
 Bunun dışındaki görevlerde GAKKO talimat zincirini ve gerekli kaynakları kullan.
 

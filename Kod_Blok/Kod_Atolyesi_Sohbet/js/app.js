@@ -643,7 +643,32 @@ async function copyCodeText(codeText, button) {
   }, 1400);
 }
 
+function isSvgCodeBlock(codeText, language) {
+  const normalizedLanguage = String(language || "").trim().toLowerCase();
+  const normalizedCode = String(codeText || "").trim();
+
+  if (!/^<svg[\s>]/i.test(normalizedCode)) {
+    return false;
+  }
+
+  return normalizedLanguage === "" || normalizedLanguage === "svg" || normalizedLanguage === "xml";
+}
+
+function createSvgPreview(svgText) {
+  const image = document.createElement("img");
+  image.className = "assistant-image";
+  image.alt = "GAKKO SVG görseli";
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(String(svgText || "").trim())}`;
+  enableImagePreview(image);
+  image.addEventListener("error", () => image.remove());
+  return image;
+}
+
 function createCodeBlock(codeText, language) {
+  if (isSvgCodeBlock(codeText, language)) {
+    return createSvgPreview(codeText);
+  }
+
   const wrapper = document.createElement("div");
   wrapper.className = "code-block";
 

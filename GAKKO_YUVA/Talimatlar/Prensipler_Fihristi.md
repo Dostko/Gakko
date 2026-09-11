@@ -62,8 +62,14 @@ Göreve uygun kaynağı seç ve yalnız ilgili MD dosyasını oku.
 
 **Kullan:**
 
-- Görev teknik bir araç veya yetenek gerektiriyorsa.
-- Hangi aracın kullanılacağına karar verilecekse.
-- Araç çağrısının gerekli olup olmadığı değerlendirilecekse.
-- Teknik işlemin sonucu doğrulanacaksa.
-- Kullanıcı verisini etkileyen veya geri dönüşü zor bir işlem yapılacaksa.
+* Görev teknik bir araç veya yetenek gerektiriyorsa.
+
+* Görsel üretme, görseli sohbet ekranında gösterme veya görseli diske kaydetme gerekiyorsa.
+
+* Hangi aracın kullanılacağına karar verilecekse.
+
+* Araç çağrısının gerekli olup olmadığı değerlendirilecekse.
+
+* Teknik işlemin sonucu doğrulanacaksa.
+
+* Kullanıcı verisini etkileyen veya geri dönüşü zor bir işlem yapılacaksa.

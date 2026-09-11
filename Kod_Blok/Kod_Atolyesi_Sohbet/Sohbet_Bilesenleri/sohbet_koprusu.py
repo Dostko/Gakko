@@ -111,7 +111,17 @@ class ChatBridge(QObject):
         )
         self.history_session_id = None
         self._history_capture_reply = False
-        self.session = QwenSession(self.active_project_root)
+        self._generated_images_temp = tempfile.TemporaryDirectory(
+            prefix="gakko_uretilen_",
+            ignore_cleanup_errors=True,
+        )
+        self._generated_images_root = Path(
+            self._generated_images_temp.name
+        )
+        self.session = QwenSession(
+            self.active_project_root,
+            self._generated_images_root,
+        )
         self._busy = False
         self._pending_message = None
         self._clipboard_temp_files = set()
@@ -181,7 +191,10 @@ class ChatBridge(QObject):
             self.error_ready.emit("Mevcut GAKKO oturumu kapatılamadı.")
             return False
 
-        self.session = QwenSession(selected_root)
+        self.session = QwenSession(
+            selected_root,
+            self._generated_images_root,
+        )
         self._bind_session(self.session)
         self._pending_message = startup_prompt
         self._busy = False
@@ -765,6 +778,7 @@ class ChatBridge(QObject):
         self._cleanup_clipboard_files()
         self.session.stop()
         if self.session.wait(10000):
+            self._generated_images_temp.cleanup()
             return True
 
         self.error_ready.emit("Qwen oturumu güvenli biçimde kapatılamadı.")

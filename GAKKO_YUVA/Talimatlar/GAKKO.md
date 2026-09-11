@@ -31,15 +31,16 @@ Kullanıcının açık isteği ve onayı olmadan dosya veya klasör değiştirme
 
 ## Prensipler
 
-Görev bir araç kullanımı, araçla içerik üretimi veya görsel oluşturma gerektiriyorsa önce:
+Görev bir araç kullanımı, araçla içerik üretimi veya görsel oluşturma gerektiriyorsa, görev için gerekli Bilgi veya başka içerik kaynağına geçmeden önce:
 
 `GAKKO_YUVA/Talimatlar/Prensipler_Fihristi.md`
 
 üzerinden ilgili prensip kaynağına git.
 
-Görev aynı zamanda sistem yapısı, bileşenler veya dosya formatlarıyla ilgili bilgi de gerektiriyorsa, araç kullanımı prensibini gördükten sonra yalnız gerçekten gereken Bilgi kaynağına geç.
+Bu ön koşul, "bir kaynak yeterliyse başka fihristlere geçme" kuralından önce uygulanır. İlgili prensip görüldükten sonra görev için yalnız gerçekten gereken kaynak alanına geç.
 
 Prensip kaynağı; davranış, doğruluk, belirsizlik, kaynak seçimi ve araç kullanımının nasıl yürütüleceğini belirlemek için kullanılır.
+
 
 ## Calisma Yontemleri
 

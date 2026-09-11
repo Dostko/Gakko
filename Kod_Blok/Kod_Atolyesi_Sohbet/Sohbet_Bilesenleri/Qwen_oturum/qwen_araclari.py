@@ -3,10 +3,13 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import json
+import ntpath
 import os
 import re
 import time
+import uuid
 from pathlib import Path
+from urllib.parse import quote
 
 from mcp import Client, StdioServerParameters
 
@@ -16,6 +19,7 @@ from ..internet_giris import (
     internet_araci_calistir,
 )
 from .qwen_ayarlar import (
+    IMAGE_EXTENSIONS,
     MAX_TOOL_ROUNDS,
     OLLAMA_CONTEXT_SIZE,
     OLLAMA_MODEL,
@@ -30,6 +34,12 @@ RIPGREP_PACKAGE = "@atef_andrus/mcp-ripgrep@1.2.0"
 RIPGREP_TOOL_NAMES = frozenset({"search"})
 RIPGREP_MAX_RESULT_CHARS = 12000
 RIPGREP_MAX_OUTPUT_BYTES = 1000000
+GENERATED_IMAGE_EXTENSIONS = IMAGE_EXTENSIONS | frozenset({
+    ".bmp",
+    ".gif",
+    ".ico",
+})
+GENERATED_IMAGE_TARGET_ROOT = PROJECT_ROOT / "Gorseller"
 
 
 @dataclass(slots=True)
@@ -110,6 +120,112 @@ def _mcp_text(result, arguments=None):
 
 
 class QwenAraclariMixin:
+    def _prepare_mcp_arguments(self, name, arguments):
+        if not isinstance(arguments, dict):
+            return arguments
+
+        generated_paths = getattr(self, "_generated_image_paths", {})
+
+        def redirected(value):
+            raw_value = str(value or "").strip()
+            if not raw_value:
+                return value
+            key = ntpath.normcase(ntpath.normpath(raw_value))
+            mapped = generated_paths.get(key)
+            return mapped[1] if mapped is not None else value
+
+        for key in ("path", "source", "destination"):
+            if key in arguments:
+                arguments[key] = redirected(arguments[key])
+
+        paths = arguments.get("paths")
+        if isinstance(paths, list):
+            arguments["paths"] = [redirected(path) for path in paths]
+
+        raw_path = str(arguments.get("path") or "").strip()
+        if not raw_path:
+            return arguments
+
+        normalized_path = ntpath.normcase(ntpath.normpath(raw_path))
+        redirected_path = generated_paths.get(normalized_path)
+
+        if redirected_path is not None:
+            arguments["path"] = redirected_path[1]
+            return arguments
+
+        if name != "write_file":
+            return arguments
+
+        suffix = ntpath.splitext(normalized_path)[1].lower()
+        if suffix not in GENERATED_IMAGE_EXTENSIONS:
+            return arguments
+
+        target_root = ntpath.normcase(
+            ntpath.normpath(str(GENERATED_IMAGE_TARGET_ROOT))
+        )
+        try:
+            is_generated_image = (
+                ntpath.commonpath([normalized_path, target_root])
+                == target_root
+            )
+        except ValueError:
+            is_generated_image = False
+
+        generated_images_root = getattr(
+            self,
+            "generated_images_root",
+            None,
+        )
+        if not is_generated_image or generated_images_root is None:
+            return arguments
+
+        temp_root = Path(generated_images_root)
+        temp_root.mkdir(parents=True, exist_ok=True)
+        source_name = ntpath.basename(raw_path)
+        source_stem = ntpath.splitext(source_name)[0] or "gakko_gorseli"
+        temp_path = temp_root / (
+            f"{source_stem}_{uuid.uuid4().hex[:8]}{suffix}"
+        )
+
+        redirected_path = (raw_path, str(temp_path))
+        generated_paths[normalized_path] = redirected_path
+        self._generated_image_paths = generated_paths
+        arguments["path"] = redirected_path[1]
+        return arguments
+
+    def _rewrite_generated_image_references(self, text):
+        rewritten = str(text or "")
+
+        for original_path, temp_path in getattr(
+            self,
+            "_generated_image_paths",
+            {},
+        ).values():
+            original_forward = original_path.replace("\\", "/")
+            temp_forward = temp_path.replace("\\", "/")
+            original_uri = f"file:///{original_forward.lstrip('/')}"
+            encoded_original_uri = "file:///" + quote(
+                original_forward.lstrip("/"),
+                safe="/:",
+            )
+            temp_uri = f"file:///{temp_forward.lstrip('/')}"
+
+            replacements = (
+                (encoded_original_uri, temp_uri),
+                (original_uri, temp_uri),
+                (original_forward, temp_forward),
+                (original_path, temp_path),
+            )
+            for old_value, new_value in replacements:
+                rewritten = re.sub(
+                    re.escape(old_value),
+                    lambda _match, value=new_value: value,
+                    rewritten,
+                    flags=re.IGNORECASE,
+                )
+
+        return rewritten
+
     def _measurement_totals(self):
         return {
             key: 0
@@ -170,6 +286,9 @@ class QwenAraclariMixin:
             Path("C:/").resolve(),
             Path("D:/").resolve(),
         ]
+
+        if self.generated_images_root is not None:
+            candidates.append(Path(self.generated_images_root).resolve())
 
         if self.active_project_root is not None:
             candidates.append(Path(self.active_project_root).resolve())
@@ -382,6 +501,7 @@ class QwenAraclariMixin:
 
     async def _chat_with_tools(self, user_text, runtime):
         messages = self._messages_for_prompt(user_text)
+        self._generated_image_paths = {}
 
         started_at = time.perf_counter()
         totals = self._measurement_totals()
@@ -442,6 +562,9 @@ class QwenAraclariMixin:
                 self._print_measurement(started_at, totals, rounds)
 
                 final_text = str(assistant_message.content or "").strip()
+                final_text = self._rewrite_generated_image_references(
+                    final_text
+                )
                 if pending_image_markdown:
                     # Kod örneklerini görsel gösterimi olarak sayma.
                     visible_text = re.sub(
@@ -475,6 +598,8 @@ class QwenAraclariMixin:
 
                 if not name:
                     raise RuntimeError("Qwen araç çağrısında araç adı yok.")
+
+                arguments = self._prepare_mcp_arguments(name, arguments)
 
                 activity = {"name": name}
                 for key in ("path", "query", "pattern", "url"):

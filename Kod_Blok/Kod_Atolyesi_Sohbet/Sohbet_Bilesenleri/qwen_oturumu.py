@@ -32,12 +32,21 @@ class QwenSession(
     context_remaining = Signal(float)
     tool_activity = Signal(str)
 
-    def __init__(self, active_project_root=None):
+    def __init__(
+        self,
+        active_project_root=None,
+        generated_images_root=None,
+    ):
         super().__init__()
 
         self.active_project_root = (
             Path(active_project_root).resolve()
             if active_project_root is not None
+            else None
+        )
+        self.generated_images_root = (
+            Path(generated_images_root).resolve()
+            if generated_images_root is not None
             else None
         )
 
@@ -51,6 +60,7 @@ class QwenSession(
         self._messages = []
         self._system_message = None
         self._active_image_path = None
+        self._generated_image_paths = {}
 
     @property
     def is_ready(self):
