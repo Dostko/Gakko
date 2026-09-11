@@ -5,8 +5,12 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QUrl
 from PySide6.QtGui import QColor
 from PySide6.QtWebChannel import QWebChannel
-from PySide6.QtWidgets import QApplication, QMainWindow
-from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtWidgets import QApplication, QMainWindow, QMenu
+from PySide6.QtWebEngineCore import (
+    QWebEngineContextMenuRequest,
+    QWebEnginePage,
+    QWebEngineSettings,
+)
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from Sohbet_Bilesenleri.sohbet_koprusu import ChatBridge
@@ -85,6 +89,27 @@ class AttachmentWebView(QWebEngineView):
         else:
             event.ignore()
         return True
+
+    # GORSEL SAG TIK KOPYALAMA: BASLANGIC
+    def contextMenuEvent(self, event):
+        request = self.lastContextMenuRequest()
+        if (
+            request is not None
+            and request.mediaType()
+            == QWebEngineContextMenuRequest.MediaType.MediaTypeImage
+        ):
+            menu = QMenu(self)
+            copy_action = menu.addAction("Kopyala")
+            copy_action.triggered.connect(
+                lambda: self.triggerPageAction(
+                    QWebEnginePage.WebAction.CopyImageToClipboard
+                )
+            )
+            menu.exec(event.globalPos())
+            return
+
+        super().contextMenuEvent(event)
+    # GORSEL SAG TIK KOPYALAMA: BITIS
 
     def dragEnterEvent(self, event):
         if self._file_paths(event):
