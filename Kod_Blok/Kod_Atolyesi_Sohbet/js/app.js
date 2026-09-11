@@ -828,11 +828,12 @@ function appendPlainAssistantText(container, text, renderedImageKeys) {
   }
 }
 
-function shouldOpenAttachedImageInAssistant(text) {
+function shouldOpenAttachedImageInAssistant(text, attachments = []) {
   const request = String(text || "").toLocaleLowerCase("tr-TR");
-  const mentionsImage = /(?:görsel|resim|foto(?:ğraf)?|ekran görüntüsü)/i.test(request);
   const requestsOpen = /(?:aç|göster|görüntüle|sohbet penceresinde)/i.test(request);
-  return mentionsImage && requestsOpen;
+  const hasImageAttachment = (Array.isArray(attachments) ? attachments : [])
+    .some(isImageAttachment);
+  return hasImageAttachment && requestsOpen;
 }
 
 function renderAssistantAttachmentImages(container, attachments = []) {
@@ -1814,7 +1815,7 @@ form.addEventListener("submit", event => {
   }
 
   addMessage(text, "user", attachments);
-  pendingAssistantImageAttachments = shouldOpenAttachedImageInAssistant(text)
+  pendingAssistantImageAttachments = shouldOpenAttachedImageInAssistant(text, attachments)
     ? attachments.filter(isImageAttachment)
     : [];
   showThinkingMessage();

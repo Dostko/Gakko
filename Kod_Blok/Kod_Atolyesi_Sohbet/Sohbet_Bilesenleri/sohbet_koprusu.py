@@ -2,7 +2,6 @@ import base64
 import binascii
 import json
 import sqlite3
-import shutil
 import tempfile
 import uuid
 from pathlib import Path
@@ -44,8 +43,6 @@ CHAT_IMAGE_EXTENSIONS = frozenset({
     ".tiff",
     ".webp",
 })
-
-GORSELLER_ROOT = PROJECT_ROOT / "Gorseller"
 
 
 
@@ -278,7 +275,7 @@ class ChatBridge(QObject):
         self.file_browser_root = selected_root
         self.file_browser_project_selected.emit(str(selected_root))
 
-    def _emit_chat_files(self, selected_paths, copy_images_to_gorseller=True):
+    def _emit_chat_files(self, selected_paths):
         files = []
         image_mime_types = {
             ".bmp": "image/bmp",
@@ -300,24 +297,6 @@ class ChatBridge(QObject):
 
             suffix = path.suffix.lower()
             is_image = suffix in CHAT_IMAGE_EXTENSIONS
-
-            if is_image and copy_images_to_gorseller:
-                try:
-                    GORSELLER_ROOT.mkdir(parents=True, exist_ok=True)
-                    source = path.resolve()
-                    image_root = GORSELLER_ROOT.resolve()
-
-                    if source != image_root and not source.is_relative_to(image_root):
-                        target = GORSELLER_ROOT / path.name
-                        if target.exists():
-                            target = GORSELLER_ROOT / (
-                                f"{path.stem}_{uuid.uuid4().hex[:8]}{path.suffix.lower()}"
-                            )
-                        shutil.copy2(path, target)
-                        path = target
-                except OSError as error:
-                    self.error_ready.emit(f"Görsel Gorseller klasörüne alınamadı: {error}")
-                    continue
 
             item = {
                 "path": str(path),
@@ -425,7 +404,7 @@ class ChatBridge(QObject):
             return
 
         self._clipboard_temp_files.add(str(target))
-        self._emit_chat_files([str(target)], copy_images_to_gorseller=False)
+        self._emit_chat_files([str(target)])
 
     @Slot()
     def start_new_project(self):
