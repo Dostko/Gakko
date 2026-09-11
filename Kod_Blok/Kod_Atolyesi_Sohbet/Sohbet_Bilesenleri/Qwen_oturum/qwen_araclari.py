@@ -167,6 +167,8 @@ class QwenAraclariMixin:
         candidates = [
             QWEN_MD_PATH.parent.resolve(),
             (PROJECT_ROOT / "GAKKO_YUVA").resolve(),
+            Path("C:/").resolve(),
+            Path("D:/").resolve(),
         ]
 
         if self.active_project_root is not None:
