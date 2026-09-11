@@ -141,14 +141,14 @@ function attachmentPreviewUrl(path) {
 }
 
 function attachmentImageSrc(file) {
-  const fileUrl = attachmentPreviewUrl(file?.path);
-  if (fileUrl) {
-    return fileUrl;
-  }
-
   const dataUrl = String(file?.data_url || "").trim();
   if (/^data:image\//i.test(dataUrl)) {
     return dataUrl;
+  }
+
+  const fileUrl = attachmentPreviewUrl(file?.path);
+  if (fileUrl) {
+    return fileUrl;
   }
 
   return "";
