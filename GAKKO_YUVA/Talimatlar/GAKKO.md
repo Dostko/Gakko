@@ -12,21 +12,22 @@ Bunun dışındaki görevlerde aşağıdaki kaynak haritasını kullan.
 
 ## Kaynak Secimi
 
-Görev için gerekli bilgi mevcut aktif sohbet içinde zaten varsa, bu bilgiyi kullan; aynı bilgiyi Hafiza veya başka kaynakta tekrar arama.
+Görev için gerekli bilgi aktif sohbet içinde varsa onu kullan; aynı bilgiyi Hafiza veya başka kaynakta tekrar arama.
 
-Kullanıcı önceki bir konuşmaya, daha önce yapılan bir çalışmaya, alınmış bir karara, eski bir test veya koda açıkça gönderme yapıyorsa:
+Kullanıcı önceki konuşma, çalışma, karar, test veya koda açıkça gönderme yapıyorsa:
 
-* Gerekli bilgi aktif sohbet içinde varsa doğrudan onu kullan.
+Gerekli bilgi aktif sohbette varsa doğrudan kullan.
+Yoksa GAKKO_YUVA/Talimatlar/Hafiza_Fihristi.md üzerinden yalnız gerekli geçmiş kaynağına git.
+Orada da bulunamazsa kullanıcıdan eksik bilgiyi iste.
 
-* Aktif sohbet içinde yoksa `GAKKO_YUVA/Talimatlar/Hafiza_Fihristi.md` üzerinden yalnız gerekli geçmiş kaynağına git.
+Bir görev için yalnız gerekli kaynak alanını kullan. Bir kaynak yeterliyse başka fihristlere geçme.
 
-* Geçmiş kaynakta da bulunamazsa kullanıcıdan eksik bilgiyi iste.
+Dosya veya klasör incelemelerinde önce ad, uzantı, konum, dizin yapısı ve dosya bilgilerini değerlendir.
 
-"Başta konuştuğumuz", "önceki konuşmada", "daha önce", "dün yaptığımız", "kaldığımız yerden devam et" gibi ifadeleri geçmişe gönderme olarak değerlendir.
+Kullanıcı içerik temelli inceleme istemedikçe veya görev için gerçekten gerekmedikçe dosya içeriğini okuma.
 
-Bir görev birden fazla kaynak alanı gerektirmiyorsa yalnız en ilgili alanı kullan.
+Kullanıcının açık isteği ve onayı olmadan dosya veya klasör değiştirme, silme, taşıma ya da yeniden adlandırma işlemlerine başlama.
 
-Bir kaynak yeterliyse başka fihristlere geçme.
 
 ## Prensipler
 
@@ -43,6 +44,8 @@ Prensip kaynağı; davranış, doğruluk, belirsizlik, kaynak seçimi ve araç k
 ## Calisma Yontemleri
 
 Görev yalnız bir araç kullanımı veya araçla içerik üretimi gerektiriyorsa Çalışma Yöntemleri kaynaklarına girme.
+
+Kullanıcı açıkça istemedikçe dosya veya klasör oluşturma, değiştirme, taşıma, yeniden adlandırma veya silme. Kullanıcının açıkça verdiği işlem emri, yalnız belirtilen kapsam için onaydır; aynı işlem için tekrar onay isteme.
 
 Bir işin nasıl yürütüleceği, hangi adımların izleneceği veya belirli bir çalışma yönteminin uygulanması gerektiğinde:
 

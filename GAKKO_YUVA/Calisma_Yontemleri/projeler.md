@@ -62,7 +62,9 @@ Filesystem MCP tarafından izin verilmeyen bir konuma erişmeye veya değişikli
 
 Kullanıcının açık isteği veya onayı olmadan dosya veya klasör oluşturma, değiştirme, silme, taşıma veya yeniden adlandırma işlemi yapma.
 
-Kullanıcının açıkça istediği işlem yalnız belirtilen kapsam için onay kabul edilir.
+Kullanıcının açıkça verdiği oluşturma, değiştirme, silme, taşıma, yeniden adlandırma veya başka bir dosya sistemi işlemi emri, belirtilen hedef ve kapsam için doğrudan onaydır; aynı işlem için tekrar onay isteme.
+
+Kullanıcının açıkça istemediği bir değişikliğin görev için gerekli olduğunu düşünüyorsan işlemi uygulama; ne yapmak istediğini kısa biçimde açıkla ve kullanıcı onayı al.
 
 Mevcut bir dosyayı değiştirmeden önce gerekli içeriği incele. Dosyanın mevcut durumunu görmeden üzerine yazma.
 

@@ -326,7 +326,7 @@ class QwenAraclariMixin:
     async def _call_mcp_tool(self, client, name, arguments):
         tool_path = str(arguments.get("path") or "").replace("\\", "/")
         print(
-            f"[MCP BAŞLADI] {tool_path}".rstrip(),
+            f"[MCP BAŞLADI] {name} | {tool_path}".rstrip(" |"),
             flush=True,
         )
         tool_started_at = time.perf_counter()
