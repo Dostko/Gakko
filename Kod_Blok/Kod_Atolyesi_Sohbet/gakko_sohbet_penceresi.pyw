@@ -12,47 +12,33 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from Sohbet_Bilesenleri.sohbet_koprusu import ChatBridge
 
 
-DROP_IMAGE_EXTENSIONS = frozenset({
-    ".bmp",
-    ".gif",
-    ".ico",
-    ".jpeg",
-    ".jpg",
-    ".png",
-    ".svg",
-    ".tif",
-    ".tiff",
-    ".webp",
-})
-
-
 class AttachmentWebView(QWebEngineView):
     DROP_ZONE_HEIGHT = 240
 
-    def __init__(self, on_images_dropped, parent=None):
+    def __init__(self, on_files_dropped, parent=None):
         super().__init__(parent)
-        self._on_images_dropped = on_images_dropped
+        self._on_files_dropped = on_files_dropped
         self.setAcceptDrops(True)
         self.loadFinished.connect(self._install_drop_event_filter)
 
     @staticmethod
-    def _image_paths(event):
+    def _file_paths(event):
         mime_data = event.mimeData()
         if mime_data is None or not mime_data.hasUrls():
             return []
 
-        image_paths = []
+        file_paths = []
         for url in mime_data.urls():
             if not url.isLocalFile():
                 continue
 
             path = Path(url.toLocalFile())
-            if not path.is_file() or path.suffix.lower() not in DROP_IMAGE_EXTENSIONS:
+            if not path.is_file():
                 continue
 
-            image_paths.append(str(path))
+            file_paths.append(str(path))
 
-        return image_paths
+        return file_paths
 
     def _inside_composer_drop_zone(self, event):
         try:
@@ -78,8 +64,8 @@ class AttachmentWebView(QWebEngineView):
         }:
             return super().eventFilter(watched, event)
 
-        image_paths = self._image_paths(event)
-        if not image_paths:
+        file_paths = self._file_paths(event)
+        if not file_paths:
             return super().eventFilter(watched, event)
 
         if event_type == QEvent.Type.DragEnter:
@@ -94,20 +80,20 @@ class AttachmentWebView(QWebEngineView):
             return True
 
         if self._inside_composer_drop_zone(event):
-            self._on_images_dropped(image_paths[:1])
+            self._on_files_dropped(file_paths[:1])
             event.acceptProposedAction()
         else:
             event.ignore()
         return True
 
     def dragEnterEvent(self, event):
-        if self._image_paths(event):
+        if self._file_paths(event):
             event.acceptProposedAction()
             return
         super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event):
-        if self._image_paths(event):
+        if self._file_paths(event):
             if self._inside_composer_drop_zone(event):
                 event.acceptProposedAction()
             else:
@@ -116,10 +102,10 @@ class AttachmentWebView(QWebEngineView):
         super().dragMoveEvent(event)
 
     def dropEvent(self, event):
-        image_paths = self._image_paths(event)
-        if image_paths:
+        file_paths = self._file_paths(event)
+        if file_paths:
             if self._inside_composer_drop_zone(event):
-                self._on_images_dropped(image_paths[:1])
+                self._on_files_dropped(file_paths[:1])
                 event.acceptProposedAction()
             else:
                 event.ignore()
@@ -135,7 +121,7 @@ class GakkoSohbetPenceresi(QMainWindow):
         self.resize(1200, 820)
         self.setMinimumSize(900, 620)
 
-        self.web = AttachmentWebView(self._add_dropped_images, self)
+        self.web = AttachmentWebView(self._add_dropped_files, self)
         self.web.settings().setAttribute(
             QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
         )
@@ -154,8 +140,8 @@ class GakkoSohbetPenceresi(QMainWindow):
         self.setCentralWidget(self.web)
         self.bridge.start()
 
-    def _add_dropped_images(self, image_paths):
-        paths = [str(path) for path in image_paths[:1] if str(path).strip()]
+    def _add_dropped_files(self, file_paths):
+        paths = [str(path) for path in file_paths[:1] if str(path).strip()]
         if not paths:
             return
 
