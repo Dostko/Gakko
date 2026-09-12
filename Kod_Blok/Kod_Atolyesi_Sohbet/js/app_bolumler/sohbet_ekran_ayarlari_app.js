@@ -67,6 +67,15 @@ let cancelling = false;
 let thinkingMessage = null;
 let thinkingActivityList = null;
 let thinkingActivityKeys = new Set();
+let thinkingTitle = null, thinkingStartedAt = null, thinkingTimer = null;
+function formatThinkingDuration(milliseconds) {
+  const totalSeconds = Math.max(0, Math.round(Number(milliseconds) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds} saniye`;
+  if (seconds === 0) return `${minutes} dakika`;
+  return `${minutes} dakika ${seconds} saniye`;
+}
 
 function formatRemainingPercentage(value) {
   const number = Number(value);
@@ -101,11 +110,17 @@ function resize() {
   input.style.height = Math.max(40, Math.min(input.scrollHeight, 280)) + "px";
 }
 
-function addMessage(text, role, attachments = []) {
+function addMessage(text, role, attachments = [], thinkingDuration = "") {
   const el = document.createElement("div");
   el.className = "message " + role;
 
   if (role === "assistant") {
+    if (thinkingDuration) {
+      const duration = document.createElement("div");
+      duration.className = "thinking-duration";
+      duration.textContent = thinkingDuration;
+      el.appendChild(duration);
+    }
     renderAssistantContent(el, text, attachments);
   } else {
     renderUserMessage(el, text, attachments);
@@ -128,16 +143,11 @@ function showThinkingMessage() {
   el.dataset.transient = "thinking";
 
   const title = document.createElement("div");
-  title.textContent = "GAKKO düşünüyor...";
-  title.style.fontWeight = "700";
+  title.className = "thinking-title";
+  title.textContent = "GAKKO düşünüyor... · 0 saniye";
 
   const activityList = document.createElement("div");
-  activityList.style.display = "grid";
-  activityList.style.gap = "3px";
-  activityList.style.marginTop = "6px";
-  activityList.style.fontSize = "12px";
-  title.style.fontSize = "12px";
-  activityList.style.color = "#6578bc";
+  activityList.className = "thinking-activity";
 
   el.appendChild(title);
   el.appendChild(activityList);
@@ -147,6 +157,11 @@ function showThinkingMessage() {
   thinkingMessage = el;
   thinkingActivityList = activityList;
   thinkingActivityKeys = new Set();
+  thinkingTitle = title;
+  thinkingStartedAt = performance.now();
+  thinkingTimer = window.setInterval(() => {
+    thinkingTitle.textContent = `GAKKO düşünüyor... · ${formatThinkingDuration(performance.now() - thinkingStartedAt)}`;
+  }, 1000);
 
   stage.scrollTo({
     top: stage.scrollHeight,
@@ -155,6 +170,8 @@ function showThinkingMessage() {
 }
 
 function removeThinkingMessage() {
+  if (thinkingTimer !== null) window.clearInterval(thinkingTimer);
+
   if (thinkingMessage) {
     thinkingMessage.remove();
   }
@@ -162,6 +179,17 @@ function removeThinkingMessage() {
   thinkingMessage = null;
   thinkingActivityList = null;
   thinkingActivityKeys = new Set();
+  thinkingTitle = null;
+  thinkingStartedAt = null;
+  thinkingTimer = null;
+}
+
+function finishThinkingMessage() {
+  const duration = thinkingStartedAt !== null
+    ? `${formatThinkingDuration(performance.now() - thinkingStartedAt)} düşündü`
+    : "";
+  removeThinkingMessage();
+  return duration;
 }
 
 function activityDetail(payload) {

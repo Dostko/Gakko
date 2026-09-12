@@ -7,14 +7,11 @@ Geçici dosyalar, önbellekler ve model iç dosyaları gösterilmez.
 
 ## 1. Güncel Proje Ağacı
 
+```text
 D:\Gakko
-│
 ├── .qwen
-│   ├── QWEN.md
-│   
-│
+│   └── QWEN.md
 ├── GAKKO_YUVA
-│   │
 │   ├── Bilgi
 │   │   ├── Ana_sistem.md
 │   │   ├── dosya_formatlari.md
@@ -22,27 +19,22 @@ D:\Gakko
 │   │   ├── Proje_Agaci_ve_Mimari.md
 │   │   ├── Yapilacaklar.md
 │   │   └── Yol_Haritasi.md
-│   │
 │   ├── Calisma_Yontemleri
 │   │   ├── git_checkpoint_al.md
 │   │   ├── Internet_arastirma.md
 │   │   ├── projeler.md
 │   │   ├── sohbet_gecmisi.md
 │   │   └── Takilma_yavaslama_ve_kurtarma.md
-│   │
 │   ├── Hafiza
-│   │   ├── Yakin_Gecmis_Fihristi.md
-│   │   └── Yakin_Gecmis
-│   │
+│   │   ......
+│   │   └── Yakin_Gecmis_Fihristi.md
 │   ├── Kayitlar
 │   │   └── gakko_kurulus_gunu.md
-│   │
 │   ├── Prensipler
-│   │   ├── arac_kullanimi_prensipleri.md
+│   │   ├── Arac_kullanimi_prensipleri.md
 │   │   ├── Belirsizlik_ve_halusinasyon_prensipleri.md
 │   │   ├── Hafiza_ve_kaynak_prensipleri.md
 │   │   └── Karar_ve_kaynak_secimi_prensipleri.md
-│   │
 │   └── Talimatlar
 │       ├── Bilgi_Fihristi.md
 │       ├── Calisma_Yontemleri_Fihristi.md
@@ -50,51 +42,57 @@ D:\Gakko
 │       ├── Hafiza_Fihristi.md
 │       ├── Kayitlar_Fihristi.md
 │       └── Prensipler_Fihristi.md
-│
+├── Gorseller
 ├── Kod_Blok
+│   ├── Kod_Atolyesi_Sohbet
+│   │   ├── css
+│   │   │   ├── style_bolumler
+│   │   │   │   ├── dosya_menu.css
+│   │   │   │   ├── gecmis_sohbet.css
+│   │   │   │   ├── menu_ayarlari.css
+│   │   │   │   ├── sohbet_alani.css
+│   │   │   │   └── sol_panel.css
+│   │   │   └── style.css
+│   │   ├── js
+│   │   │   ├── app_bolumler
+│   │   │   │   ├── dosya_koprusu_app.js
+│   │   │   │   ├── dosya_menu_app.js
+│   │   │   │   ├── gorsel_app.js
+│   │   │   │   ├── sohbet_ekran_ayarlari_app.js
+│   │   │   │   ├── sohbet_gorunumleri_app.js
+│   │   │   │   └── sol_menuler_app.js
+│   │   │   └── app.js
+│   │   ├── Sohbet_Bilesenleri
+│   │   │   ├── internet_kapisi
+│   │   │   │   └── image_arama.py
+│   │   │   ├── Qwen_oturum
+│   │   │   │   ├── Dosya_ekleri
+│   │   │   │   │   └── pdf_ayarlari.py
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── qwen_araclari.py
+│   │   │   │   ├── qwen_ayarlar.py
+│   │   │   │   ├── qwen_dosya_ekleri.py
+│   │   │   │   ├── qwen_mcp.py
+│   │   │   │   └── qwen_model.py
+│   │   │   ├── sohbet_koprusu
+│   │   │   │   ├── sohbet_gecmisi_koprusu.py
+│   │   │   │   └── sohbet_gezgini.py
+│   │   │   ├── internet_giris.py
+│   │   │   ├── proje_dosya_yardimcilari.py
+│   │   │   ├── qwen_oturumu.py
+│   │   │   ├── sohbet_gecmisi.py
+│   │   │   └── sohbet_koprusu.py
+│   │   ├── gakko_sohbet_penceresi.pyw
+│   │   └── index.html
 │   ├── gakko_gui.pyw
-│   ├── main.py
-│   │
-│   └── Kod_Atolyesi_Sohbet
-│       ├── gakko_sohbet_penceresi.pyw
-│       ├── index.html
-│       │
-│       ├── css
-│       │   └── style.css
-                dosya_menu_ayar.css
-                gecmis_sohbet.css
-                menu_ayarlari.css
-                sohbet_alani.css
-                sol_panel.css
-
-│       │
-│       ├── js
-│       │   └── app.js
-                dosya_koprusu_app.js
-                dosya_menu_app.js
-                gorsel-app.js
-                sohbet-ekran_ayarlari_app.js
-                sohbet_gorunumu_app.js
-                sol_menuler_app.js
-                
-│       │
-│       └── Sohbet_Bilesenleri
-│           ├── internet_giris.py
-│           ├── proje_dosya_yardimcilari.py
-│           ├── qwen_oturumu.py
-│           ├── sohbet_gecmisi.py
-│           ├── sohbet_koprusu.py
-│           │
-│           └── Qwen_oturum
-│               ├── qwen_araclari.py
-│               ├── qwen_ayarlar.py
-│               ├── qwen_dosya_ekleri.py
-│               ├── qwen_model.py
-│               └── __init__.py
-│
-└── yapay_zeka_modeli
-    ├── Modelfile
-    └── Qwen3.8-27B-UD-IQ4_XS.gguf
+│   └── main.py
+├── yapay_zeka_modeli
+│   ├── blobs
+│   │   ├── ...
+│   ├── Modelfile
+│   └── Qwen3.8-27B-UD-IQ4_XS.gguf
+├── .gitignore
+└── Modelfile_64K_gpu
 
 
 ## 2. Ana Mimari

@@ -111,10 +111,10 @@ function connectBridge() {
     });
 
     bridge.reply_ready.connect(reply => {
-      removeThinkingMessage();
+      const thinkingDuration = finishThinkingMessage();
       const assistantImages = pendingAssistantImageAttachments;
       pendingAssistantImageAttachments = [];
-      addMessage(reply, "assistant", assistantImages);
+      addMessage(reply, "assistant", assistantImages, thinkingDuration);
       setWaiting(false);
       refreshVisibleFileDirectories();
     });
