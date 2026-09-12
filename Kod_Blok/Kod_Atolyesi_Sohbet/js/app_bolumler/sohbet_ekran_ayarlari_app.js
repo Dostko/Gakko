@@ -129,14 +129,15 @@ function showThinkingMessage() {
 
   const title = document.createElement("div");
   title.textContent = "GAKKO düşünüyor...";
-  title.style.fontWeight = "600";
+  title.style.fontWeight = "700";
 
   const activityList = document.createElement("div");
   activityList.style.display = "grid";
   activityList.style.gap = "3px";
   activityList.style.marginTop = "6px";
   activityList.style.fontSize = "12px";
-  activityList.style.color = "#8f9bad";
+  title.style.fontSize = "12px";
+  activityList.style.color = "#6578bc";
 
   el.appendChild(title);
   el.appendChild(activityList);
