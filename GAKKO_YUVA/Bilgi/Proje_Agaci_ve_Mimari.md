@@ -66,10 +66,17 @@ D:\Gakko
                 menu_ayarlari.css
                 sohbet_alani.css
                 sol_panel.css
-                
+
 │       │
 │       ├── js
 │       │   └── app.js
+                dosya_koprusu_app.js
+                dosya_menu_app.js
+                gorsel-app.js
+                sohbet-ekran_ayarlari_app.js
+                sohbet_gorunumu_app.js
+                sol_menuler_app.js
+                
 │       │
 │       └── Sohbet_Bilesenleri
 │           ├── internet_giris.py
