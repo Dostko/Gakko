@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import ntpath
 import re
-import time
 import uuid
 from pathlib import Path
 from urllib.parse import quote
@@ -180,7 +179,6 @@ class QwenAraclariMixin:
         self._generated_image_paths = {}
 
         last_response = None
-        rounds = 0
         web_research_tool_calls = 0
 
         for _ in range(MAX_TOOL_ROUNDS):
@@ -190,11 +188,6 @@ class QwenAraclariMixin:
             if self._cancel_requested.is_set():
                 return _CANCELLED
 
-            model_started_at = time.perf_counter()
-            print(
-                f"[QWEN YANITI BEKLENİYOR] Tur: {rounds + 1}",
-                flush=True,
-            )
             try:
                 response = self._chat(
                     model=OLLAMA_MODEL,
@@ -205,25 +198,15 @@ class QwenAraclariMixin:
                 )
             except Exception as exc:
                 print(
-                    f"[QWEN HATA] Tur: {rounds + 1} | "
-                    f"Süre: {time.perf_counter() - model_started_at:.2f} sn | "
-                    f"{type(exc).__name__}: {exc}",
+                    f"[QWEN HATA] {type(exc).__name__}: {exc}",
                     flush=True,
                 )
                 raise
-
-            print(
-                f"[{'QWEN İPTAL EDİLDİ' if response is _CANCELLED else 'QWEN YANITI GELDİ'}] "
-                f"Tur: {rounds + 1} | "
-                f"Süre: {time.perf_counter() - model_started_at:.2f} sn",
-                flush=True,
-            )
 
             if response is _CANCELLED:
                 return _CANCELLED
 
             last_response = response
-            rounds += 1
             assistant_message = response.message
             messages.append(assistant_message)
 
