@@ -1,3 +1,5 @@
+# IMPORT VE MIXIN BLOĞU: BAŞLANGIÇ
+
 from __future__ import annotations
 
 import asyncio
@@ -15,6 +17,7 @@ from .Qwen_oturum.qwen_ayarlar import (
     _STOP,
 )
 from .Qwen_oturum.qwen_araclari import QwenAraclariMixin
+from .Qwen_oturum.qwen_mcp import QwenMCPMixin
 from .Qwen_oturum.qwen_dosya_ekleri import QwenDosyaEkleriMixin
 from .Qwen_oturum.qwen_model import QwenModelMixin
 
@@ -23,6 +26,7 @@ class QwenSession(
     QwenModelMixin,
     QwenDosyaEkleriMixin,
     QwenAraclariMixin,
+    QwenMCPMixin,
     QThread,
 ):
     ready = Signal()
