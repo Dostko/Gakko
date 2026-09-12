@@ -1,0 +1,343 @@
+/* SOL PANEL: BAŞLANGIÇ */
+
+.app-shell {
+    width: 100vw;
+    height: 100vh;
+    --sidebar-open-width: 180px;
+    grid-template-rows: minmax(0, 1fr);
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    transition: grid-template-columns 180ms ease;
+    overflow: hidden;
+    background: rgba(9,13,20,.92);
+}
+
+.app-shell.sidebar-open {
+    grid-template-columns: var(--sidebar-open-width) minmax(0, 1fr);
+}
+
+.sidebar {
+    border-right: 1px solid var(--line);
+    background: rgb(0, 0, 0);
+    backdrop-filter: blur(20px);
+    position: relative;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px 0;
+    gap: 24px;
+}
+
+.brand {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    padding: 0;
+
+    display: grid;
+    place-items: center;
+
+    border: 1px solid #ff7a18;
+    border-radius: 6px;
+
+    background: #000000;
+    color: #ff7a18;
+
+    font-size: 17px;
+    font-weight: 800;
+
+    cursor: pointer;
+    transition: background-color 90ms ease, color 90ms ease;
+}
+
+.brand:hover {
+    background: #ff7a18;
+    color: #000000;
+}
+
+.sidebar nav {
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+}
+
+.sidebar nav > .nav-btn {
+    flex: 0 0 42px;
+}
+
+.nav-btn {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    border-radius: 13px;
+    background: transparent;
+    color: #aeb6c4;
+    text-align: left;
+    transition:
+        width 180ms ease,
+        background-color 90ms ease,
+        color 90ms ease,
+        box-shadow 90ms ease;
+}
+
+.nav-icon {
+    width: 42px;
+    display: grid;
+    place-items: center;
+    font-size: 19px;
+    line-height: 1;
+}
+
+.nav-label {
+    min-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 650;
+    white-space: nowrap;
+    transition: opacity 100ms ease;
+}
+
+.app-shell.sidebar-open .nav-btn {
+    width: calc(100% - 16px);
+}
+
+.app-shell.sidebar-open .nav-label {
+    opacity: 1;
+    transition-delay: 70ms;
+}
+
+.nav-btn:hover,.nav-btn.active {
+    background: rgba(7, 144, 242, 0.605);
+    color: #ffffff;
+}
+
+.nav-btn.active {
+    box-shadow: inset 2px 0 0 #ff7a18;
+}
+
+.project-nav {
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.project-nav > .nav-btn {
+    flex: 0 0 42px;
+}
+
+.project-menu {
+    display: none;
+    width: calc(100% - 24px);
+    min-height: 0;
+    overflow: hidden;
+    padding: 6px;
+    border: 1px solid rgba(3, 19, 48, 0.753);
+    border-radius: 10px;
+    background: #080000;
+}
+
+.app-shell.sidebar-open .project-menu:not([hidden]) {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.project-action {
+    width: 100%;
+    min-height: 34px;
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #d2d2d2;
+    font-size: 13px;
+    font-weight: 650;
+    text-align: left;
+    transition: background-color 90ms ease, color 90ms ease;
+}
+.project-action:hover {
+    background: rgba(24, 255, 105, 0.471);
+    color: #dabfbf;
+}
+
+.active-project {
+    display: none;
+    width: calc(100% - 4px);
+    min-height: 0;
+    padding: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(24, 255, 43, 0.225);
+    border-radius: 10px;
+    background: #060000;
+}
+
+.app-shell.sidebar-open .active-project:not([hidden]) {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.active-project > span {
+    color: #a2a6ad;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.active-project > strong {
+    overflow: hidden;
+    color: #09cc71;
+    font-size: 13px;
+    font-weight: 680;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.active-project > small {
+    color: #b7efff;
+    font-size: 10px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.active-project > span,
+.active-project > strong,
+.active-project > small {
+    flex: 0 0 auto;
+}
+
+.project-tree {
+    min-height: 0;
+    flex: 1 1 auto;
+    margin-top: 7px;
+    padding-top: 6px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-top: 1px solid rgba(55, 65, 69, 0.969);
+}
+.project-tree-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.project-tree-item {
+    width: 100%;
+    min-width: 0;
+    min-height: 28px;
+    padding-top: 0;
+    padding-right: 6px;
+    padding-bottom: 0;
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr);
+    align-items: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #fcfaf9;
+    font-size: 13px;
+    font-weight: 520;
+    text-align: left;
+    transition: background-color 90ms ease, color 90ms ease;
+}
+
+.project-tree-item:hover {
+    background: rgb(3, 3, 3);
+    color: #7ea0c2;
+}
+
+.project-tree-marker {
+    color: #515255;
+    font-size: 15px;
+    line-height: 1;
+    text-align: center;
+}
+
+.project-tree-item.file .project-tree-marker {
+    color: #8b8b8b;
+}
+
+.project-tree-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.project-tree-empty {
+    padding: 4px 8px 2px;
+    color: #8f8f8f;
+    font-size: 11px;
+}
+
+.sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    bottom: 0;
+    z-index: 20;
+    display: none;
+    width: 7px;
+    cursor: col-resize;
+}
+
+.app-shell.sidebar-open .sidebar-resizer {
+    display: block;
+}
+
+.sidebar-resizer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 3px;
+    bottom: 0;
+    width: 1px;
+    background: transparent;
+}
+
+.sidebar-resizer:hover::after,
+.app-shell.sidebar-resizing .sidebar-resizer::after {
+    background: rgba(24, 93, 255, 0.487);
+}
+
+.app-shell.sidebar-resizing {
+    transition: none;
+    cursor: col-resize;
+    user-select: none;
+}
+
+.settings {
+    flex: 0 0 42px;
+    margin-top: auto;
+}
+
+.app-shell.sidebar-open .settings {
+    width: calc(100% - 16px);
+}
+
+/* SOL PANEL: BİTİŞ */

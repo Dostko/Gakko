@@ -11,11 +11,7 @@ D:\Gakko
 │
 ├── .qwen
 │   ├── QWEN.md
-│   └── skills
-│       ├── kod-inceleme
-│       │   └── SKILL.md
-│       └── sistematik-hata-ayiklama
-│           └── SKILL.md
+│   
 │
 ├── GAKKO_YUVA
 │   │
@@ -65,6 +61,12 @@ D:\Gakko
 │       │
 │       ├── css
 │       │   └── style.css
+                dosya_menu_ayar.css
+                gecmis_sohbet.css
+                menu_ayarlari.css
+                sohbet_alani.css
+                sol_panel.css
+                
 │       │
 │       ├── js
 │       │   └── app.js

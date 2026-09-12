@@ -21,6 +21,7 @@ from ..internet_giris import (
 from .qwen_ayarlar import (
     IMAGE_EXTENSIONS,
     MAX_TOOL_ROUNDS,
+    MAX_WEB_TOOL_CALLS,
     OLLAMA_CONTEXT_SIZE,
     OLLAMA_MODEL,
     PROJECT_ROOT,
@@ -49,6 +50,33 @@ class MCPRuntime:
     tool_names: frozenset[str]
     search_tool_names: frozenset[str]
     tools: list[dict]
+
+
+WEB_RESEARCH_TOOL_NAMES = frozenset({"web_search", "web_fetch"})
+WEB_USAGE_LIMIT_MESSAGE = (
+    "[INTERNET KULLANIM SINIRI] "
+    "web_search/web_fetch sınırı doldu. Yeni internet araması yapma; "
+    "mevcut kaynaklarla nihai cevabı üret."
+)
+
+
+def _tool_schema_name(tool):
+    if not isinstance(tool, dict):
+        return ""
+
+    function = tool.get("function")
+    if not isinstance(function, dict):
+        return ""
+
+    return str(function.get("name") or "").strip()
+
+
+def _without_web_research_tools(tools):
+    return [
+        tool
+        for tool in tools
+        if _tool_schema_name(tool) not in WEB_RESEARCH_TOOL_NAMES
+    ]
 
 
 def _tool_input_schema(tool):
@@ -508,6 +536,7 @@ class QwenAraclariMixin:
         last_response = None
         rounds = 0
         pending_image_markdown = ""
+        web_research_tool_calls = 0
 
         for _ in range(MAX_TOOL_ROUNDS):
             if self._stopping:
@@ -521,11 +550,15 @@ class QwenAraclariMixin:
                 f"[QWEN YANITI BEKLENİYOR] Tur: {rounds + 1}",
                 flush=True,
             )
+            tools_for_round = runtime.tools
+            if web_research_tool_calls >= MAX_WEB_TOOL_CALLS:
+                tools_for_round = _without_web_research_tools(runtime.tools)
+
             try:
                 response = self._chat(
                     model=OLLAMA_MODEL,
                     messages=messages,
-                    tools=runtime.tools,
+                    tools=tools_for_round,
                     stream=False,
                     options={"num_ctx": OLLAMA_CONTEXT_SIZE},
                 )
@@ -608,11 +641,40 @@ class QwenAraclariMixin:
                         activity[key] = str(value)[:240]
                 self.tool_activity.emit(json.dumps(activity, ensure_ascii=False))
 
-                result = await self._execute_qwen_tool(
-                    runtime,
-                    name,
-                    arguments,
-                )
+                is_web_research_tool = name in WEB_RESEARCH_TOOL_NAMES
+
+                if (
+                    is_web_research_tool
+                    and web_research_tool_calls >= MAX_WEB_TOOL_CALLS
+                ):
+                    result = WEB_USAGE_LIMIT_MESSAGE
+                    print(
+                        "[QWEN INTERNET] "
+                        f"kullanım={web_research_tool_calls}/{MAX_WEB_TOOL_CALLS} | "
+                        f"{name} çalıştırılmadı.",
+                        flush=True,
+                    )
+                else:
+                    result = await self._execute_qwen_tool(
+                        runtime,
+                        name,
+                        arguments,
+                    )
+
+                    if is_web_research_tool:
+                        web_research_tool_calls += 1
+                        print(
+                            "[QWEN INTERNET] "
+                            f"kullanım={web_research_tool_calls}/{MAX_WEB_TOOL_CALLS}",
+                            flush=True,
+                        )
+                        if (
+                            web_research_tool_calls
+                            >= MAX_WEB_TOOL_CALLS
+                        ):
+                            result = (
+                                f"{result}\n\n{WEB_USAGE_LIMIT_MESSAGE}"
+                            )
 
                 if name == "image_search":
                     try:

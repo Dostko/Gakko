@@ -1,0 +1,181 @@
+    /* =========================================
+       DOSYA GÖRÜNÜMÜ
+       ========================================= */
+
+    .file-shell {
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .file-header {
+      align-items: center;
+    }
+
+    .file-header-title {
+      min-width: 0;
+    }
+
+    .file-header h2 {
+      margin: 0 0 5px;
+    }
+
+    .file-active-project {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      color: #8492a6;
+      font-size: 12px;
+    }
+
+    #fileActiveProjectName {
+      min-width: 0;
+      overflow: hidden;
+      color: #b9c5d4;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .file-open-project,
+    .file-remove-project {
+      flex: 0 0 auto;
+      padding: 0 16px;
+      font-size: 13px;
+    }
+
+    .file-open-project {
+      min-height: 38px;
+      border: 1px solid #285d43;
+      border-radius: 10px;
+      cursor: pointer;
+      background: #0d1813;
+      color: #72ffad;
+    }
+
+    .file-open-project:hover {
+      border-color: #39ff88;
+      background: #12251b;
+      color: #ffffff;
+    }
+
+    .file-remove-project:hover {
+      border-color: #8a4452;
+    }
+
+    .file-content {
+      --file-tree-width: 320px;
+
+      min-height: 0;
+      display: grid;
+      grid-template-columns:
+        minmax(220px, var(--file-tree-width))
+        8px
+        minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .file-tree-pane,
+    .file-reader-pane {
+      min-width: 0;
+    }
+
+    .file-pane-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 13px 15px;
+      border-bottom: 1px solid #1b2635;
+      background: #0b1018;
+      color: #dce5ef;
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: .3px;
+    }
+
+    .file-tree-list {
+      min-width: 0;
+      padding: 8px;
+    }
+
+    .file-tree-item {
+      width: 100%;
+      min-width: 0;
+      min-height: 30px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      align-items: center;
+      gap: 5px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #dfe7f0;
+      text-align: left;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+
+    button.file-tree-item {
+      cursor: pointer;
+    }
+
+    .file-tree-item:hover {
+      background: #101c2a;
+    }
+
+    .file-tree-marker {
+      color: #6f8298;
+      text-align: center;
+    }
+
+    .file-tree-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-tree-item.directory .file-tree-name {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .file-tree-empty {
+      padding: 26px 12px;
+    }
+
+    .file-pane-empty {
+      padding: 28px 18px;
+      line-height: 1.55;
+    }
+
+    .file-view-resizer {
+      position: relative;
+      min-height: 0;
+      cursor: col-resize;
+      touch-action: none;
+    }
+
+    .file-view-resizer::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      left: 50%;
+      width: 1px;
+      transform: translateX(-50%);
+      background: #253142;
+      transition: background .15s, box-shadow .15s;
+    }
+
+    .file-view-resizer:hover::before,
+    .file-view-resizer.dragging::before {
+      background: #39ff88;
+      box-shadow: 0 0 6px rgba(57,255,136,.65);
+    }

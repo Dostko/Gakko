@@ -33,6 +33,7 @@ QWEN_MD_PATH = PROJECT_ROOT / ".qwen" / "QWEN.md"
 
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_TOOL_ROUNDS = 12
+MAX_WEB_TOOL_CALLS = 4
 
 _STOP = object()
 _CANCELLED = object()
