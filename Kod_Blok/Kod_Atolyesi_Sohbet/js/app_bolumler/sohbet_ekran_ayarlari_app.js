@@ -39,7 +39,6 @@ divider.style.color = "#566273";
 const resetContextButton = document.createElement("button");
 resetContextButton.type = "button";
 resetContextButton.textContent = "Sıfırla";
-resetContextButton.title = "Qwen Code bağlamını sıfırla";
 resetContextButton.style.minHeight = "28px";
 resetContextButton.style.padding = "0";
 resetContextButton.style.border = "0";

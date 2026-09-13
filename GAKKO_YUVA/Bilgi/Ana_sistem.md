@@ -271,12 +271,8 @@ D:\Gakko
 │   │   ├── Hafiza_ve_kaynak_prensipleri.md
 │   │   └── Karar_ve_kaynak_secimi_prensipleri.md
 │   └── Talimatlar
-│       ├── Bilgi_Fihristi.md
-│       ├── Calisma_Yontemleri_Fihristi.md
-│       ├── GAKKO.md
-│       ├── Hafiza_Fihristi.md
-│       ├── Kayitlar_Fihristi.md
-│       └── Prensipler_Fihristi.md
+│       ├──pusula.md
+
 ├── Gorseller
 ├── Kod_Blok
 │   ├── Kod_Atolyesi_Sohbet
@@ -411,18 +407,3 @@ MCP araçları Qwen'in dosya sistemi ve diğer teknik kaynaklara erişmesini sa�
 
 Teknik katmanlar Qwen adına karar vermez.
 
-- [ ] 1. GAKKO'nun cevaba kendiliginden uygun gorsel eklemesi
-- [ ] 2. Gorsel buyuk onizleme / kopyalama ve Skia tiklama hatasinin kaldirilmasi
-- [ ] 3. Surukle-birak dosya desteginin PDF, metin ve diger dosyalarla dogrulanmasi
-- [ ] 4. Sohbet ici arama
-- [ ] 5. Hizli komut cubugu (/proje, /ocr, /git, /ozet vb.)
-- [ ] 6. Otomatik gun sonu notu / Kalici_Kayitlar Aynen kanka, en doğru davranış bu.
-
-İki giriş yolu olur:
-
-Sen: “Bunu kaydet” / “Bunu kalıcı kayda al” dersin → GAKKO bunu Kalici_Kayitlar alanına yazar.
-GAKKO önemli bir karar veya bilgi fark ederse → “Bunu kalıcı kayda alalım mı?” diye sorar → sen onay verirsen yazar.
-
-Kritik nokta: GAKKO kendi kendine sessizce kayıt yapmaz. Yazma işlemi her zaman senin açık komutun veya onayınla olur.
-
-Böylece Yakin_Gecmis 10 günlük geçici hafıza olur; gerçekten önemli şeyler ise senin kontrolünle kalıcıya geçer. Bu bence mevcut yapıya tam oturuyor.

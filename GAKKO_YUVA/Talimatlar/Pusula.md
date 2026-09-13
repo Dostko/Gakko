@@ -110,4 +110,3 @@ Bu fihrist, görev için gerekli doğrulanmış Bilgi kaynağını gösterir. G�
 
 - Desteklenen dosya türleri hakkında, Eklenen bir dosyanın nasıl okunacağı veya işleneceği belirlenecekse.
 - PNG, JPG, JPEG, WEBP, SVG, TIFF, TIF, PDF, TXT, JSON, HTML, CSS, JS, LOG gibi dosya formatlarıyla ilgili işlem yapılacaksa.
-

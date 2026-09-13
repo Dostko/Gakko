@@ -108,7 +108,7 @@ Bu çalışma yöntemi:
 
 ## Qwen ve Proje Akışı
 
-Bu özellik mevcut Qwen Code bağlantısını değiştirmez.
+Bu özellik mevcut Qwen bağlantısını değiştirmez.
 
 Özellikle:
 

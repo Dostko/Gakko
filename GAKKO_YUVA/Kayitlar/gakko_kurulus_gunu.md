@@ -32,4 +32,4 @@ Gün, dört bölümlü bir GUI ile bitti: Sohbet, Geçmiş, Dosya, Proje.
 GAKKO artık geçmiş konuşmaları hatırlıyor, hangi git kaydının ilk
 olduğunu biliyor, kendi context tüketimini gösteriyor.
 
-Bu, GAKKO'nun ilk gerçek Bellek kaydı. Kütüphane artık boş değil.
+Bu, GAKKO'nun ilk gerçek Bellek kaydı. Kütüphane artık boş değil. Bu eski mimari artık kullanılmıyor.

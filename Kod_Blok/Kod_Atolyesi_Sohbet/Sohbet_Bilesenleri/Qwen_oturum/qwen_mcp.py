@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import json
 import os
+import shutil
 import time
 from pathlib import Path
 
@@ -30,8 +31,10 @@ RIPGREP_MAX_OUTPUT_BYTES = 1000000
 class MCPRuntime:
     client: Client
     search_client: Client
+    git_client: Client
     tool_names: frozenset[str]
     search_tool_names: frozenset[str]
+    git_tool_names: frozenset[str]
     tools: list[dict]
 
 
@@ -100,6 +103,40 @@ def _mcp_text(result, arguments=None):
             chunks.append(json.dumps(structured, ensure_ascii=False))
 
     return "\n".join(chunks).strip()
+
+
+def _git_runner():
+    uvx_path = shutil.which("uvx")
+    if uvx_path:
+        return uvx_path, ["mcp-server-git"]
+
+    uv_path = shutil.which("uv")
+    if uv_path:
+        return uv_path, ["tool", "run", "mcp-server-git"]
+
+    local_appdata = os.environ.get("LOCALAPPDATA", "")
+    if local_appdata:
+        packages_root = (
+            Path(local_appdata)
+            / "Microsoft"
+            / "WinGet"
+            / "Packages"
+        )
+        candidates = sorted(
+            packages_root.glob(
+                "astral-sh.uv_Microsoft.Winget.Source_*/uv.exe"
+            )
+        )
+        if candidates:
+            return str(candidates[0]), [
+                "tool",
+                "run",
+                "mcp-server-git",
+            ]
+
+    raise RuntimeError(
+        "Git MCP başlatılamadı: uv/uvx bulunamadı."
+    )
 
 
 class QwenMCPMixin:
@@ -185,70 +222,133 @@ class QwenMCPMixin:
             env=self._mcp_environment(),
         )
 
+    def _git_server_parameters(self):
+        command, args = _git_runner()
+        return StdioServerParameters(
+            command=command,
+            args=[
+                *args,
+                "--repository",
+                str(PROJECT_ROOT.resolve()),
+            ],
+            env=self._mcp_environment(),
+        )
+
     @asynccontextmanager
     async def _mcp_runtime(self):
         async with Client(self._mcp_server_parameters()) as client:
             async with Client(self._ripgrep_server_parameters()) as search_client:
-                response = await client.list_tools()
-                remote_tools = list(getattr(response, "tools", response) or ())
-                visible_tools = [
-                    tool
-                    for tool in remote_tools
-                    if str(tool.name) not in FILESYSTEM_HIDDEN_TOOLS
-                ]
+                async with Client(self._git_server_parameters()) as git_client:
+                    response = await client.list_tools()
+                    remote_tools = list(
+                        getattr(response, "tools", response) or ()
+                    )
+                    visible_tools = [
+                        tool
+                        for tool in remote_tools
+                        if str(tool.name) not in FILESYSTEM_HIDDEN_TOOLS
+                    ]
 
-                search_response = await search_client.list_tools()
-                remote_search_tools = list(
-                    getattr(search_response, "tools", search_response) or ()
-                )
-                visible_search_tools = [
-                    tool
-                    for tool in remote_search_tools
-                    if str(tool.name) in RIPGREP_TOOL_NAMES
-                ]
+                    search_response = await search_client.list_tools()
+                    remote_search_tools = list(
+                        getattr(search_response, "tools", search_response) or ()
+                    )
+                    visible_search_tools = [
+                        tool
+                        for tool in remote_search_tools
+                        if str(tool.name) in RIPGREP_TOOL_NAMES
+                    ]
 
-                if not visible_search_tools:
-                    raise RuntimeError(
-                        "Ripgrep MCP 'search' aracını sunmadı."
+                    if not visible_search_tools:
+                        raise RuntimeError(
+                            "Ripgrep MCP 'search' aracını sunmadı."
+                        )
+
+                    git_response = await git_client.list_tools()
+                    remote_git_tools = list(
+                        getattr(git_response, "tools", git_response) or ()
                     )
 
-                mcp_tools = [_mcp_tool_schema(tool) for tool in visible_tools]
-                search_tools = [
-                    _mcp_tool_schema(tool)
-                    for tool in visible_search_tools
-                ]
-                names = frozenset(str(tool.name) for tool in visible_tools)
-                search_names = frozenset(
-                    str(tool.name)
-                    for tool in visible_search_tools
-                )
+                    if not remote_git_tools:
+                        raise RuntimeError(
+                            "Git MCP hiçbir araç sunmadı."
+                        )
 
-                if search_names & names:
-                    raise RuntimeError(
-                        "Filesystem MCP ile Ripgrep MCP araç adları çakışıyor."
+                    mcp_tools = [
+                        _mcp_tool_schema(tool)
+                        for tool in visible_tools
+                    ]
+                    search_tools = [
+                        _mcp_tool_schema(tool)
+                        for tool in visible_search_tools
+                    ]
+                    git_tools = [
+                        _mcp_tool_schema(tool)
+                        for tool in remote_git_tools
+                    ]
+
+                    names = frozenset(
+                        str(tool.name)
+                        for tool in visible_tools
+                    )
+                    search_names = frozenset(
+                        str(tool.name)
+                        for tool in visible_search_tools
+                    )
+                    git_names = frozenset(
+                        str(tool.name)
+                        for tool in remote_git_tools
                     )
 
-                if search_names & INTERNET_TOOL_NAMES:
-                    raise RuntimeError(
-                        "Ripgrep MCP ile internet araç adları çakışıyor."
+                    if search_names & names:
+                        raise RuntimeError(
+                            "Filesystem MCP ile Ripgrep MCP araç adları çakışıyor."
+                        )
+
+                    if search_names & INTERNET_TOOL_NAMES:
+                        raise RuntimeError(
+                            "Ripgrep MCP ile internet araç adları çakışıyor."
+                        )
+
+                    if git_names & names:
+                        raise RuntimeError(
+                            "Filesystem MCP ile Git MCP araç adları çakışıyor."
+                        )
+
+                    if git_names & search_names:
+                        raise RuntimeError(
+                            "Ripgrep MCP ile Git MCP araç adları çakışıyor."
+                        )
+
+                    if git_names & INTERNET_TOOL_NAMES:
+                        raise RuntimeError(
+                            "Git MCP ile internet araç adları çakışıyor."
+                        )
+
+                    tools = [
+                        *mcp_tools,
+                        *search_tools,
+                        *git_tools,
+                        *INTERNET_TOOLS,
+                    ]
+
+                    print(
+                        f"[MCP HAZIR] {len(remote_tools)} Filesystem aracı bulundu; "
+                        f"{len(mcp_tools)} tanesi Qwen'e sunuldu. "
+                        f"{len(git_tools)} Git aracı Qwen'e sunuldu. "
+                        "Eski search_files kaldırıldı; Ripgrep search etkin.",
+                        flush=True,
                     )
 
-                tools = [*mcp_tools, *search_tools, *INTERNET_TOOLS]
-
-                print(
-                    f"[MCP HAZIR] {len(remote_tools)} Filesystem aracı bulundu; "
-                    f"{len(mcp_tools)} tanesi Qwen'e sunuldu. "
-                    "Eski search_files kaldırıldı; Ripgrep search etkin.",
-                    flush=True,
-                )
-
-                yield MCPRuntime(
-                    client=client,
-                    search_client=search_client,
-                    tool_names=names,
-                    search_tool_names=search_names,
-                    tools=tools,
-                )
+                    yield MCPRuntime(
+                        client=client,
+                        search_client=search_client,
+                        git_client=git_client,
+                        tool_names=names,
+                        search_tool_names=search_names,
+                        git_tool_names=git_names,
+                        tools=tools,
+                    )
 
     async def _mcp_read_text(self, runtime, path):
         result = await runtime.client.call_tool(
