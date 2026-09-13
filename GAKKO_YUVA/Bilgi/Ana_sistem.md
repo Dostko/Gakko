@@ -244,16 +244,12 @@ Geçici dosyalar, önbellekler ve model iç dosyaları gösterilmez.
 
 ```text
 D:\Gakko
-├── .qwen
+├── ├── .qwen
 │   └── QWEN.md
 ├── GAKKO_YUVA
 │   ├── Bilgi
 │   │   ├── Ana_sistem.md
-│   │   ├── dosya_formatlari.md
-│   │   ├── Guncel_Durum.md
-│   │   ├── Proje_Agaci_ve_Mimari.md
-│   │   ├── Yapilacaklar.md
-│   │   └── Yol_Haritasi.md
+│   │   └── dosya_formatlari.md
 │   ├── Calisma_Yontemleri
 │   │   ├── git_checkpoint_al.md
 │   │   ├── Internet_arastirma.md
@@ -261,9 +257,11 @@ D:\Gakko
 │   │   ├── sohbet_gecmisi.md
 │   │   └── Takilma_yavaslama_ve_kurtarma.md
 │   ├── Hafiza
-│   │   ......
+│   │   ├── Yakin_Gecmis
+│   │   │   └── ...
 │   │   └── Yakin_Gecmis_Fihristi.md
 │   ├── Kayitlar
+│   │   ├── 2026-09-14-kayitlar-paneli-calisti.md
 │   │   └── gakko_kurulus_gunu.md
 │   ├── Prensipler
 │   │   ├── Arac_kullanimi_prensipleri.md
@@ -271,8 +269,7 @@ D:\Gakko
 │   │   ├── Hafiza_ve_kaynak_prensipleri.md
 │   │   └── Karar_ve_kaynak_secimi_prensipleri.md
 │   └── Talimatlar
-│       ├──pusula.md
-
+│       └── Pusula.md
 ├── Gorseller
 ├── Kod_Blok
 │   ├── Kod_Atolyesi_Sohbet
@@ -280,15 +277,19 @@ D:\Gakko
 │   │   │   ├── style_bolumler
 │   │   │   │   ├── dosya_menu.css
 │   │   │   │   ├── gecmis_sohbet.css
+│   │   │   │   ├── kayitlar.css
 │   │   │   │   ├── menu_ayarlari.css
 │   │   │   │   ├── sohbet_alani.css
 │   │   │   │   └── sol_panel.css
 │   │   │   └── style.css
 │   │   ├── js
 │   │   │   ├── app_bolumler
+│   │   │   │   ├── app.js
 │   │   │   │   ├── dosya_koprusu_app.js
 │   │   │   │   ├── dosya_menu_app.js
 │   │   │   │   ├── gorsel_app.js
+│   │   │   │   ├── kayitlar.js
+│   │   │   │   ├── pratik_yollar.js
 │   │   │   │   ├── sohbet_ekran_ayarlari_app.js
 │   │   │   │   ├── sohbet_gorunumleri_app.js
 │   │   │   │   └── sol_menuler_app.js
@@ -306,6 +307,7 @@ D:\Gakko
 │   │   │   │   ├── qwen_mcp.py
 │   │   │   │   └── qwen_model.py
 │   │   │   ├── sohbet_koprusu
+│   │   │   │   ├── kayitlar_koprusu.py
 │   │   │   │   ├── sohbet_gecmisi_koprusu.py
 │   │   │   │   └── sohbet_gezgini.py
 │   │   │   ├── internet_giris.py
@@ -319,7 +321,12 @@ D:\Gakko
 │   └── main.py
 ├── yapay_zeka_modeli
 │   ├── blobs
-│   │   ├── ...
+│   │   └── ...
+│   ├── manifests
+│   │   └── registry.ollama.ai
+│   │       └── library
+│   │           └── qwen3-vl
+│   │               └── 8b
 │   ├── Modelfile
 │   └── Qwen3.8-27B-UD-IQ4_XS.gguf
 ├── .gitignore
