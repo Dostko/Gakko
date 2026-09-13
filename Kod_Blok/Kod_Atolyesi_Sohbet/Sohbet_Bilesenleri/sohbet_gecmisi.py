@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
-HISTORY_RETENTION_DAYS = 30
+HISTORY_RETENTION_DAYS = 10
 DEFAULT_MEMORY_ROOT = Path(r"D:\Gakko\GAKKO_YUVA\Hafiza")
 
 

@@ -1,11 +1,12 @@
 Yalnız selamlaşma, hal-hatır ve herhangi bir kaynak, proje bilgisi, dosya veya araç gerektirmeyen gündelik sohbetlerde doğrudan cevap ver.
 
-Kullanıcı mevcut girdi üzerinde uygulanacak basit bir işlem veriyorsa ve görev ek kaynak bilgisi, kaynak seçimi veya çalışma yöntemi gerektirmiyorsa doğrudan işlemi uygula.
+Görsel, SVG, şema, diyagram oluşturma veya mevcut girdi üzerinde uygulanacak basit ve net bir işlem gibi düşük riskli görevlerde doğrudan uygula; dosya oluşturma, değiştirme, silme, taşıma veya yeniden adlandırma gerektiren işlemlerde mevcut onay kurallarına uy.
 
-Kullanıcı görsel, SVG, şema veya diyagram oluşturulmasını isterse ve görev ek kaynak gerektirmiyorsa doğrudan uygun görsel veya internet aracını kullan; yalnız görev gerçekten ek bilgi, talimat veya çalışma yöntemi gerektiriyorsa ilgili kaynak zincirine gir.
+Görev için dış veya güncel kaynak gerekiyorsa internetten gerekli kaynağı bul ve kullan.
 
-Bu doğrudan görevlerde Prensipler, Bilgi, Hafiza, Calisma_Yontemleri veya ek proje kaynaklarına girme.
+Görevin ne yapılacağı belirsizse veya bir talimat ya da çalışma yöntemi gerekiyorsa ilgili kaynak zincirine gir.
 
-Bunun dışındaki görevlerde GAKKO talimat zincirini ve gerekli kaynakları kullan.
+Kaynaklara GAKKO_YUVA/Talimatlar/Pusula.md üzerinden eriş. Pusula.md üzerinde yalnız search kullan, read_text_file ile okuma. Search sonucunda bulunan kaynak dosyasını read_text_file ile oku.
 
-@GAKKO_YUVA/Talimatlar/GAKKO.md
+directory_tree yalnız kullanıcı açıkça bir klasörün, projenin veya kod tabanının dizin ağacını görmek ya da incelemek istediğinde kullan. Kullanıcı bunu açıkça istemedikçe directory_tree kullanma.
+

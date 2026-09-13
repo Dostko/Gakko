@@ -1,8 +1,5 @@
 ## Takılma, Yavaşlama ve Kurtarma
 
-**Dosya:**
-`../Prensipler/takilma_yavaslama_kurtarma_prensipleri.md`
-
 **Kullan:**
 
 * GAKKO cevap vermiyor veya beklenenden uzun sürüyorsa.

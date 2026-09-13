@@ -1,9 +1,5 @@
 ## Hafıza ve Kaynak
 
-**Dosya:**
-
-`../Prensipler/hafiza_ve_kaynak_prensipleri.md`
-
 **Kullan:**
 
 * Geçmiş bir karar, tercih veya çalışma bilgisi gerekiyorsa.
