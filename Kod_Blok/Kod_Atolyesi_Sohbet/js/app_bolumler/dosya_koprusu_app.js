@@ -8,6 +8,42 @@ function connectBridge() {
 
   new QWebChannel(qt.webChannelTransport, channel => {
     bridge = channel.objects.gakkoBridge;
+    recordsBridge = channel.objects.kayitlarBridge || null;
+
+    if (recordsBridge) {
+      recordsBridge.records_list_ready.connect(payloadText => {
+        try {
+          renderRecordsList(JSON.parse(String(payloadText || "{}")));
+        } catch (error) {
+          statusNote.textContent = "Kayıtlar okunamadı";
+        }
+      });
+
+      recordsBridge.record_ready.connect(payloadText => {
+        try {
+          renderRecordDetail(JSON.parse(String(payloadText || "{}")));
+        } catch (error) {
+          statusNote.textContent = "Kayıt açılamadı";
+        }
+      });
+
+      recordsBridge.record_action_ready.connect(payloadText => {
+        try {
+          const payload = JSON.parse(String(payloadText || "{}"));
+          statusNote.textContent = payload.deleted
+            ? "Kayıt silindi"
+            : "Kayıt silinemedi";
+          clearRecordDetail();
+          requestRecords();
+        } catch (error) {
+          statusNote.textContent = "Kayıt işlemi tamamlanamadı";
+        }
+      });
+
+      recordsBridge.error_ready.connect(error => {
+        statusNote.textContent = String(error || "Kayıt işlemi başarısız");
+      });
+    }
 
     bridge.project_selected.connect(path => {
       showActiveProject(path, true);

@@ -67,6 +67,7 @@ function showActiveProject(path, startsProjectMethod) {
 function syncSidebarActiveState(projectOpen = false) {
   const historyOpen = currentView === "history";
   const filesOpen = currentView === "files";
+  const recordsOpen = currentView === "records";
   const chatOpen = currentView === "chat";
 
   projectButton.classList.toggle("active", projectOpen);
@@ -74,6 +75,10 @@ function syncSidebarActiveState(projectOpen = false) {
 
   if (fileButton) {
     fileButton.classList.toggle("active", !projectOpen && filesOpen);
+  }
+
+  if (recordsButton) {
+    recordsButton.classList.toggle("active", !projectOpen && recordsOpen);
   }
 
   chatButton.classList.toggle("active", !projectOpen && chatOpen);

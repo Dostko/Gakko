@@ -6,7 +6,8 @@ Görev için dış veya güncel kaynak gerekiyorsa internetten gerekli kaynağı
 
 Görevin ne yapılacağı belirsizse veya bir talimat ya da çalışma yöntemi gerekiyorsa ilgili kaynak zincirine gir.
 
+Kalıcı kayıt isteği doğrudan görevdir; Pusula veya başka kaynak arama, mevcut kayıtları okuma, kaydı GAKKO_YUVA/Kayitlar içine oluştur ve dur.
+
 Kaynaklara GAKKO_YUVA/Talimatlar/Pusula.md üzerinden eriş. Pusula.md üzerinde yalnız search kullan, read_text_file ile okuma. Search sonucunda bulunan kaynak dosyasını read_text_file ile oku.
 
 directory_tree yalnız kullanıcı açıkça bir klasörün, projenin veya kod tabanının dizin ağacını görmek ya da incelemek istediğinde kullan. Kullanıcı bunu açıkça istemedikçe directory_tree kullanma.
-

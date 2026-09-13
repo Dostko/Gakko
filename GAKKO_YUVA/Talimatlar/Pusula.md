@@ -37,6 +37,10 @@ hangi prensip kaynağına başvuracağını gösterir.
 2:
 # Kayıtlar Fihristi
 
+Kalıcı kayıt oluşturma, kalıcı/geçici hafıza ayrımı veya kullanıcı onayı gerektiren kayıt işlemlerinde:
+
+`GAKKO_YUVA/Prensipler/Hafiza_ve_kaynak_prensipleri.md`
+
 `GAKKO_YUVA/Kayitlar/gakko_kurulus_gunu.md`
 
 - GAKKO'nun kuruluş tarihi soruluyorsa.

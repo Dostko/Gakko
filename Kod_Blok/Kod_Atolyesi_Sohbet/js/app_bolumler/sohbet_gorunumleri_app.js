@@ -23,18 +23,25 @@ function setMainView(view) {
     currentView = "history";
   } else if (view === "files" && fileView) {
     currentView = "files";
+  } else if (view === "records" && recordsView) {
+    currentView = "records";
   } else {
     currentView = "chat";
   }
 
   const historyOpen = currentView === "history";
   const filesOpen = currentView === "files";
+  const recordsOpen = currentView === "records";
   const chatOpen = currentView === "chat";
 
   historyView.hidden = !historyOpen;
 
   if (fileView) {
     fileView.hidden = !filesOpen;
+  }
+
+  if (recordsView) {
+    recordsView.hidden = !recordsOpen;
   }
 
   stage.hidden = !chatOpen;

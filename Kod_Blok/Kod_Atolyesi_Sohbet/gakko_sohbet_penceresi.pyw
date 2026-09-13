@@ -1,5 +1,6 @@
 import json
 import sys
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QUrl
@@ -14,6 +15,25 @@ from PySide6.QtWebEngineCore import (
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from Sohbet_Bilesenleri.sohbet_koprusu import ChatBridge
+
+
+def _load_records_bridge_class():
+    helper_path = (
+        Path(__file__).resolve().parent
+        / "Sohbet_Bilesenleri"
+        / "sohbet_koprusu"
+        / "kayitlar_koprusu.py"
+    )
+    spec = spec_from_file_location("gakko_kayitlar_koprusu", helper_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Kayıtlar köprüsü yüklenemedi: {helper_path}")
+
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.KayitlarKoprusu
+
+
+KayitlarKoprusu = _load_records_bridge_class()
 
 
 class AttachmentWebView(QWebEngineView):
@@ -154,9 +174,11 @@ class GakkoSohbetPenceresi(QMainWindow):
         self.web.page().setBackgroundColor(QColor("#080b11"))
 
         self.bridge = ChatBridge()
+        self.records_bridge = KayitlarKoprusu()
 
         self.channel = QWebChannel(self.web.page())
         self.channel.registerObject("gakkoBridge", self.bridge)
+        self.channel.registerObject("kayitlarBridge", self.records_bridge)
         self.web.page().setWebChannel(self.channel)
 
         index_path = Path(__file__).resolve().parent / "index.html"

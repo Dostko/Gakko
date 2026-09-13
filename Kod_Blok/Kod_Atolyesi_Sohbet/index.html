@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="css/style_bolumler/sol_panel.css">
 <link rel="stylesheet" href="css/style_bolumler/gecmis_sohbet.css">
 <link rel="stylesheet" href="css/style_bolumler/dosya_menu.css">
+<link rel="stylesheet" href="css/style_bolumler/kayitlar.css">
 <link rel="stylesheet" href="css/style_bolumler/sohbet_alani.css">
 </head>
 <body>
@@ -68,6 +69,17 @@
             </svg>
           </span>
           <span class="nav-label">Dosya</span>
+        </button>
+
+        <button class="nav-btn" id="recordsButton" type="button" title="Kayıtlar">
+          <span class="nav-icon" aria-hidden="true">
+            <svg class="menu-icon-svg menu-icon-records" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ff4d5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="7" width="16" height="13" rx="2"/>
+              <path d="M3.5 5h17v3h-17z"/>
+              <path d="M9 12h6"/>
+            </svg>
+          </span>
+          <span class="nav-label">Kayıtlar</span>
         </button>
 
         <div class="project-nav">
@@ -196,6 +208,29 @@
         </div>
       </section>
 
+      <section class="records-view" id="recordsView" hidden>
+        <div class="records-shell">
+          <div class="records-header">
+            <div>
+              <h2>Kayıtlar</h2>
+              <span>Kalıcı kayıtlar · otomatik silinmez</span>
+            </div>
+          </div>
+
+          <div class="records-toolbar">
+            <input class="records-search" id="recordsSearch" type="search" placeholder="Kayıtlarda ara...">
+            <button class="records-refresh" id="recordsRefreshButton" type="button">Yenile</button>
+          </div>
+
+          <div class="records-content">
+            <div class="records-list" id="recordsList"></div>
+            <div class="records-detail" id="recordsDetail">
+              <div class="records-empty">Okumak için soldan bir kayıt seç.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="chat-stage" id="chatStage">
         <div class="welcome" id="welcome">
           <div class="orb">G</div>
@@ -226,6 +261,7 @@
 <script src="js/app_bolumler/dosya_menu_app.js"></script>
 <script src="js/app_bolumler/gorsel_app.js"></script>
 <script src="js/app_bolumler/sohbet_gorunumleri_app.js"></script>
+<script src="js/app_bolumler/kayitlar.js"></script>
 <script src="js/app_bolumler/dosya_koprusu_app.js"></script>
 
 </body>
