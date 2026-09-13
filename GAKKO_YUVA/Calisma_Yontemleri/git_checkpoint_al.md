@@ -5,6 +5,7 @@
 GAKKO üzerinde yapılan ve test edilerek doğrulanan bir geliştirmeyi güvenli biçimde Git checkpoint olarak kaydetmek.
 
 Bu çalışma yöntemi yalnız mevcut çalışmanın güvenli Git kaydını almak içindir.
+Commit mesajını stage işleminden önce hazırlama veya kullanıcıya gösterme. Commit mesajı yalnız stage sonucu doğrulanıp kullanıcıya gösterildikten sonra hazırlanır.
 
 ## Repository Kökü
 
