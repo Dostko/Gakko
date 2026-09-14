@@ -89,7 +89,7 @@ Qwen ihtiyaç duyduğu kaynağı kendisi seçer, okur, yorumlar ve karar verir.
 
 ### QWEN.md
 
-`QWEN.md`, GAKKO_YUVA'nın ana başlangıç noktasıdır.
+`QWEN.md`, istisna_ilk_talimat.md → Pusula.md 'nin ana başlangıç noktasıdır.
 
 Qwen buradan ana kaynak haritası olan:
 
@@ -203,7 +203,9 @@ Ana Qwen modeli
 ↓  
 QWEN.md  
 ↓  
-GAKKO.md  
+istisna_ilk_talimat.md
+↓
+Pusula.md
 ↓  
 Görev için gerekli kaynak veya araç  
 ↓  
@@ -242,7 +244,7 @@ Geçici dosyalar, önbellekler ve model iç dosyaları gösterilmez.
 
 ## 1. Güncel Proje Ağacı
 
-```text
+
 D:\Gakko
 ├── ├── .qwen
 │   └── QWEN.md
@@ -268,7 +270,8 @@ D:\Gakko
 │   │   ├── Belirsizlik_ve_halusinasyon_prensipleri.md
 │   │   ├── Hafiza_ve_kaynak_prensipleri.md
 │   │   └── Karar_ve_kaynak_secimi_prensipleri.md
-│   └── Talimatlar
+│   └── Talimatlar  
+        └── istisna_ilk_talimat.md
 │       └── Pusula.md
 ├── Gorseller
 ├── Kod_Blok
@@ -337,7 +340,7 @@ D:\Gakko
 
 ### .qwen
 
-Qwen'in GAKKO çalışma ortamına giriş noktası ve yardımcı becerilerinin bulunduğu alandır.
+Qwen'in istisna_ilk_talimat.md → Pusula.md çalışma ortamına giriş noktası ve yardımcı becerilerinin bulunduğu alandır.
 
 `QWEN.md`, Qwen'in GAKKO kaynak zincirine giriş dosyasıdır.
 
@@ -393,6 +396,10 @@ Qwen
 ↓
 QWEN.md
 ↓
+istisna_ilk_talimat.md
+↓ 
+Pusula.md
+↓
 GAKKO_YUVA
 ↓
 Gerekli kaynak veya MCP aracı
@@ -413,4 +420,3 @@ Kod_Blok teknik uygulama ve bağlantı görevlerini yürütür.
 MCP araçları Qwen'in dosya sistemi ve diğer teknik kaynaklara erişmesini sağlar.
 
 Teknik katmanlar Qwen adına karar vermez.
-

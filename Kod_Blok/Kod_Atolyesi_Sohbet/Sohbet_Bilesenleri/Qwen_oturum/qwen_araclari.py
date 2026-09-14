@@ -30,6 +30,19 @@ GENERATED_IMAGE_EXTENSIONS = IMAGE_EXTENSIONS | frozenset({
 GENERATED_IMAGE_TARGET_ROOT = PROJECT_ROOT / "Gorseller"
 
 WEB_RESEARCH_TOOL_NAMES = frozenset({"web_search", "web_fetch"})
+DIRECTORY_TREE_TOOL_NAME = "directory_tree"
+DIRECTORY_TREE_REQUEST_TERMS = (
+    "directory_tree",
+    "directory tree",
+    "dizin ağacı",
+    "dizin agaci",
+    "klasör ağacı",
+    "klasor agaci",
+    "proje ağacı",
+    "proje agaci",
+    "dosya ağacı",
+    "dosya agaci",
+)
 WEB_USAGE_LIMIT_MESSAGE = (
     "[INTERNET KULLANIM SINIRI] "
     "web_search/web_fetch sınırı doldu. Yeni internet araması yapma; "
@@ -154,6 +167,18 @@ class QwenAraclariMixin:
         except Exception:
             pass
 
+    def _tools_for_prompt(self, user_text, runtime):
+        text = str(user_text or "").casefold()
+        if any(term in text for term in DIRECTORY_TREE_REQUEST_TERMS):
+            return runtime.tools
+
+        return [
+            tool
+            for tool in runtime.tools
+            if str(tool.get("function", {}).get("name", ""))
+            != DIRECTORY_TREE_TOOL_NAME
+        ]
+
     async def _execute_qwen_tool(self, runtime, name, arguments):
         if name in runtime.search_tool_names:
             return await self._call_mcp_tool(
@@ -183,6 +208,7 @@ class QwenAraclariMixin:
 
     async def _chat_with_tools(self, user_text, runtime):
         messages = self._messages_for_prompt(user_text)
+        tools = self._tools_for_prompt(user_text, runtime)
         self._generated_image_paths = {}
 
         last_response = None
@@ -197,12 +223,13 @@ class QwenAraclariMixin:
 
             try:
                 response = self._chat(
-                    model=OLLAMA_MODEL,
-                    messages=messages,
-                    tools=runtime.tools,
-                    stream=False,
-                    options={"num_ctx": OLLAMA_CONTEXT_SIZE},
-                )
+                model=OLLAMA_MODEL,
+                messages=messages,
+                tools=tools,
+                stream=False,
+                think="low",
+                options={"num_ctx": OLLAMA_CONTEXT_SIZE},
+            )
             except Exception as exc:
                 print(
                     f"[QWEN HATA] {type(exc).__name__}: {exc}",
