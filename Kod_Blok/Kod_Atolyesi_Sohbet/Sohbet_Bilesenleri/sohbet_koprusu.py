@@ -53,6 +53,7 @@ class ChatBridge(QObject):
     error_ready = Signal(str)
     connection_ready = Signal()
     project_selected = Signal(str)
+    project_browser_selected = Signal(str)
     file_browser_project_selected = Signal(str)
     file_browser_directory_ready = Signal(str)
     file_browser_file_ready = Signal(str)

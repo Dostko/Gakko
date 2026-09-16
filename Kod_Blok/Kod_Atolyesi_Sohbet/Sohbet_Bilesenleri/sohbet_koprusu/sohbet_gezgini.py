@@ -73,6 +73,13 @@ def _decode_clipboard_image_data_url(data_url):
 class SohbetGezgini:
     def __init__(self, bridge):
         self.bridge = bridge
+        # Aktif proje değişimi (ve oturum yeniden başlatma) aç/kapa anahtarı.
+        # True  -> klasör seçince mevcut davranış: aktif proje değişir + oturum
+        #         yeniden başlar (_activate_project).
+        # False -> sadece klasör seçilir; aktif proje değiştirilmez, oturum
+        #         yeniden başlatılmaz (yalnızca seçim bildirilir).
+        # Varsayılan mevcut davranışı korur.
+        self.activate_projects = True
 
     def select_project_folder(self):
         if not self.bridge._project_change_allowed():
@@ -88,10 +95,15 @@ class SohbetGezgini:
         if not selected_path:
             return
 
-        self.bridge._activate_project(
-            Path(selected_path),
-            PROJELER_YONTEMI,
-        )
+        if self.activate_projects:
+            self.bridge._activate_project(
+                Path(selected_path),
+                PROJELER_YONTEMI,
+            )
+        else:
+            # Sadece seçilen kökü bildir; aktif proje değiştirilmez, oturum
+            # yeniden başlatılmaz.
+            self.bridge.project_browser_selected.emit(selected_path)
 
     def select_file_browser_folder(self):
         selected_path = QFileDialog.getExistingDirectory(
