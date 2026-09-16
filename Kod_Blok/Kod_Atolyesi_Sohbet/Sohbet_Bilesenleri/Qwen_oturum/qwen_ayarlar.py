@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 OLLAMA_HOST = "http://127.0.0.1:11434"
-OLLAMA_MODEL = "qwen3.8-27b-smaller:latest"
-OLLAMA_CONTEXT_SIZE = 65536
+OLLAMA_MODEL = "gakko-ornith15-9b:latest"
+OLLAMA_CONTEXT_SIZE = 131072
 
 VISION_MODEL = "qwen3-vl:8b"
 VISION_CONTEXT_SIZE = 32768

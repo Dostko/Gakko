@@ -420,3 +420,9 @@ Kod_Blok teknik uygulama ve bağlantı görevlerini yürütür.
 MCP araçları Qwen'in dosya sistemi ve diğer teknik kaynaklara erişmesini sağlar.
 
 Teknik katmanlar Qwen adına karar vermez.
+
+ana model → gakko-gemma4-64k
+görsel/OCR → qwen3-vl:8b
+Qwen3.8 → artık ana model değil, gerekirse ayrı ağır/kod modeli
+eski Qwen-merkezli ifadeler temizlenecek
+GAKKO_YUVA ve çalışma akışı bugünkü gerçek mimariye göre yazılacak
