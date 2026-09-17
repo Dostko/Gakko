@@ -222,14 +222,15 @@ class QwenAraclariMixin:
                 return _CANCELLED
 
             try:
-                response = self._chat(
+               response = self._chat(
                 model=OLLAMA_MODEL,
                 messages=messages,
                 tools=tools,
                 stream=False,
-                think="low",
+                think=True,
                 options={"num_ctx": OLLAMA_CONTEXT_SIZE},
             )
+            
             except Exception as exc:
                 print(
                     f"[QWEN HATA] {type(exc).__name__}: {exc}",
