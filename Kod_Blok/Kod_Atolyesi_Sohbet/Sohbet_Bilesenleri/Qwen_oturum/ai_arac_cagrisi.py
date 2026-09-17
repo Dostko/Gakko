@@ -109,6 +109,38 @@ def kod_gorevi_mi(text):
 # BLOK BAŞLIĞI: KOD GÖREVİ ALGILAMA - BİTİŞ
 
 
+# BLOK BAŞLIĞI: KODCU AI ARAÇ TANIMI - BAŞLANGIÇ
+
+KODCU_AI_TOOL_NAME = "kodcu_ai"
+
+KODCU_AI_TOOL = {
+    "type": "function",
+    "function": {
+        "name": KODCU_AI_TOOL_NAME,
+        "description": (
+            "Görsel/OCR bağlamında ana Günlük modelin teknik kodlama "
+            "uzmanlığına ihtiyaç duyduğunda Kodcu modeli çağırır. "
+            "Göreve gerekli OCR metnini, kod parçalarını ve teknik isteği ekle."
+        ),
+        "parameters": {
+            "type": "object",
+            "required": ["gorev"],
+            "properties": {
+                "gorev": {
+                    "type": "string",
+                    "description": (
+                        "Kodcu modelin çözmesi gereken teknik görev. "
+                        "Gerekli görsel/OCR içeriğini de bu metne dahil et."
+                    ),
+                }
+            },
+        },
+    },
+}
+
+# BLOK BAŞLIĞI: KODCU AI ARAÇ TANIMI - BİTİŞ
+
+
 CODER_SYSTEM_PROMPT = (
     "Sen GAKKO'nun Kodcu uzman modelisin. "
     "Sana yalnız kodlama, yazılım geliştirme veya teknik programlama görevi verilir. "

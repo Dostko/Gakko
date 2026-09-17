@@ -12,6 +12,8 @@ from ..internet_giris import (
     internet_araci_calistir,
 )
 from .ai_arac_cagrisi import (
+    KODCU_AI_TOOL,
+    KODCU_AI_TOOL_NAME,
     kod_gorevi_mi,
     kodcu_ai_calistir,
 )
@@ -171,9 +173,26 @@ class QwenAraclariMixin:
         except Exception:
             pass
 
+    def _has_visual_attachment_context(self, user_text):
+        text = str(user_text or "")
+
+        if "===== EKLİ DOSYA BAĞLAMI =====" not in text:
+            return False
+
+        return any(
+            marker in text
+            for marker in (
+                "----- GÖRSEL -----",
+                "----- AKTİF GÖRSEL -----",
+            )
+        )
+
     def _tools_for_prompt(self, user_text, runtime):
         text = str(user_text or "").casefold()
         tools = list(runtime.tools)
+
+        if self._has_visual_attachment_context(user_text):
+            tools.append(KODCU_AI_TOOL)
 
         if any(term in text for term in DIRECTORY_TREE_REQUEST_TERMS):
             return tools
@@ -186,6 +205,9 @@ class QwenAraclariMixin:
         ]
 
     def _prepare_coder_context(self, user_text):
+        if self._has_visual_attachment_context(user_text):
+            return user_text
+
         if not kod_gorevi_mi(user_text):
             return user_text
 
@@ -210,6 +232,14 @@ class QwenAraclariMixin:
         )
 
     async def _execute_qwen_tool(self, runtime, name, arguments):
+        if name == KODCU_AI_TOOL_NAME:
+            gorev = (
+                arguments.get("gorev")
+                if isinstance(arguments, dict)
+                else ""
+            )
+            return kodcu_ai_calistir(self, gorev)
+
         if name in runtime.search_tool_names:
             return await self._call_mcp_tool(
                 runtime.search_client,
