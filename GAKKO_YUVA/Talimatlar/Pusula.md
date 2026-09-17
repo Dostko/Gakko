@@ -1,3 +1,83 @@
+
+# Bilgi
+
+Görev için gerekli doğrulanmış bilgi kaynağını seç ve yalnız ilgili MD dosyasını oku.
+
+## Ana Sistem
+
+`GAKKO_YUVA/Bilgi/Ana_sistem.md`
+
+* GAKKO'nun ne olduğu, kimliği veya genel yapısı soruluyorsa.
+* GAKKO_YUVA, Kod_Blok veya model alanlarının mimari konumu hakkında bilgi gerekiyorsa.
+* GAKKO'nun ana çalışma düzeni veya sistem bileşenleri hakkında bilgi gerekiyorsa.
+* GAKKO'nun güncel fiziksel proje ağacı, klasörleri veya dosya yapısı gerekiyorsa.
+* Bir ana bileşenin, klasörün veya dosyanın sistem içindeki görevi ve sorumluluğu anlaşılacaksa.
+
+## Dosya Formatları
+
+`GAKKO_YUVA/Bilgi/dosya_formatlari.md`
+
+* Desteklenen dosya türleri hakkında bilgi gerekiyorsa.
+* Eklenen bir dosyanın nasıl okunacağı veya işleneceği belirlenecekse.
+* PNG, JPG, JPEG, WEBP, SVG, TIFF, TIF, PDF, TXT, JSON, HTML, CSS, JS veya LOG gibi dosya formatlarıyla ilgili işlem yapılacaksa.
+
+# Çalışma Yöntemleri
+
+Göreve uygun çalışma yöntemini aşağırdaki listeden seç ve yalnız gerekli MD dosyasını oku.
+
+## Git Checkpoint Al
+
+`GAKKO_YUVA/Calisma_Yontemleri/git_checkpoint_al.md`
+
+Test edilmiş ve doğrulanmış çalışmanın güvenli Git checkpoint, commit veya push işlemi yapılacaksa.
+
+## İnternet Araştırma
+
+`GAKKO_YUVA/Calisma_Yontemleri/Internet_arastirma.md`
+
+Görev güncel veya dış dünya bilgisi gerektiriyorsa ya da mevcut kaynaklar yeterli değilse.
+
+## Sohbet Geçmişi
+
+`GAKKO_YUVA/Calisma_Yontemleri/sohbet_gecmisi.md`
+
+Kullanıcının isteği daha önce yapılan konuşmalardaki bilgiye dayanıyorsa.
+
+## Takılma, Yavaşlama ve Kurtarma
+
+`GAKKO_YUVA/Calisma_Yontemleri/Takilma_yavaslama_ve_kurtarma.md`
+
+GAKKO, uygulama, araç veya süreç takıldığında; beklenmedik yavaşlama, kaynak kullanımı veya tekrar eden hata araştırılacaksa.
+
+# Hafıza
+
+Geçmiş konuşmalara ve hafıza kaynaklarına yalnız görev gerektirdiğinde başvur.
+
+## Yakın Sohbet Geçmişi
+
+`GAKKO_YUVA/Hafiza/Yakin_Gecmis_Fihristi.md`
+
+* Kullanıcı önceki bir konuşmaya gönderme yaptığında.
+* Önceki bir karar sorulduğunda.
+* Önceki kod, hata, test veya komut bilgisine ihtiyaç duyulduğunda.
+* Yakın geçmişte yapılan bir çalışmanın devamı istendiğinde.
+* Kaynağı yalnız ihtiyaç olduğunda kullan.
+* İçeriği doğrulanmış güncel gerçek yerine otomatik olarak kabul etme.
+* Görev için hangi bilginin gerekli olduğuna ana model karar verir.
+
+# Kayıtlar
+---
+Kalıcı kayıt oluşturma, kalıcı ve geçici hafıza ayrımı veya kullanıcı onayı gerektiren kayıt işlemlerinde:
+
+`GAKKO_YUVA/Prensipler/Hafiza_ve_kaynak_prensipleri.md`
+---
+GAKKO'nun kuruluşuyla ilgili kalıcı bilgi gerektiğinde:
+
+`GAKKO_YUVA/Kayitlar/gakko_kurulus_gunu.md`
+---
+* GAKKO'nun kuruluş tarihi soruluyorsa.
+* GAKKO'nun kuruluş süreci veya geçmişiyle ilgili kalıcı kayıt gerekiyorsa.
+
 # Prensipler
 
 GAKKO'nun karşılaştığı duruma göre gerekli prensip kaynağını seç.
@@ -40,87 +120,8 @@ GAKKO'nun karşılaştığı duruma göre gerekli prensip kaynağını seç.
 * Teknik işlemin sonucu doğrulanacaksa.
 * Kullanıcı verisini etkileyen veya geri dönüşü zor bir işlem yapılacaksa.
 
-# Kayıtlar
+# Projeler
 
-Kalıcı kayıt oluşturma, kalıcı ve geçici hafıza ayrımı veya kullanıcı onayı gerektiren kayıt işlemlerinde:
+`GAKKO_YUVA/Projeler/Projeler.md`
 
-`GAKKO_YUVA/Prensipler/Hafiza_ve_kaynak_prensipleri.md`
-
-GAKKO'nun kuruluşuyla ilgili kalıcı bilgi gerektiğinde:
-
-`GAKKO_YUVA/Kayitlar/gakko_kurulus_gunu.md`
-
-* GAKKO'nun kuruluş tarihi soruluyorsa.
-* GAKKO'nun kuruluş süreci veya geçmişiyle ilgili kalıcı kayıt gerekiyorsa.
-
-# Hafıza
-
-Geçmiş konuşmalara ve hafıza kaynaklarına yalnız görev gerektirdiğinde başvur.
-
-## Yakın Sohbet Geçmişi
-
-`GAKKO_YUVA/Hafiza/Yakin_Gecmis_Fihristi.md`
-
-* Kullanıcı önceki bir konuşmaya gönderme yaptığında.
-* Önceki bir karar sorulduğunda.
-* Önceki kod, hata, test veya komut bilgisine ihtiyaç duyulduğunda.
-* Yakın geçmişte yapılan bir çalışmanın devamı istendiğinde.
-* Kaynağı yalnız ihtiyaç olduğunda kullan.
-* İçeriği doğrulanmış güncel gerçek yerine otomatik olarak kabul etme.
-* Görev için hangi bilginin gerekli olduğuna ana model karar verir.
-
-# Çalışma Yöntemleri
-
-Göreve uygun çalışma yöntemini seç ve yalnız gerekli MD dosyasını oku.
-
-## Git Checkpoint Al
-
-`GAKKO_YUVA/Calisma_Yontemleri/git_checkpoint_al.md`
-
-Test edilmiş ve doğrulanmış çalışmanın güvenli Git checkpoint, commit veya push işlemi yapılacaksa.
-
-## İnternet Araştırma
-
-`GAKKO_YUVA/Calisma_Yontemleri/Internet_arastirma.md`
-
-Görev güncel veya dış dünya bilgisi gerektiriyorsa ya da mevcut kaynaklar yeterli değilse.
-
-## Projeler
-
-`GAKKO_YUVA/Calisma_Yontemleri/projeler.md`
-
-Yeni proje veya mevcut bir proje başlatılacak, incelenecek ya da üzerinde çalışılacaksa.
-
-## Sohbet Geçmişi
-
-`GAKKO_YUVA/Calisma_Yontemleri/sohbet_gecmisi.md`
-
-Kullanıcının isteği daha önce yapılan konuşmalardaki bilgiye dayanıyorsa.
-
-## Takılma, Yavaşlama ve Kurtarma
-
-`GAKKO_YUVA/Calisma_Yontemleri/Takilma_yavaslama_ve_kurtarma.md`
-
-GAKKO, uygulama, araç veya süreç takıldığında; beklenmedik yavaşlama, kaynak kullanımı veya tekrar eden hata araştırılacaksa.
-
-# Bilgi
-
-Görev için gerekli doğrulanmış bilgi kaynağını seç ve yalnız ilgili MD dosyasını oku.
-
-## Ana Sistem
-
-`GAKKO_YUVA/Bilgi/Ana_sistem.md`
-
-* GAKKO'nun ne olduğu, kimliği veya genel yapısı soruluyorsa.
-* GAKKO_YUVA, Kod_Blok veya model alanlarının mimari konumu hakkında bilgi gerekiyorsa.
-* GAKKO'nun ana çalışma düzeni veya sistem bileşenleri hakkında bilgi gerekiyorsa.
-* GAKKO'nun güncel fiziksel proje ağacı, klasörleri veya dosya yapısı gerekiyorsa.
-* Bir ana bileşenin, klasörün veya dosyanın sistem içindeki görevi ve sorumluluğu anlaşılacaksa.
-
-## Dosya Formatları
-
-`GAKKO_YUVA/Bilgi/dosya_formatlari.md`
-
-* Desteklenen dosya türleri hakkında bilgi gerekiyorsa.
-* Eklenen bir dosyanın nasıl okunacağı veya işleneceği belirlenecekse.
-* PNG, JPG, JPEG, WEBP, SVG, TIFF, TIF, PDF, TXT, JSON, HTML, CSS, JS veya LOG gibi dosya formatlarıyla ilgili işlem yapılacaksa.
+Yeni proje veya mevcut bir proje başlatılacaksa ve incelenecekse ya da üzerinde çalışılacaksa git.

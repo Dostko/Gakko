@@ -86,8 +86,8 @@
     align-self: flex-end;
     width: fit-content;
     max-width: 70%;
-    background: linear-gradient(135deg,rgb(61, 22, 1),rgba(228, 130, 32, 0.641));
-    border: 1px solid rgba(225, 11, 15, 0.16);
+    background: linear-gradient(135deg,rgb(20, 31, 40),rgba(12, 16, 39, 0.641));
+    border: 1px solid rgba(214, 225, 11, 0.229);
     border-bottom-right-radius: 6px;
 }
 
@@ -95,7 +95,7 @@
     align-self: flex-start;
     max-width: 100%;
     color: #dfe5ee;
-    background: rgba(18, 18, 18, 0.629);
+    background: rgba(38, 40, 46, 0.235);
     border: 1px solid var(--line);
     border-bottom-left-radius: 6px;
 }
@@ -130,7 +130,7 @@
     max-height: 560px;
     margin: 12px 0 2px;
     object-fit: contain;
-    border: 1px solid rgba(255,255,255,.09);
+    border: 1px solid rgba(255, 255, 255, 0.111);
     border-radius: 12px;
     background: #050609;
 }
@@ -235,15 +235,15 @@
     gap: 8px;
     padding: 10px;
     border-radius: 22px;
-    border: 1px solid rgba(255,255,255,.085);
+    border: 1px solid rgba(174, 166, 19, 0.314);
     background: rgba(18,24,35,.92);
     box-shadow: 0 24px 70px rgba(0,0,0,.35);
     backdrop-filter: blur(22px);
 }
 
 .composer:focus-within {
-    border-color: rgba(95,197,255,.24);
-    box-shadow: 0 24px 70px rgba(0,0,0,.35),0 0 0 3px rgba(0, 5, 7, 0.035);
+    border-color: rgba(137, 144, 41, 0.348);
+    box-shadow: 0 24px 70px rgba(37, 43, 2, 0.137),0 0 0 3px rgba(0, 5, 7, 0.035);
 }
 
 .attach,.send {
@@ -292,11 +292,39 @@
     resize: none;
     border: 0;
     outline: 0;
-    padding: 9px 4px 7px;
+
+    padding: 9px 75px 7px 4px;
+    box-sizing: border-box;
+
     color: var(--text);
     background: transparent;
     line-height: 1.45;
     overflow-y: auto;
+    scrollbar-gutter: stable;
+}
+#messageInput::-webkit-scrollbar {
+    width: 8px;
+}
+
+#messageInput::-webkit-scrollbar-track {
+    background: #080b11;
+    margin-bottom: 52px;
+    cursor: default;
+}
+
+#messageInput::-webkit-scrollbar-thumb {
+    background: #262628;
+    border-radius: 8px;
+    cursor: default;
+
+}
+
+#messageInput::-webkit-scrollbar-thumb:hover {
+    background: #5f5f5f;
+}
+
+#messageInput::placeholder {
+    color: #bca777;
 }
 #messageInput::placeholder {
     color: #bca777;

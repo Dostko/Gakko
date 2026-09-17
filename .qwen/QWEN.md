@@ -1,5 +1,4 @@
 # QWEN  
-# QWEN
 
 Hiçbir işlem yapmadan, araç kullanmadan veya karar vermeden önce:
 

@@ -11,6 +11,10 @@ from ..internet_giris import (
     INTERNET_TOOL_NAMES,
     internet_araci_calistir,
 )
+from .ai_arac_cagrisi import (
+    kod_gorevi_mi,
+    kodcu_ai_calistir,
+)
 from .qwen_ayarlar import (
     IMAGE_EXTENSIONS,
     MAX_TOOL_ROUNDS,
@@ -169,15 +173,41 @@ class QwenAraclariMixin:
 
     def _tools_for_prompt(self, user_text, runtime):
         text = str(user_text or "").casefold()
+        tools = list(runtime.tools)
+
         if any(term in text for term in DIRECTORY_TREE_REQUEST_TERMS):
-            return runtime.tools
+            return tools
 
         return [
             tool
-            for tool in runtime.tools
+            for tool in tools
             if str(tool.get("function", {}).get("name", ""))
             != DIRECTORY_TREE_TOOL_NAME
         ]
+
+    def _prepare_coder_context(self, user_text):
+        if not kod_gorevi_mi(user_text):
+            return user_text
+
+        activity = {"name": "kodcu_ai"}
+        self.tool_activity.emit(json.dumps(activity, ensure_ascii=False))
+        print(
+            "[GAKKO KODCU] Kod görevi algılandı; Kodcu çağrılıyor.",
+            flush=True,
+        )
+
+        result = kodcu_ai_calistir(self, user_text)
+        if result is _CANCELLED:
+            return _CANCELLED
+
+        return (
+            f"{user_text}\n\n"
+            "===== KODCU UZMAN BAĞLAMI =====\n"
+            f"{result}\n"
+            "===== /KODCU UZMAN BAĞLAMI =====\n"
+            "Yukarıdaki uzman çıktısını teknik bağlam olarak kullan. "
+            "Nihai cevabı GAKKO'nun ana modeli olarak sen üret."
+        )
 
     async def _execute_qwen_tool(self, runtime, name, arguments):
         if name in runtime.search_tool_names:
@@ -207,8 +237,12 @@ class QwenAraclariMixin:
         return f"[TOOL HATA] Bilinmeyen araç: {name}"
 
     async def _chat_with_tools(self, user_text, runtime):
-        messages = self._messages_for_prompt(user_text)
-        tools = self._tools_for_prompt(user_text, runtime)
+        prepared_text = self._prepare_coder_context(user_text)
+        if prepared_text is _CANCELLED:
+            return _CANCELLED
+
+        messages = self._messages_for_prompt(prepared_text)
+        tools = self._tools_for_prompt(prepared_text, runtime)
         self._generated_image_paths = {}
 
         last_response = None
@@ -222,15 +256,15 @@ class QwenAraclariMixin:
                 return _CANCELLED
 
             try:
-               response = self._chat(
-                model=OLLAMA_MODEL,
-                messages=messages,
-                tools=tools,
-                stream=False,
-                think=True,
-                options={"num_ctx": OLLAMA_CONTEXT_SIZE},
-            )
-            
+                response = self._chat(
+                    model=OLLAMA_MODEL,
+                    messages=messages,
+                    tools=tools,
+                    stream=False,
+                    think=True,
+                    options={"num_ctx": OLLAMA_CONTEXT_SIZE},
+                )
+
             except Exception as exc:
                 print(
                     f"[QWEN HATA] {type(exc).__name__}: {exc}",
@@ -297,6 +331,9 @@ class QwenAraclariMixin:
                         name,
                         arguments,
                     )
+
+                    if result is _CANCELLED:
+                        return _CANCELLED
 
                     if is_web_research_tool:
                         web_research_tool_calls += 1
