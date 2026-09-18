@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/style_bolumler/dosya_menu.css">
 <link rel="stylesheet" href="css/style_bolumler/kayitlar.css">
 <link rel="stylesheet" href="css/style_bolumler/sohbet_alani.css">
+<link rel="stylesheet" href="css/style_bolumler/model_secimi.css">
 </head>
 <body>
     <div class="app-shell">
@@ -247,6 +248,58 @@
           <textarea id="messageInput" rows="2" placeholder="Gakko'ya mesaj yaz..."></textarea>
           <button type="submit" class="send" id="sendButton" title="Gönder">↑</button>
         </form>
+
+        <div class="model-secim-satiri">
+          <div class="model-secici" id="modelSecici">
+            <div class="model-secim-menu" id="modelSecimMenu" hidden>
+              <button class="model-secim-option model-secim-option-kod" type="button" data-model-mode="kod" title="Kod">
+                <span class="model-secim-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m8 8-4 4 4 4"/>
+                    <path d="m16 8 4 4-4 4"/>
+                    <path d="m14 5-4 14"/>
+                  </svg>
+                </span>
+                <span>Kod</span>
+              </button>
+
+              <button class="model-secim-option model-secim-option-normal" type="button" data-model-mode="normal" title="Normal">
+                <span class="model-secim-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 6h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-8l-5 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"/>
+                  </svg>
+                </span>
+                <span>Normal</span>
+              </button>
+
+              <button class="model-secim-option model-secim-option-auto is-selected" type="button" data-model-mode="auto" title="Otomatik">
+                <span class="model-secim-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="7" width="14" height="11" rx="3"/>
+                    <path d="M12 4v3"/>
+                    <path d="M9 12h.01M15 12h.01"/>
+                    <path d="M9 15h6"/>
+                  </svg>
+                </span>
+                <span>Otomatik</span>
+              </button>
+            </div>
+
+            <button class="model-secim-trigger" id="modelSecimTrigger" type="button" aria-expanded="false" aria-controls="modelSecimMenu" title="Model seçimi">
+              <span class="model-secim-trigger-icon model-secim-trigger-auto" id="modelSecimTriggerIcon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="7" width="14" height="11" rx="3"/>
+                  <path d="M12 4v3"/>
+                  <path d="M9 12h.01M15 12h.01"/>
+                  <path d="M9 15h6"/>
+                </svg>
+              </span>
+              <span id="modelSecimTriggerLabel">Otomatik</span>
+              <span class="model-secim-arrow" aria-hidden="true">‹</span>
+            </button>
+          </div>
+        </div>
+
         <div class="note" id="statusNote">Gakko AI</div>
       </section>
     </main>
@@ -263,6 +316,7 @@
 <script src="js/app_bolumler/sohbet_gorunumleri_app.js"></script>
 <script src="js/app_bolumler/kayitlar.js"></script>
 <script src="js/app_bolumler/dosya_koprusu_app.js"></script>
+<script src="js/app_bolumler/model_secimi.js"></script>
 
 </body>
 </html>

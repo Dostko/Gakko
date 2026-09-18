@@ -78,6 +78,7 @@ class ChatBridge(QObject):
         self._history_capture_reply = False
         self.history_bridge = SohbetGecmisiKoprusu(self)
         self.sohbet_gezgini = SohbetGezgini(self)
+        self._model_mode = "auto"
         self._generated_images_temp = tempfile.TemporaryDirectory(
             prefix="gakko_uretilen_",
             ignore_cleanup_errors=True,
@@ -89,6 +90,7 @@ class ChatBridge(QObject):
             self.active_project_root,
             self._generated_images_root,
         )
+        self.session.set_model_mode(self._model_mode)
         self._busy = False
         self._pending_message = None
         self._clipboard_temp_files = set()
@@ -162,6 +164,7 @@ class ChatBridge(QObject):
             selected_root,
             self._generated_images_root,
         )
+        self.session.set_model_mode(self._model_mode)
         self._bind_session(self.session)
         self._pending_message = startup_prompt
         self._busy = False
@@ -295,6 +298,17 @@ class ChatBridge(QObject):
         if not self.session.submit_prompt(prompt):
             self._busy = False
             self._history_capture_reply = False
+
+    @Slot(str)
+    def set_model_mode(self, mode):
+        normalized = str(mode or "").strip().casefold()
+
+        if normalized not in {"auto", "normal", "kod"}:
+            self.error_ready.emit("Geçersiz model seçimi.")
+            return
+
+        self._model_mode = normalized
+        self.session.set_model_mode(normalized)
 
     @Slot()
     def reset_qwen_context(self):

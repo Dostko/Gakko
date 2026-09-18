@@ -20,22 +20,35 @@ const SIDEBAR_MAX_WIDTH = 520;
 
 // SOL PANEL GENISLIGI: BASLANGIC
 function clampSidebarWidth(width) {
-  const viewportLimit = Math.max(SIDEBAR_MIN_WIDTH, Math.floor(window.innerWidth * 0.55));
+  const viewportLimit = Math.max(
+    SIDEBAR_MIN_WIDTH,
+    Math.floor(window.innerWidth * 0.55)
+  );
+
   return Math.max(
     SIDEBAR_MIN_WIDTH,
-    Math.min(Number(width) || 180, SIDEBAR_MAX_WIDTH, viewportLimit)
+    Math.min(
+      Number(width) || 180,
+      SIDEBAR_MAX_WIDTH,
+      viewportLimit
+    )
   );
 }
 
 function applySidebarWidth(width) {
   sidebarOpenWidth = clampSidebarWidth(width);
-  appShell.style.setProperty("--sidebar-open-width", `${sidebarOpenWidth}px`);
+
+  appShell.style.setProperty(
+    "--sidebar-open-width",
+    `${sidebarOpenWidth}px`
+  );
 }
 // SOL PANEL GENISLIGI: BITIS
 
 // PROJE GOSTERIMI: BASLANGIC
 function showActiveProject(path, startsProjectMethod) {
   const projectPath = String(path || "").trim();
+
   if (!projectPath) {
     return;
   }
@@ -53,11 +66,13 @@ function showActiveProject(path, startsProjectMethod) {
   if (startsProjectMethod) {
     projectMenu.hidden = false;
     projectButton.setAttribute("aria-expanded", "true");
+
     syncSidebarActiveState(true);
     setWaiting(true);
   } else {
     projectMenu.hidden = true;
     projectButton.setAttribute("aria-expanded", "false");
+
     syncSidebarActiveState(false);
   }
 }
@@ -71,17 +86,30 @@ function syncSidebarActiveState(projectOpen = false) {
   const chatOpen = currentView === "chat";
 
   projectButton.classList.toggle("active", projectOpen);
-  historyButton.classList.toggle("active", !projectOpen && historyOpen);
+
+  historyButton.classList.toggle(
+    "active",
+    !projectOpen && historyOpen
+  );
 
   if (fileButton) {
-    fileButton.classList.toggle("active", !projectOpen && filesOpen);
+    fileButton.classList.toggle(
+      "active",
+      !projectOpen && filesOpen
+    );
   }
 
   if (recordsButton) {
-    recordsButton.classList.toggle("active", !projectOpen && recordsOpen);
+    recordsButton.classList.toggle(
+      "active",
+      !projectOpen && recordsOpen
+    );
   }
 
-  chatButton.classList.toggle("active", !projectOpen && chatOpen);
+  chatButton.classList.toggle(
+    "active",
+    !projectOpen && chatOpen
+  );
 }
 // SOL MENU AKTIF DURUMU: BITIS
 
@@ -89,12 +117,18 @@ function syncSidebarActiveState(projectOpen = false) {
 function closeProjectMenu() {
   projectMenu.hidden = true;
   projectButton.setAttribute("aria-expanded", "false");
+
   syncSidebarActiveState(false);
 }
 
 function setSidebarOpen(opened) {
   appShell.classList.toggle("sidebar-open", opened);
-  sidebarToggle.setAttribute("aria-expanded", String(opened));
+
+  sidebarToggle.setAttribute(
+    "aria-expanded",
+    String(opened)
+  );
+
   sidebarToggle.title = opened
     ? "Menüyü kapat"
     : "Menüyü aç";
@@ -104,26 +138,36 @@ function setSidebarOpen(opened) {
   }
 }
 
+// Sol panel yalnız G düğmesi ile açılır ve kapanır.
 sidebarToggle.addEventListener("click", () => {
-  setSidebarOpen(!appShell.classList.contains("sidebar-open"));
+  setSidebarOpen(
+    !appShell.classList.contains("sidebar-open")
+  );
 });
 
 projectButton.addEventListener("click", () => {
-  if (!appShell.classList.contains("sidebar-open")) {
-    setSidebarOpen(true);
-  }
-
   const opened = projectMenu.hidden;
+
   projectMenu.hidden = !opened;
-  projectButton.setAttribute("aria-expanded", String(opened));
+
+  projectButton.setAttribute(
+    "aria-expanded",
+    String(opened)
+  );
+
   syncSidebarActiveState(opened);
 });
 
 newProjectButton.addEventListener("click", () => {
   closeProjectMenu();
 
-  if (!bridge || typeof bridge.start_new_project !== "function") {
-    statusNote.textContent = "Yeni proje bağlantısı henüz hazır değil";
+  if (
+    !bridge ||
+    typeof bridge.start_new_project !== "function"
+  ) {
+    statusNote.textContent =
+      "Yeni proje bağlantısı henüz hazır değil";
+
     return;
   }
 
@@ -133,8 +177,13 @@ newProjectButton.addEventListener("click", () => {
 openProjectButton.addEventListener("click", () => {
   closeProjectMenu();
 
-  if (!bridge || typeof bridge.select_project_folder !== "function") {
-    statusNote.textContent = "Proje seçici henüz hazır değil";
+  if (
+    !bridge ||
+    typeof bridge.select_project_folder !== "function"
+  ) {
+    statusNote.textContent =
+      "Proje seçici henüz hazır değil";
+
     return;
   }
 
@@ -143,25 +192,42 @@ openProjectButton.addEventListener("click", () => {
 // PROJE MENUSU: BITIS
 
 // SOL PANEL BOYUTLANDIRMA: BASLANGIC
-sidebarResizer.addEventListener("pointerdown", event => {
-  if (!appShell.classList.contains("sidebar-open")) {
-    return;
+sidebarResizer.addEventListener(
+  "pointerdown",
+  event => {
+    if (
+      !appShell.classList.contains("sidebar-open")
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    resizingSidebar = true;
+
+    appShell.classList.add("sidebar-resizing");
+
+    sidebarResizer.setPointerCapture(
+      event.pointerId
+    );
   }
+);
 
-  event.preventDefault();
-  resizingSidebar = true;
-  appShell.classList.add("sidebar-resizing");
-  sidebarResizer.setPointerCapture(event.pointerId);
-});
+sidebarResizer.addEventListener(
+  "pointermove",
+  event => {
+    if (!resizingSidebar) {
+      return;
+    }
 
-sidebarResizer.addEventListener("pointermove", event => {
-  if (!resizingSidebar) {
-    return;
+    const shellLeft =
+      appShell.getBoundingClientRect().left;
+
+    applySidebarWidth(
+      event.clientX - shellLeft
+    );
   }
-
-  const shellLeft = appShell.getBoundingClientRect().left;
-  applySidebarWidth(event.clientX - shellLeft);
-});
+);
 
 function finishSidebarResize(event) {
   if (!resizingSidebar) {
@@ -169,15 +235,31 @@ function finishSidebarResize(event) {
   }
 
   resizingSidebar = false;
-  appShell.classList.remove("sidebar-resizing");
 
-  if (sidebarResizer.hasPointerCapture(event.pointerId)) {
-    sidebarResizer.releasePointerCapture(event.pointerId);
+  appShell.classList.remove(
+    "sidebar-resizing"
+  );
+
+  if (
+    sidebarResizer.hasPointerCapture(
+      event.pointerId
+    )
+  ) {
+    sidebarResizer.releasePointerCapture(
+      event.pointerId
+    );
   }
 }
 
-sidebarResizer.addEventListener("pointerup", finishSidebarResize);
-sidebarResizer.addEventListener("pointercancel", finishSidebarResize);
+sidebarResizer.addEventListener(
+  "pointerup",
+  finishSidebarResize
+);
+
+sidebarResizer.addEventListener(
+  "pointercancel",
+  finishSidebarResize
+);
 
 window.addEventListener("resize", () => {
   applySidebarWidth(sidebarOpenWidth);

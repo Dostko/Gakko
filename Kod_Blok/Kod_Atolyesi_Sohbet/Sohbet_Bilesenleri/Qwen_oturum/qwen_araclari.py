@@ -190,8 +190,12 @@ class QwenAraclariMixin:
     def _tools_for_prompt(self, user_text, runtime):
         text = str(user_text or "").casefold()
         tools = list(runtime.tools)
+        model_mode = str(getattr(self, "_model_mode", "auto") or "auto")
 
-        if self._has_visual_attachment_context(user_text):
+        if (
+            model_mode == "auto"
+            and self._has_visual_attachment_context(user_text)
+        ):
             tools.append(KODCU_AI_TOOL)
 
         if any(term in text for term in DIRECTORY_TREE_REQUEST_TERMS):
@@ -205,16 +209,26 @@ class QwenAraclariMixin:
         ]
 
     def _prepare_coder_context(self, user_text):
-        if self._has_visual_attachment_context(user_text):
+        model_mode = str(getattr(self, "_model_mode", "auto") or "auto")
+
+        if model_mode == "normal":
             return user_text
 
-        if not kod_gorevi_mi(user_text):
-            return user_text
+        if model_mode == "auto":
+            if self._has_visual_attachment_context(user_text):
+                return user_text
+
+            if not kod_gorevi_mi(user_text):
+                return user_text
 
         activity = {"name": "kodcu_ai"}
         self.tool_activity.emit(json.dumps(activity, ensure_ascii=False))
         print(
-            "[GAKKO KODCU] Kod görevi algılandı; Kodcu çağrılıyor.",
+            (
+                "[GAKKO KODCU] Kod modu seçildi; Kodcu çağrılıyor."
+                if model_mode == "kod"
+                else "[GAKKO KODCU] Kod görevi algılandı; Kodcu çağrılıyor."
+            ),
             flush=True,
         )
 

@@ -1,3 +1,4 @@
+import ctypes
 import json
 import sys
 from importlib.util import module_from_spec, spec_from_file_location
@@ -34,7 +35,50 @@ def _load_records_bridge_class():
 
 
 KayitlarKoprusu = _load_records_bridge_class()
+def _apply_windows_dark_titlebar(window):
+    if sys.platform != "win32":
+        return
 
+    hwnd = int(window.winId())
+    dwmapi = ctypes.WinDLL("dwmapi")
+
+    DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+    DWMWA_BORDER_COLOR = 34
+    DWMWA_CAPTION_COLOR = 35
+    DWMWA_TEXT_COLOR = 36
+
+    dark_mode = ctypes.c_int(1)
+
+    black = ctypes.c_uint(0x000000)
+    white = ctypes.c_uint(0x00FFFFFF)
+
+    dwmapi.DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_USE_IMMERSIVE_DARK_MODE,
+        ctypes.byref(dark_mode),
+        ctypes.sizeof(dark_mode),
+    )
+
+    dwmapi.DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_CAPTION_COLOR,
+        ctypes.byref(black),
+        ctypes.sizeof(black),
+    )
+
+    dwmapi.DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_TEXT_COLOR,
+        ctypes.byref(white),
+        ctypes.sizeof(white),
+    )
+
+    dwmapi.DwmSetWindowAttribute(
+        hwnd,
+        DWMWA_BORDER_COLOR,
+        ctypes.byref(black),
+        ctypes.sizeof(black),
+    )
 
 class AttachmentWebView(QWebEngineView):
     DROP_ZONE_HEIGHT = 240
@@ -209,7 +253,7 @@ def main():
 
     window = GakkoSohbetPenceresi()
     window.show()
-
+    _apply_windows_dark_titlebar(window)
     sys.exit(app.exec())
 
 

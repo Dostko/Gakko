@@ -65,10 +65,20 @@ class QwenSession(
         self._system_message = None
         self._active_image_path = None
         self._generated_image_paths = {}
+        self._model_mode = "auto"
 
     @property
     def is_ready(self):
         return self._ready
+
+    def set_model_mode(self, mode):
+        normalized = str(mode or "").strip().casefold()
+
+        if normalized not in {"auto", "normal", "kod"}:
+            return False
+
+        self._model_mode = normalized
+        return True
 
     def _startup_message(self, qwen_md_text):
         active_project = (
