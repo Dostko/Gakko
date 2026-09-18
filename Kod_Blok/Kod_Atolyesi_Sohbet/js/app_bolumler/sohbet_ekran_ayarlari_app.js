@@ -125,6 +125,10 @@ function addMessage(text, role, attachments = [], thinkingDuration = "") {
     renderUserMessage(el, text, attachments);
   }
 
+  if (String(text || "").trim()) {
+    el.appendChild(createMessageCopyButton(text));
+  }
+
   messages.appendChild(el);
   welcome.classList.add("hidden");
 

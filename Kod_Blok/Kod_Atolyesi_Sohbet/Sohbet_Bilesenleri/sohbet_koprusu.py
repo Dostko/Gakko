@@ -5,6 +5,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 
 from PySide6.QtCore import QObject, QSettings, Signal, Slot
 
+from Sohbet_Bilesenleri.ekran_gorunum import EkranGorunum
 from Sohbet_Bilesenleri.proje_dosya_yardimcilari import (
     build_attachment_history_message,
     build_attachment_prompt,
@@ -78,6 +79,7 @@ class ChatBridge(QObject):
         self._history_capture_reply = False
         self.history_bridge = SohbetGecmisiKoprusu(self)
         self.sohbet_gezgini = SohbetGezgini(self)
+        self.ekran_gorunum = EkranGorunum()
         self._model_mode = "auto"
         self._generated_images_temp = tempfile.TemporaryDirectory(
             prefix="gakko_uretilen_",
@@ -237,6 +239,10 @@ class ChatBridge(QObject):
     @Slot(str)
     def add_clipboard_image(self, data_url):
         self.sohbet_gezgini.add_clipboard_image(data_url)
+
+    @Slot(str, result=bool)
+    def copy_text_to_clipboard(self, text):
+        return self.ekran_gorunum.copy_text_to_clipboard(text)
 
     @Slot()
     def start_new_project(self):
