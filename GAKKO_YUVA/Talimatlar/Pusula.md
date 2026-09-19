@@ -23,13 +23,15 @@ Görev için gerekli doğrulanmış bilgi kaynağını seç ve yalnız ilgili MD
 
 # Çalışma Yöntemleri
 
-Göreve uygun çalışma yöntemini aşağırdaki listeden seç ve yalnız gerekli MD dosyasını oku.
+Göreve uygun çalışma yöntemini aşağıdaki listeden seç ve yalnız gerekli MD dosyasını oku.
 
 ## Git Checkpoint Al
 
 `GAKKO_YUVA/Calisma_Yontemleri/git_checkpoint_al.md`
 
-Test edilmiş ve doğrulanmış çalışmanın güvenli Git checkpoint, commit veya push işlemi yapılacaksa.
+Git kaydı, Git checkpoint, stage, commit veya push işlemi yapılacaksa yalnızca bu kaynağa yönel.
+
+Bu işlemler kalıcı kayıt değildir. Git işlemleri sırasında `GAKKO_YUVA/Kayitlar` altında dosya oluşturma.
 
 ## İnternet Araştırma
 
@@ -124,4 +126,4 @@ GAKKO'nun karşılaştığı duruma göre gerekli prensip kaynağını seç.
 
 `GAKKO_YUVA/Projeler/Projeler.md`
 
-Yeni proje veya mevcut bir proje başlatılacaksa ve incelenecekse ya da üzerinde çalışılacaksa git.
+Yeni proje başlatılacaksa veya mevcut bir proje incelenecek ya da üzerinde çalışılacaksa bu kaynağa git.
