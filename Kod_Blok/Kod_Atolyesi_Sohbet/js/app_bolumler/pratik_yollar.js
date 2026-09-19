@@ -27,8 +27,15 @@
       command: "/git",
       title: "Git",
       description: "Mevcut çalışma için güvenli checkpoint al",
-      prompt: "Git kaydında pusula yönerglerine göre al.",
-      inlinePrompt: "Git kaydını yönergelere göre al."
+      prompt: "Git kaydını Pusula yönergelerine göre al. Checkpoint tamamlandıktan sonra Git push için ayrıca onayımı iste.",
+      inlinePrompt: "Git kaydını Pusula yönergelerine göre al ve checkpoint tamamlandıktan sonra Git push için ayrıca onayımı iste."
+    },
+    {
+      command: "/kayit",
+      title: "Kayıt",
+      description: "Bugünkü çalışmayı özetle ve kayıt için onay iste",
+      prompt: "Mevcut sohbet geçmişini incele. Bu komutun kendisini veya kullanıcının kayıt istemiş olmasını özetleme. Bugün bu sohbet içinde gerçekten yapılan önemli işleri, alınan kararları, tamamlanan değişiklikleri, test sonuçlarını ve kaldığımız noktayı çıkar. Bunlardan kısa ama yeterli bir kalıcı kayıt özeti hazırla. Henüz hiçbir dosyaya yazma. Hazırladığın özeti kullanıcıya göster ve yalnız kullanıcı açıkça onay verirse GAKKO_YUVA/Kayitlar/ içine kalıcı kayıt oluştur.",
+      inlinePrompt: "bu bilgiyle birlikte mevcut sohbet geçmişindeki ilgili çalışma bağlamını incele; komutun kendisini değil gerçek yapılan işi özetle, henüz kaydetme ve kayıt öncesinde onayımı iste."
     },
     {
       command: "/ozet",
