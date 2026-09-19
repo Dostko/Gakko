@@ -16,8 +16,9 @@ from Sohbet_Bilesenleri.proje_dosya_yardimcilari import (
 PROJELER_YONTEMI = (
     PROJECT_ROOT
     / "GAKKO_YUVA"
-    / "Calisma_Yontemleri"
-    / "projeler.md"
+    / "Projeler"
+    / "Projelendirme"
+    / "Calisma_Yonu.md"
 )
 
 
