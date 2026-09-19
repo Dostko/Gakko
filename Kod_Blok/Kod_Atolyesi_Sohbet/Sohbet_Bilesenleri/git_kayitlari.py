@@ -145,8 +145,19 @@ async def call_git_tool(owner, runtime, name, arguments):
             arguments["repo_path"],
         )
 
-    return await owner._call_mcp_tool(
+    result = await owner._call_mcp_tool(
         runtime.git_client,
         name,
         arguments,
     )
+
+    if name == "git_commit":
+        return (
+            f"{result}\n\n"
+            "[GIT AKIŞI] Commit başarılıysa cevabı bitirme. "
+            "Kullanıcıya tam olarak 'Git push yapmamı "
+            "onaylıyor musunuz?' diye sor. Kullanıcı açıkça "
+            "onay vermeden git_push aracını kullanma."
+        )
+
+    return result
