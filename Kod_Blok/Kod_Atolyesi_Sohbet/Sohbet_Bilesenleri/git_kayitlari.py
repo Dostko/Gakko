@@ -1,12 +1,31 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 from mcp import StdioServerParameters
 
 from .Qwen_oturum.qwen_ayarlar import PROJECT_ROOT
+
+
+GIT_PUSH_TOOL_NAME = "git_push"
+GIT_PUSH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": GIT_PUSH_TOOL_NAME,
+        "description": (
+            "Aktif master branch'ini origin/master uzak dalına gönderir. "
+            "Yalnız kullanıcı açıkça onay verdikten sonra kullan."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+}
 
 
 def _git_runner():
@@ -67,6 +86,11 @@ async def load_git_tools(git_client, tool_schema):
 
     tools = [tool_schema(tool) for tool in remote_tools]
     names = frozenset(str(tool.name) for tool in remote_tools)
+
+    if GIT_PUSH_TOOL_NAME not in names:
+        tools.append(GIT_PUSH_TOOL)
+        names = names | {GIT_PUSH_TOOL_NAME}
+
     return remote_tools, tools, names
 
 
@@ -76,8 +100,51 @@ def _prepare_git_arguments(arguments, project_root):
     return prepared
 
 
+def push_active_master(repo_path, runner=subprocess.run):
+    repo = str(Path(repo_path).resolve())
+    run_options = {
+        "capture_output": True,
+        "text": True,
+        "encoding": "utf-8",
+        "errors": "replace",
+        "check": False,
+    }
+
+    branch_result = runner(
+        ["git", "-C", repo, "branch", "--show-current"],
+        **run_options,
+    )
+    if branch_result.returncode != 0:
+        detail = (branch_result.stderr or branch_result.stdout).strip()
+        return f"[GIT HATA] Aktif branch okunamadı: {detail}"
+
+    branch = branch_result.stdout.strip()
+    if branch != "master":
+        return (
+            "[GIT HATA] Push durduruldu: aktif branch "
+            f"'{branch or 'bilinmiyor'}'; beklenen branch 'master'."
+        )
+
+    push_result = runner(
+        ["git", "-C", repo, "push", "origin", "master"],
+        **run_options,
+    )
+    detail = (push_result.stdout or push_result.stderr).strip()
+    if push_result.returncode != 0:
+        return f"[GIT HATA] Git push başarısız: {detail}"
+
+    return f"[GIT PUSH BAŞARILI] origin/master\n{detail}".rstrip()
+
+
 async def call_git_tool(owner, runtime, name, arguments):
     arguments = _prepare_git_arguments(arguments, PROJECT_ROOT)
+
+    if name == GIT_PUSH_TOOL_NAME:
+        return await asyncio.to_thread(
+            push_active_master,
+            arguments["repo_path"],
+        )
+
     return await owner._call_mcp_tool(
         runtime.git_client,
         name,
