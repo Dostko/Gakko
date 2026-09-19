@@ -15,6 +15,8 @@ GAKKO ana Git repository kökü:
 
 Bu yöntemdeki tüm Git işlemleri bu repository kökünde çalıştırılır.
 
+Git kaydı aktif `master` branch'i üzerinde alınır. Kullanıcı açıkça istemedikçe ayrı checkpoint branch'i oluşturma, branch değiştirme veya yeni branch oluşturma.
+
 Kullanıcı kayda alınacak dosyaları açıkça belirttiyse yalnız bu dosyalar işleme alınır.
 
 Dosyalar açıkça belirtilmediyse `git_status` ile değişen dosyalar kontrol edilir ve yalnız mevcut çalışmayla ilgili olanlar seçilir.
@@ -80,6 +82,12 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
 
 13. Çalışma ağacı beklenen durumdaysa checkpoint tamamlanmış kabul edilir.
 
+14. Checkpoint tamamlandıktan sonra kullanıcıya tam olarak `Git push ister misiniz?` diye sor.
+
+15. Kullanıcı açıkça onay vermeden push işlemine geçme.
+
+16. Kullanıcı açıkça onay verdikten sonra `git_push` ile aktif `master` branch'ini uzak depoya gönder ve sonucu doğrula.
+
 ---
 
 ## Temel Kurallar
@@ -99,9 +107,15 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
 
 ## Push
 
+Checkpoint tamamlandıktan sonra kullanıcıya `Git push ister misiniz?` diye sor.
+
+Kullanıcı açıkça onay vermeden push yapma.
+
+Kullanıcı onay verirse `git_push` ile aktif `master` branch'ini uzak depoya gönder ve ardından `git_status` ile sonucu doğrula.
+
 Mevcut Git MCP araçları push işlemi sunmuyorsa push yapılmış gibi davranma.
 
-Kullanıcı uzak depoya push isterse mevcut araçlarla bunun gerçekleştirilemediğini açıkça belirt.
+Kullanıcı push istediğinde mevcut araçlarla gerçekleştirilemiyorsa bunu açıkça belirt.
 
 ---
 

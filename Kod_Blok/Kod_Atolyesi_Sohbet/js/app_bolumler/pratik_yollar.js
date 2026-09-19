@@ -27,8 +27,8 @@
       command: "/git",
       title: "Git",
       description: "Mevcut çalışma için güvenli checkpoint al",
-      prompt: "Mevcut çalışmanın güvenli Git checkpoint kaydını al.",
-      inlinePrompt: "Git checkpoint kaydını al."
+      prompt: "Git kaydında pusula yönerglerine göre al.",
+      inlinePrompt: "Git kaydını yönergelere göre al."
     },
     {
       command: "/ozet",
