@@ -69,7 +69,9 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
 6. Kullanıcı onay verdikten sonra yalnız belirtilen dosyaları `git_add` ile stage alanına ekle.
    İlgisiz dosyaları topluca ekleme.
 
-7. `git_diff_staged` ve `git_status` ile stage edilen değişiklikleri doğrula.
+7. `git_diff_staged` ve `git_status` ile stage alanındaki tüm dosyaları yeniden doğrula.
+   Yalnız son eklenen dosyayı değil, commit'e girecek tam dosya listesini kontrol et.
+   Daha önce stage edilmiş ilgili bir dosya kaybolmuşsa veya stage kapsamı beklenen listeden farklıysa commit işlemine geçme; durumu kullanıcıya göster.
 
 8. Stage sonucunu kullanıcıya göster.
    Beklenmeyen veya ilgisiz bir dosya varsa commit işlemine geçme.
@@ -86,13 +88,15 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
     - son Git durumu,
     - varsa commit dışında kalan değişiklikler.
 
-13. Çalışma ağacı beklenen durumdaysa checkpoint tamamlanmış kabul edilir.
+13. Commit sonucu doğrulandıktan sonra push onayı aşamasına geç.
 
-14. Checkpoint tamamlandıktan sonra kullanıcıya tam olarak `Git push yapmamı onaylıyor musunuz?` diye sor.
+14. Commit başarılı olsa bile cevabı bitirme. Kullanıcıya tam olarak `Git push yapmamı onaylıyor musunuz?` diye sor.
 
 15. Kullanıcı açıkça onay vermeden push işlemine geçme.
 
 16. Kullanıcı açıkça onay verdikten sonra `git_push` ile aktif `master` branch'ini uzak depoya gönder ve sonucu doğrula.
+
+17. Kullanıcı push için `evet` veya `hayır` cevabı vermeden Git checkpoint akışını tamamlanmış sayma.
 
 ---
 
@@ -114,6 +118,8 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
 ## Push
 
 Checkpoint tamamlandıktan sonra kullanıcıya `Git push yapmamı onaylıyor musunuz?` diye sor.
+
+Commit başarı mesajı son cevap değildir. Commit sonucu bildirildikten sonra aynı cevap içinde push onayı sorusunu mutlaka yönelt.
 
 Kullanıcı açıkça onay vermeden push yapma.
 

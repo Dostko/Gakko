@@ -27,8 +27,8 @@
       command: "/git",
       title: "Git",
       description: "Mevcut çalışma için güvenli checkpoint al",
-      prompt: "Git kaydını Pusula yönergelerine göre al. Checkpoint tamamlandıktan sonra Git push için ayrıca onayımı iste.",
-      inlinePrompt: "Git kaydını Pusula yönergelerine göre al ve checkpoint tamamlandıktan sonra Git push için ayrıca onayımı iste."
+      prompt: "Git kaydını Pusula yönergelerine göre al.",
+      inlinePrompt: "Git kaydını Pusula yönergelerine göre al."
     },
     {
       command: "/kayit",
