@@ -11,6 +11,7 @@ from ..internet_giris import (
     INTERNET_TOOL_NAMES,
     internet_araci_calistir,
 )
+from ..git_kayitlari import call_git_tool
 from .ai_arac_cagrisi import (
     KODCU_AI_TOOL,
     KODCU_AI_TOOL_NAME,
@@ -269,11 +270,7 @@ class QwenAraclariMixin:
             )
 
         if name in runtime.git_tool_names:
-            return await self._call_mcp_tool(
-                runtime.git_client,
-                name,
-                arguments,
-            )
+            return await call_git_tool(self, runtime, name, arguments)
 
         if name in INTERNET_TOOL_NAMES:
             return internet_araci_calistir(name, arguments)
@@ -342,10 +339,6 @@ class QwenAraclariMixin:
 
                 if not name:
                     raise RuntimeError("Qwen araç çağrısında araç adı yok.")
-
-                if name in runtime.git_tool_names:
-                    arguments = dict(arguments)
-                    arguments["repo_path"] = str(PROJECT_ROOT.resolve())
 
                 arguments = self._prepare_mcp_arguments(name, arguments)
 

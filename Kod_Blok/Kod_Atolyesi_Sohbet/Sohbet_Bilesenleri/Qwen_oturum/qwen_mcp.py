@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import json
 import os
-import shutil
 import time
 from pathlib import Path
 
@@ -13,6 +12,10 @@ from mcp import Client, StdioServerParameters
 from ..internet_giris import (
     INTERNET_TOOL_NAMES,
     INTERNET_TOOLS,
+)
+from ..git_kayitlari import (
+    create_git_server_parameters,
+    load_git_tools,
 )
 from .qwen_ayarlar import (
     PROJECT_ROOT,
@@ -105,40 +108,6 @@ def _mcp_text(result, arguments=None):
     return "\n".join(chunks).strip()
 
 
-def _git_runner():
-    uvx_path = shutil.which("uvx")
-    if uvx_path:
-        return uvx_path, ["mcp-server-git"]
-
-    uv_path = shutil.which("uv")
-    if uv_path:
-        return uv_path, ["tool", "run", "mcp-server-git"]
-
-    local_appdata = os.environ.get("LOCALAPPDATA", "")
-    if local_appdata:
-        packages_root = (
-            Path(local_appdata)
-            / "Microsoft"
-            / "WinGet"
-            / "Packages"
-        )
-        candidates = sorted(
-            packages_root.glob(
-                "astral-sh.uv_Microsoft.Winget.Source_*/uv.exe"
-            )
-        )
-        if candidates:
-            return str(candidates[0]), [
-                "tool",
-                "run",
-                "mcp-server-git",
-            ]
-
-    raise RuntimeError(
-        "Git MCP başlatılamadı: uv/uvx bulunamadı."
-    )
-
-
 class QwenMCPMixin:
     def _mcp_allowed_paths(self):
         candidates = [
@@ -222,23 +191,15 @@ class QwenMCPMixin:
             env=self._mcp_environment(),
         )
 
-    def _git_server_parameters(self):
-        command, args = _git_runner()
-        return StdioServerParameters(
-            command=command,
-            args=[
-                *args,
-                "--repository",
-                str(PROJECT_ROOT.resolve()),
-            ],
-            env=self._mcp_environment(),
-        )
-
     @asynccontextmanager
     async def _mcp_runtime(self):
         async with Client(self._mcp_server_parameters()) as client:
             async with Client(self._ripgrep_server_parameters()) as search_client:
-                async with Client(self._git_server_parameters()) as git_client:
+                git_parameters = create_git_server_parameters(
+                    PROJECT_ROOT,
+                    self._mcp_environment(),
+                )
+                async with Client(git_parameters) as git_client:
                     response = await client.list_tools()
                     remote_tools = list(
                         getattr(response, "tools", response) or ()
@@ -264,15 +225,12 @@ class QwenMCPMixin:
                             "Ripgrep MCP 'search' aracını sunmadı."
                         )
 
-                    git_response = await git_client.list_tools()
-                    remote_git_tools = list(
-                        getattr(git_response, "tools", git_response) or ()
-                    )
-
-                    if not remote_git_tools:
-                        raise RuntimeError(
-                            "Git MCP hiçbir araç sunmadı."
+                    remote_git_tools, git_tools, git_names = (
+                        await load_git_tools(
+                            git_client,
+                            _mcp_tool_schema,
                         )
+                    )
 
                     mcp_tools = [
                         _mcp_tool_schema(tool)
@@ -282,11 +240,6 @@ class QwenMCPMixin:
                         _mcp_tool_schema(tool)
                         for tool in visible_search_tools
                     ]
-                    git_tools = [
-                        _mcp_tool_schema(tool)
-                        for tool in remote_git_tools
-                    ]
-
                     names = frozenset(
                         str(tool.name)
                         for tool in visible_tools
@@ -295,11 +248,6 @@ class QwenMCPMixin:
                         str(tool.name)
                         for tool in visible_search_tools
                     )
-                    git_names = frozenset(
-                        str(tool.name)
-                        for tool in remote_git_tools
-                    )
-
                     if search_names & names:
                         raise RuntimeError(
                             "Filesystem MCP ile Ripgrep MCP araç adları çakışıyor."
