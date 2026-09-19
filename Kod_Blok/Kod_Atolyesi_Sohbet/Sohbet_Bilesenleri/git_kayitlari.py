@@ -8,9 +8,6 @@ from pathlib import Path
 
 from mcp import StdioServerParameters
 
-from .Qwen_oturum.qwen_ayarlar import PROJECT_ROOT
-
-
 GIT_PUSH_TOOL_NAME = "git_push"
 GIT_PUSH_TOOL = {
     "type": "function",
@@ -75,6 +72,60 @@ def create_git_server_parameters(project_root, environment):
     )
 
 
+def resolve_git_repository(project_root, runner=subprocess.run):
+    project_path = str(Path(project_root).resolve())
+    result = runner(
+        [
+            "git",
+            "-C",
+            project_path,
+            "rev-parse",
+            "--show-toplevel",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+    if result.returncode != 0:
+        return None
+
+    repository_root = result.stdout.strip()
+    if not repository_root:
+        return None
+
+    return Path(repository_root).resolve()
+
+
+def initialize_git_repository(project_root, runner=subprocess.run):
+    project_path = Path(project_root).resolve()
+    result = runner(
+        [
+            "git",
+            "-C",
+            str(project_path),
+            "init",
+            "-b",
+            "master",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RuntimeError(
+            f"Git repository oluşturulamadı: {detail}"
+        )
+
+    return project_path
+
+
 async def load_git_tools(git_client, tool_schema):
     response = await git_client.list_tools()
     remote_tools = list(
@@ -137,7 +188,10 @@ def push_active_master(repo_path, runner=subprocess.run):
 
 
 async def call_git_tool(owner, runtime, name, arguments):
-    arguments = _prepare_git_arguments(arguments, PROJECT_ROOT)
+    arguments = _prepare_git_arguments(
+        arguments,
+        runtime.git_repo_root,
+    )
 
     if name == GIT_PUSH_TOOL_NAME:
         return await asyncio.to_thread(

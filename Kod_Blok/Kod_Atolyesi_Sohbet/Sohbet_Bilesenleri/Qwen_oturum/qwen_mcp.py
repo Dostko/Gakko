@@ -16,6 +16,7 @@ from ..internet_giris import (
 from ..git_kayitlari import (
     create_git_server_parameters,
     load_git_tools,
+    resolve_git_repository,
 )
 from .qwen_ayarlar import (
     PROJECT_ROOT,
@@ -34,7 +35,8 @@ RIPGREP_MAX_OUTPUT_BYTES = 1000000
 class MCPRuntime:
     client: Client
     search_client: Client
-    git_client: Client
+    git_client: Client | None
+    git_repo_root: Path | None
     tool_names: frozenset[str]
     search_tool_names: frozenset[str]
     git_tool_names: frozenset[str]
@@ -192,14 +194,38 @@ class QwenMCPMixin:
         )
 
     @asynccontextmanager
+    async def _git_mcp_client(self):
+        project_root = (
+            self.active_project_root
+            if self.active_project_root is not None
+            else PROJECT_ROOT
+        )
+        git_repo_root = resolve_git_repository(project_root)
+
+        if git_repo_root is None:
+            print(
+                "[GIT DEVRE DIŞI] Aktif proje Git repository değil: "
+                f"{Path(project_root).resolve()}",
+                flush=True,
+            )
+            yield None, None
+            return
+
+        git_parameters = create_git_server_parameters(
+            git_repo_root,
+            self._mcp_environment(),
+        )
+        async with Client(git_parameters) as git_client:
+            yield git_client, git_repo_root
+
+    @asynccontextmanager
     async def _mcp_runtime(self):
         async with Client(self._mcp_server_parameters()) as client:
             async with Client(self._ripgrep_server_parameters()) as search_client:
-                git_parameters = create_git_server_parameters(
-                    PROJECT_ROOT,
-                    self._mcp_environment(),
-                )
-                async with Client(git_parameters) as git_client:
+                async with self._git_mcp_client() as (
+                    git_client,
+                    git_repo_root,
+                ):
                     response = await client.list_tools()
                     remote_tools = list(
                         getattr(response, "tools", response) or ()
@@ -225,12 +251,17 @@ class QwenMCPMixin:
                             "Ripgrep MCP 'search' aracını sunmadı."
                         )
 
-                    remote_git_tools, git_tools, git_names = (
-                        await load_git_tools(
-                            git_client,
-                            _mcp_tool_schema,
+                    if git_client is None:
+                        remote_git_tools = []
+                        git_tools = []
+                        git_names = frozenset()
+                    else:
+                        remote_git_tools, git_tools, git_names = (
+                            await load_git_tools(
+                                git_client,
+                                _mcp_tool_schema,
+                            )
                         )
-                    )
 
                     mcp_tools = [
                         _mcp_tool_schema(tool)
@@ -292,6 +323,7 @@ class QwenMCPMixin:
                         client=client,
                         search_client=search_client,
                         git_client=git_client,
+                        git_repo_root=git_repo_root,
                         tool_names=names,
                         search_tool_names=search_names,
                         git_tool_names=git_names,

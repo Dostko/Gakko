@@ -5,8 +5,12 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QFileDialog
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
+from Sohbet_Bilesenleri.git_kayitlari import (
+    initialize_git_repository,
+    resolve_git_repository,
+)
 from Sohbet_Bilesenleri.proje_dosya_yardimcilari import (
     PROJECT_ROOT,
     list_project_directory,
@@ -271,6 +275,23 @@ class SohbetGezgini:
         if not selected_root.exists() or not selected_root.is_dir():
             self.bridge.error_ready.emit("Seçilen proje klasörü geçerli değil.")
             return
+
+        if resolve_git_repository(selected_root) is None:
+            answer = QMessageBox.question(
+                QApplication.activeWindow(),
+                "Yeni Proje - Git",
+                "Bu proje için master branch'iyle yerel Git "
+                "repository oluşturulsun mu?",
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+
+            if answer == QMessageBox.StandardButton.Yes:
+                try:
+                    initialize_git_repository(selected_root)
+                except RuntimeError as error:
+                    self.bridge.error_ready.emit(str(error))
 
         self.bridge._activate_project(
             selected_root,
