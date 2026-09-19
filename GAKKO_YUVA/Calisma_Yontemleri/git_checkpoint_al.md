@@ -41,6 +41,10 @@ Dosya ekleme, commit alma veya Git durumunu değiştiren başka bir işlemden ö
 
 Kullanıcı onay vermeden değiştirici Git işlemi uygulama.
 
+Onay beklerken kullanıcıdan komut, dosya listesi veya commit mesajı yazmasını isteme. Uygulanacak işlemi ve kapsamını kendin belirleyip göster, ardından kısa bir onay sorusu sor.
+
+Kullanıcının `evet`, `onaylıyorum` veya `devam et` cevabı yalnız o anda bekleyen tek işlem için geçerlidir. Bu cevap sonraki Git adımlarına peşinen onay sayılmaz.
+
 Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gösterebilirsin.
 
 ---
@@ -59,7 +63,8 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
 
 4. Yapılan değişikliğin gerekli test ve doğrulamalarının geçtiğinden emin ol.
 
-5. Kullanıcıya hangi dosyaların stage alanına ekleneceğini açıkça göster ve onay iste.
+5. Mevcut çalışmayla ilgili olduğunu belirlediğin dosyaları kullanıcıya göster ve açıkça `Bu dosyaları stage alanına eklememi onaylıyor musunuz?` diye sor.
+   Kullanıcıdan dosya adlarını yeniden yazmasını isteme.
 
 6. Kullanıcı onay verdikten sonra yalnız belirtilen dosyaları `git_add` ile stage alanına ekle.
    İlgisiz dosyaları topluca ekleme.
@@ -69,7 +74,8 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
 8. Stage sonucunu kullanıcıya göster.
    Beklenmeyen veya ilgisiz bir dosya varsa commit işlemine geçme.
 
-9. Kullanıcıya kullanılacak kısa ve açık commit mesajını göster ve commit için açık onay iste.
+9. Stage edilen değişikliklere göre kısa ve uygun commit mesajını kendin belirle; kullanıcıdan commit mesajı isteme.
+   Stage sonucunu ve belirlediğin commit mesajını gösterdikten sonra yalnızca `Commit almamı onaylıyor musunuz?` diye sor.
 
 10. Kullanıcı onay verdikten sonra `git_commit` ile commit al.
 
@@ -82,7 +88,7 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
 
 13. Çalışma ağacı beklenen durumdaysa checkpoint tamamlanmış kabul edilir.
 
-14. Checkpoint tamamlandıktan sonra kullanıcıya tam olarak `Git push ister misiniz?` diye sor.
+14. Checkpoint tamamlandıktan sonra kullanıcıya tam olarak `Git push yapmamı onaylıyor musunuz?` diye sor.
 
 15. Kullanıcı açıkça onay vermeden push işlemine geçme.
 
@@ -107,7 +113,7 @@ Salt okuma işlemleriyle mevcut durumu inceleyebilir ve sonucu kullanıcıya gö
 
 ## Push
 
-Checkpoint tamamlandıktan sonra kullanıcıya `Git push ister misiniz?` diye sor.
+Checkpoint tamamlandıktan sonra kullanıcıya `Git push yapmamı onaylıyor musunuz?` diye sor.
 
 Kullanıcı açıkça onay vermeden push yapma.
 
