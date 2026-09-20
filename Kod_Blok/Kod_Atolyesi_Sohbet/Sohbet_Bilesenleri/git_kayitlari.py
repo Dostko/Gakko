@@ -10,6 +10,7 @@ from pathlib import Path
 from mcp import StdioServerParameters
 
 GIT_PUSH_TOOL_NAME = "git_push"
+GIT_COMMIT_VERIFIED_MARKER = "[GIT COMMIT DOĞRULANDI]"
 GIT_PUSH_TOOL = {
     "type": "function",
     "function": {
@@ -29,6 +30,116 @@ GIT_COMMIT_SUCCESS_PATTERNS = (
     r"\bgit kayd[ıi]\b.{0,80}\b(alındı|başarıyla|başarılı|tamamlandı|oluşturuldu)",
     r"\bcommit\b.{0,80}\b(successfully|successful|completed|created)",
 )
+GIT_APPROVAL_ACTIONS = {"git_add", "git_commit", GIT_PUSH_TOOL_NAME}
+GIT_APPROVAL_RESPONSES = {
+    "evet", "evet kanka", "onay", "onaylıyorum", "onayliyorum",
+    "tamam", "tamam kanka", "yap", "devam", "devam et",
+}
+GIT_CANCEL_RESPONSES = {"hayır", "hayir", "iptal", "vazgeç", "vazgec"}
+
+
+def _approval_arguments(arguments):
+    return {
+        key: value for key, value in dict(arguments or {}).items()
+        if key != "repo_path"
+    }
+
+
+def begin_git_approval_turn(owner, user_text):
+    owner._git_approved_action = None
+    pending = getattr(owner, "_git_pending_approval", None)
+    if not pending:
+        return
+
+    response = str(user_text or "").strip().casefold()
+    response = re.sub(r"[.!?]+$", "", response).strip()
+    if response in GIT_CANCEL_RESPONSES:
+        owner._git_pending_approval = None
+        return
+    if response in GIT_APPROVAL_RESPONSES:
+        owner._git_approved_action = pending["action"]
+        if pending.get("arguments") is not None:
+            return {
+                "action": pending["action"],
+                "arguments": dict(pending["arguments"]),
+            }
+
+
+async def execute_approved_git_action(owner, runtime, user_text):
+    request = begin_git_approval_turn(owner, user_text)
+    if request is None:
+        return None, False
+    result = await call_git_tool(
+        owner, runtime, request["action"], request["arguments"]
+    )
+    verified = (
+        request["action"] == "git_commit"
+        and GIT_COMMIT_VERIFIED_MARKER in str(result)
+    )
+    return result, verified
+
+
+def _git_approval_message(action, arguments=None):
+    labels = {
+        "git_add": "GIT ADD",
+        "git_commit": "GIT COMMIT",
+        GIT_PUSH_TOOL_NAME: "GIT PUSH",
+    }
+    detail = ""
+    if action == "git_add":
+        paths = (arguments or {}).get("files") or ()
+        if paths:
+            detail = "\nStage edilecek yollar:\n" + "\n".join(
+                f"- {path}" for path in paths
+            )
+    return (
+        f"[{labels[action]} ONAYI GEREKLİ]{detail}\n"
+        "Bu işlem çalıştırılmadı. Kullanıcıdan açık onay iste ve "
+        "bu cevabı bitir; aynı turda başka Git değişikliği yapma."
+    )
+
+
+def _require_git_approval(owner, action, arguments):
+    current_arguments = _approval_arguments(arguments)
+    pending = getattr(owner, "_git_pending_approval", None)
+    approved_action = getattr(owner, "_git_approved_action", None)
+
+    if pending and pending.get("action") != action:
+        return _git_approval_message(
+            pending["action"],
+            pending.get("arguments"),
+        )
+    if pending and approved_action == action:
+        expected_arguments = pending.get("arguments")
+        if expected_arguments is None or expected_arguments == current_arguments:
+            return None
+
+    owner._git_pending_approval = {
+        "action": action,
+        "arguments": current_arguments,
+    }
+    return _git_approval_message(action, arguments)
+
+
+def _complete_git_action(owner, action):
+    owner._git_approved_action = None
+    next_action = {
+        "git_add": "git_commit",
+        "git_commit": GIT_PUSH_TOOL_NAME,
+    }.get(action)
+    owner._git_pending_approval = (
+        {
+            "action": next_action,
+            "arguments": {} if next_action == GIT_PUSH_TOOL_NAME else None,
+        }
+        if next_action else None
+    )
+
+
+def _git_result_failed(result):
+    return str(result or "").strip().startswith(
+        ("[MCP HATA]", "[GIT HATA]", "[TOOL HATA]")
+    )
 
 
 def guard_git_commit_claim(text, git_commit_verified):
@@ -249,11 +360,24 @@ async def call_git_tool(
         runtime.git_repo_root,
     )
 
+    if name in GIT_APPROVAL_ACTIONS:
+        approval_message = _require_git_approval(
+            owner,
+            name,
+            arguments,
+        )
+        if approval_message is not None:
+            return approval_message
+
     if name == GIT_PUSH_TOOL_NAME:
-        return await asyncio.to_thread(
+        result = await asyncio.to_thread(
             push_active_master,
             arguments["repo_path"],
+            runner,
         )
+        if not _git_result_failed(result):
+            _complete_git_action(owner, name)
+        return result
 
     commit_before = None
     if name == "git_commit":
@@ -290,14 +414,23 @@ async def call_git_tool(
                 "deponun HEAD kimliği değişmedi. Push onayı istenmedi."
             )
 
+        _complete_git_action(owner, name)
         result_prefix = f"{result_text}\n\n" if result_text else ""
         return (
             f"{result_prefix}"
-            f"[GIT COMMIT DOĞRULANDI] {commit_after}\n\n"
+            f"{GIT_COMMIT_VERIFIED_MARKER} {commit_after}\n\n"
             "[GIT AKIŞI] Commit başarılıysa cevabı bitirme. "
             "Kullanıcıya tam olarak 'Git push yapmamı "
             "onaylıyor musunuz?' diye sor. Kullanıcı açıkça "
             "onay vermeden git_push aracını kullanma."
+        )
+
+    if name == "git_add" and not _git_result_failed(result):
+        _complete_git_action(owner, name)
+        return (
+            f"{result}\n\n"
+            "[GIT AKIŞI] Stage işlemi tamamlandı. Commit işlemini "
+            "çalıştırmadan önce kullanıcıdan ayrıca onay iste."
         )
 
     return result

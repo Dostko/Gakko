@@ -11,7 +11,12 @@ from ..internet_giris import (
     INTERNET_TOOL_NAMES,
     internet_araci_calistir,
 )
-from ..git_kayitlari import call_git_tool, guard_git_commit_claim
+from ..git_kayitlari import (
+    GIT_COMMIT_VERIFIED_MARKER,
+    call_git_tool,
+    execute_approved_git_action,
+    guard_git_commit_claim,
+)
 from .ai_arac_cagrisi import (
     KODCU_AI_TOOL,
     KODCU_AI_TOOL_NAME,
@@ -55,9 +60,6 @@ WEB_USAGE_LIMIT_MESSAGE = (
     "web_search/web_fetch sınırı doldu. Yeni internet araması yapma; "
     "mevcut kaynaklarla nihai cevabı üret."
 )
-GIT_COMMIT_VERIFIED_MARKER = "[GIT COMMIT DOĞRULANDI]"
-
-
 class QwenAraclariMixin:
     def _prepare_mcp_arguments(self, name, arguments):
         if not isinstance(arguments, dict):
@@ -279,9 +281,20 @@ class QwenAraclariMixin:
         return f"[TOOL HATA] Bilinmeyen araç: {name}"
 
     async def _chat_with_tools(self, user_text, runtime):
+        approved_git_result, git_commit_verified = (
+            await execute_approved_git_action(self, runtime, user_text)
+        )
         prepared_text = self._prepare_coder_context(user_text)
         if prepared_text is _CANCELLED:
             return _CANCELLED
+
+        if approved_git_result is not None:
+            prepared_text += (
+                "\n\n"
+                "===== ONAYLANAN GIT İŞLEMİ SONUCU =====\n"
+                f"{approved_git_result}\n"
+                "===== /ONAYLANAN GIT İŞLEMİ SONUCU ====="
+            )
 
         messages = self._messages_for_prompt(prepared_text)
         tools = self._tools_for_prompt(prepared_text, runtime)
@@ -289,7 +302,6 @@ class QwenAraclariMixin:
 
         last_response = None
         web_research_tool_calls = 0
-        git_commit_verified = False
 
         for _ in range(MAX_TOOL_ROUNDS):
             if self._stopping:
