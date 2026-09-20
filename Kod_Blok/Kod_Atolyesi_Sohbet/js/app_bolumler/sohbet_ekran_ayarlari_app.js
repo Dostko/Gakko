@@ -38,7 +38,7 @@ divider.style.color = "#566273";
 
 const resetContextButton = document.createElement("button");
 resetContextButton.type = "button";
-resetContextButton.textContent = "Sıfırla";
+resetContextButton.textContent = "Yeni Sayfa";
 resetContextButton.style.minHeight = "28px";
 resetContextButton.style.padding = "0";
 resetContextButton.style.border = "0";
@@ -94,14 +94,13 @@ resetContextButton.addEventListener("click", () => {
     return;
   }
 
-  if (!bridge || typeof bridge.reset_qwen_context !== "function") {
-    statusNote.textContent = "Sıfırlama bağlantısı henüz hazır değil";
+  if (!bridge || typeof bridge.start_new_chat_page !== "function") {
+    statusNote.textContent = "Yeni sayfa bağlantısı henüz hazır değil";
     return;
   }
 
-  remainingDisplay.textContent = "Kalan …";
-  statusNote.textContent = "Bağlam sıfırlanıyor...";
-  bridge.reset_qwen_context();
+  statusNote.textContent = "Yeni sayfa açılıyor...";
+  bridge.start_new_chat_page();
 });
 
 function resize() {

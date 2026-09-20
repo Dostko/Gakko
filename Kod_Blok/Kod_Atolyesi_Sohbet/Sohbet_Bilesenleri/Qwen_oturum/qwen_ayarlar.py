@@ -5,7 +5,7 @@ from pathlib import Path
 
 OLLAMA_HOST = "http://127.0.0.1:11434"
 DAILY_MODEL = "batiai/gemma4-26b:iq3"
-CODER_MODEL = "kodyazar"
+CODER_MODEL = "hf.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS"
 
 OLLAMA_MODEL = DAILY_MODEL
 OLLAMA_CONTEXT_SIZE = 65536

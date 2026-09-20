@@ -10,6 +10,8 @@ function connectBridge() {
     bridge = channel.objects.gakkoBridge;
     recordsBridge = channel.objects.kayitlarBridge || null;
 
+    initializeChatPagination(bridge);
+
     if (recordsBridge) {
       recordsBridge.records_list_ready.connect(payloadText => {
         try {

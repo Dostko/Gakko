@@ -11,7 +11,7 @@ from ..internet_giris import (
     INTERNET_TOOL_NAMES,
     internet_araci_calistir,
 )
-from ..git_kayitlari import call_git_tool
+from ..git_kayitlari import call_git_tool, guard_git_commit_claim
 from .ai_arac_cagrisi import (
     KODCU_AI_TOOL,
     KODCU_AI_TOOL_NAME,
@@ -55,6 +55,7 @@ WEB_USAGE_LIMIT_MESSAGE = (
     "web_search/web_fetch sınırı doldu. Yeni internet araması yapma; "
     "mevcut kaynaklarla nihai cevabı üret."
 )
+GIT_COMMIT_VERIFIED_MARKER = "[GIT COMMIT DOĞRULANDI]"
 
 
 class QwenAraclariMixin:
@@ -288,6 +289,7 @@ class QwenAraclariMixin:
 
         last_response = None
         web_research_tool_calls = 0
+        git_commit_verified = False
 
         for _ in range(MAX_TOOL_ROUNDS):
             if self._stopping:
@@ -328,7 +330,10 @@ class QwenAraclariMixin:
                 final_text = self._rewrite_generated_image_references(
                     final_text
                 )
-                return final_text
+                return guard_git_commit_claim(
+                    final_text,
+                    git_commit_verified,
+                )
 
             for tool_call in tool_calls:
                 if self._stopping or self._cancel_requested.is_set():
@@ -371,6 +376,12 @@ class QwenAraclariMixin:
 
                     if result is _CANCELLED:
                         return _CANCELLED
+
+                    if (
+                        name == "git_commit"
+                        and GIT_COMMIT_VERIFIED_MARKER in str(result)
+                    ):
+                        git_commit_verified = True
 
                     if is_web_research_tool:
                         web_research_tool_calls += 1

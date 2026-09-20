@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -23,6 +24,32 @@ GIT_PUSH_TOOL = {
         },
     },
 }
+GIT_COMMIT_SUCCESS_PATTERNS = (
+    r"\bcommit\b.{0,80}\b(başarıyla|başarılı|tamamlandı|gerçekleştirildi|oluşturuldu)",
+    r"\bgit kayd[ıi]\b.{0,80}\b(alındı|başarıyla|başarılı|tamamlandı|oluşturuldu)",
+    r"\bcommit\b.{0,80}\b(successfully|successful|completed|created)",
+)
+
+
+def guard_git_commit_claim(text, git_commit_verified):
+    final_text = str(text or "").strip()
+
+    if git_commit_verified:
+        return final_text
+
+    normalized = final_text.casefold()
+    claims_success = any(
+        re.search(pattern, normalized, flags=re.DOTALL)
+        for pattern in GIT_COMMIT_SUCCESS_PATTERNS
+    )
+
+    if not claims_success:
+        return final_text
+
+    return (
+        "[GIT HATA] Git commit bu turda Git aracıyla "
+        "doğrulanmadı. Başarı bildirimi engellendi."
+    )
 
 
 def _git_runner():
@@ -151,6 +178,29 @@ def _prepare_git_arguments(arguments, project_root):
     return prepared
 
 
+def _read_head_commit(repo_path, runner=subprocess.run):
+    result = runner(
+        [
+            "git",
+            "-C",
+            str(Path(repo_path).resolve()),
+            "rev-parse",
+            "HEAD",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+    if result.returncode != 0:
+        return None
+
+    commit_id = result.stdout.strip()
+    return commit_id or None
+
+
 def push_active_master(repo_path, runner=subprocess.run):
     repo = str(Path(repo_path).resolve())
     run_options = {
@@ -187,7 +237,13 @@ def push_active_master(repo_path, runner=subprocess.run):
     return f"[GIT PUSH BAŞARILI] origin/master\n{detail}".rstrip()
 
 
-async def call_git_tool(owner, runtime, name, arguments):
+async def call_git_tool(
+    owner,
+    runtime,
+    name,
+    arguments,
+    runner=subprocess.run,
+):
     arguments = _prepare_git_arguments(
         arguments,
         runtime.git_repo_root,
@@ -199,6 +255,14 @@ async def call_git_tool(owner, runtime, name, arguments):
             arguments["repo_path"],
         )
 
+    commit_before = None
+    if name == "git_commit":
+        commit_before = await asyncio.to_thread(
+            _read_head_commit,
+            arguments["repo_path"],
+            runner,
+        )
+
     result = await owner._call_mcp_tool(
         runtime.git_client,
         name,
@@ -206,8 +270,30 @@ async def call_git_tool(owner, runtime, name, arguments):
     )
 
     if name == "git_commit":
+        result_text = str(result or "").strip()
+        if result_text.startswith(("[MCP HATA]", "[GIT HATA]")):
+            return (
+                "[GIT HATA] Git commit aracı hata döndürdü; "
+                "push onayı istenmedi.\n"
+                f"{result_text}"
+            )
+
+        commit_after = await asyncio.to_thread(
+            _read_head_commit,
+            arguments["repo_path"],
+            runner,
+        )
+
+        if commit_after is None or commit_after == commit_before:
+            return (
+                "[GIT HATA] Git commit doğrulanamadı; "
+                "deponun HEAD kimliği değişmedi. Push onayı istenmedi."
+            )
+
+        result_prefix = f"{result_text}\n\n" if result_text else ""
         return (
-            f"{result}\n\n"
+            f"{result_prefix}"
+            f"[GIT COMMIT DOĞRULANDI] {commit_after}\n\n"
             "[GIT AKIŞI] Commit başarılıysa cevabı bitirme. "
             "Kullanıcıya tam olarak 'Git push yapmamı "
             "onaylıyor musunuz?' diye sor. Kullanıcı açıkça "

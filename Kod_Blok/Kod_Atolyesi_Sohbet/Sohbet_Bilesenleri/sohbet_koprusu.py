@@ -46,8 +46,23 @@ def _load_chat_navigator_class():
     return module.SohbetGezgini
 
 
+def _load_pagination_class():
+    helper_path = (
+        Path(__file__).with_name("sohbet_koprusu")
+        / "sayfalama_teknikleri.py"
+    )
+    spec = spec_from_file_location("gakko_sayfalama_teknikleri", helper_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Sayfalama teknikleri yüklenemedi: {helper_path}")
+
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.SayfalamaTeknikleri
+
+
 SohbetGecmisiKoprusu = _load_history_bridge_class()
 SohbetGezgini = _load_chat_navigator_class()
+SayfalamaTeknikleri = _load_pagination_class()
 
 class ChatBridge(QObject):
     reply_ready = Signal(str)
@@ -65,6 +80,7 @@ class ChatBridge(QObject):
     context_remaining_ready = Signal(float)
     generation_cancelled = Signal()
     tool_activity = Signal(str)
+    active_chat_ready = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -79,6 +95,7 @@ class ChatBridge(QObject):
         self._history_capture_reply = False
         self.history_bridge = SohbetGecmisiKoprusu(self)
         self.sohbet_gezgini = SohbetGezgini(self)
+        self.sayfalama = SayfalamaTeknikleri(self)
         self.ekran_gorunum = EkranGorunum()
         self._model_mode = "auto"
         self._generated_images_temp = tempfile.TemporaryDirectory(
@@ -268,6 +285,14 @@ class ChatBridge(QObject):
     def get_history_session(self, session_id):
         self.history_bridge.get_history_session(session_id)
 
+    @Slot()
+    def load_active_chat(self):
+        self.sayfalama.load_active_page()
+
+    @Slot()
+    def start_new_chat_page(self):
+        self.sayfalama.start_new_page()
+
     @Slot(str)
     def delete_history_session(self, session_id):
         self.history_bridge.delete_history_session(session_id)
@@ -289,6 +314,7 @@ class ChatBridge(QObject):
             return
 
         history_session_id = self.history_bridge.ensure_session()
+        self.sayfalama.remember_active_session(history_session_id)
         self.history.add_message(
             history_session_id,
             "user",
@@ -315,20 +341,6 @@ class ChatBridge(QObject):
 
         self._model_mode = normalized
         self.session.set_model_mode(normalized)
-
-    @Slot()
-    def reset_qwen_context(self):
-        if self._busy:
-            self.error_ready.emit(
-                "GAKKO şu anda başka bir mesaja cevap veriyor."
-            )
-            return
-
-        if not self.session.is_ready:
-            self.error_ready.emit("GAKKO henüz hazır değil.")
-            return
-
-        self.session.reset_context()
 
     @Slot()
     def cancel_generation(self):

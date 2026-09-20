@@ -136,6 +136,28 @@ class QwenSession(
         self.context_remaining.emit(100.0)
         return True
 
+    def restore_history(self, messages):
+        restored = []
+
+        if isinstance(messages, list):
+            for message in messages:
+                if not isinstance(message, dict):
+                    continue
+
+                role = str(message.get("role") or "").strip().lower()
+                content = str(message.get("content") or "").strip()
+
+                if role not in {"user", "assistant"} or not content:
+                    continue
+
+                restored.append({"role": role, "content": content})
+
+        with self._messages_lock:
+            self._messages = restored
+
+        self._active_image_path = None
+        return True
+
     def _messages_for_prompt(self, text):
         if self._system_message is None:
             raise RuntimeError("Qwen başlangıç bağlamı hazır değil.")
