@@ -75,7 +75,7 @@
       overflow-wrap: anywhere;
       border-radius: 12px;
       padding: 11px 13px;
-      font-size: 13px;
+      font-size: 15px;
       line-height: 1.55;
     }
     .history-message.user { justify-self: end; background: #12304a; color: #ffffff; }

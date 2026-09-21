@@ -89,7 +89,7 @@ Qwen ihtiyaç duyduğu kaynağı kendisi seçer, okur, yorumlar ve karar verir.
 
 ### QWEN.md
 
-`QWEN.md`, istisna_ilk_talimat.md → Pusula.md 'nin ana başlangıç noktasıdır.
+`QWEN.md` → Pusula.md 'nin ana başlangıç noktasıdır.
 
 Qwen buradan ana kaynak haritası olan:
 
@@ -202,8 +202,6 @@ GAKKO
 Ana Qwen modeli  
 ↓  
 QWEN.md  
-↓  
-istisna_ilk_talimat.md
 ↓
 Pusula.md
 ↓  
@@ -271,8 +269,7 @@ D:\Gakko
 │   │   ├── Hafiza_ve_kaynak_prensipleri.md
 │   │   └── Karar_ve_kaynak_secimi_prensipleri.md
 │   └── Talimatlar  
-        └── istisna_ilk_talimat.md
-│       └── Pusula.md
+        └── Pusula.md
 ├── Gorseller
 ├── Kod_Blok
 │   ├── Kod_Atolyesi_Sohbet
@@ -340,7 +337,7 @@ D:\Gakko
 
 ### .qwen
 
-Qwen'in istisna_ilk_talimat.md → Pusula.md çalışma ortamına giriş noktası ve yardımcı becerilerinin bulunduğu alandır.
+Qwen → Pusula.md çalışma ortamına giriş noktası ve yardımcı becerilerinin bulunduğu alandır.
 
 `QWEN.md`, Qwen'in GAKKO kaynak zincirine giriş dosyasıdır.
 
@@ -395,8 +392,6 @@ GAKKO arayüzü
 Qwen
 ↓
 QWEN.md
-↓
-istisna_ilk_talimat.md
 ↓ 
 Pusula.md
 ↓
