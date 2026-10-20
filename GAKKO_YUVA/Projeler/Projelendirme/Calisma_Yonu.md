@@ -55,6 +55,16 @@ Aktif proje kökünü kabul et ve kullanıcı görevini bekle.
 
 ---
 
+## Proje Haritası
+
+Aktif proje kökünde `Talimatlar\Harita.md` bulunuyorsa bu dosyayı projenin ana yönlendirme kaynağı olarak kabul et.
+
+Kullanıcı "hadi başlayalım", "nerede kalmıştık?", "şimdi ne yapıyorduk?", "şimdi ne yapalım?", "devam edelim" veya mevcut proje çalışmasının yönünü belirlemeyi isteyen benzer bir ifade kullandığında önce `Talimatlar\Harita.md` dosyasını oku.
+
+Harita üzerinden görevle ilgili kaynak veya dosyayı belirle ve yalnız gerekli kaynaklara git. Projenin durumunu, sıradaki işi veya gerekli kaynağı tahmin etme.
+
+---
+
 ## Minimum Yeterli Bilgi
 
 Görev için gereken en küçük yeterli bağlamla çalış.

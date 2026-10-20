@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import json
 import os
-import time
 from pathlib import Path
 
 from mcp import Client, StdioServerParameters
@@ -348,37 +347,45 @@ class QwenMCPMixin:
 
     async def _call_mcp_tool(self, client, name, arguments):
         tool_path = str(arguments.get("path") or "").replace("\\", "/")
-        print(
-            f"[MCP BAŞLADI] {name} | {tool_path}".rstrip(" |"),
-            flush=True,
-        )
-        tool_started_at = time.perf_counter()
+        display_path = tool_path
+
+        if tool_path:
+            for root in (self.active_project_root, PROJECT_ROOT):
+                if root is None:
+                    continue
+                try:
+                    display_path = (
+                        Path(tool_path).resolve()
+                        .relative_to(Path(root).resolve())
+                        .as_posix()
+                    )
+                    break
+                except (OSError, ValueError):
+                    pass
+        else:
+            paths = arguments.get("paths")
+            display_path = f"{len(paths)} dosya" if isinstance(paths, list) and paths else "İşlem"
 
         try:
-            result = await client.call_tool(
-                name,
-                arguments=arguments,
-            )
+            result = await client.call_tool(name, arguments=arguments)
             tool_text = _mcp_text(result, arguments)
         except Exception as exc:
-            print(
-                "[MCP HATA] "
-                f"Süre: {time.perf_counter() - tool_started_at:.2f} sn | "
-                f"{type(exc).__name__}: {exc}",
-                flush=True,
-            )
+            error_text = str(exc)
+            if "ENOENT" in error_text or "no such file" in error_text.lower():
+                error_text = "Bulunamadı"
+            print(f"✗ {display_path} | {error_text}", flush=True)
             raise
 
-        print(
-            "[MCP TAMAMLANDI] "
-            f"Süre: {time.perf_counter() - tool_started_at:.2f} sn | "
-            f"Durum: {'Hata' if bool(getattr(result, 'is_error', False)) else 'Başarılı'} | "
-            f"Sonuç: {len(tool_text)} karakter",
-            flush=True,
-        )
-
         if bool(getattr(result, "is_error", False)):
-            print(f"[MCP HATA] {tool_text}", flush=True)
+            error_text = tool_text.strip() or "İşlem başarısız"
+            if "ENOENT" in error_text or "no such file" in error_text.lower():
+                error_text = "Bulunamadı"
+            print(f"✗ {display_path} | {error_text}", flush=True)
             return f"[MCP HATA] {tool_text}"
 
+        character_count = len(tool_text)
+        estimate = max(1.0, character_count / 4.0)
+        step = 100 if estimate >= 100 else 10
+        token_estimate = max(1, int(round(estimate / step) * step))
+        print(f"✓ {display_path} | {character_count} kr | ~{token_estimate} tk", flush=True)
         return tool_text

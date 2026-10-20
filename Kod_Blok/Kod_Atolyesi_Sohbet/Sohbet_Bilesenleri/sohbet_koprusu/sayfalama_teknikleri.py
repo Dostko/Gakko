@@ -85,9 +85,26 @@ class SayfalamaTeknikleri:
             )
             return False
 
+        previous = (
+            bridge.history.get_session(bridge.history_session_id)
+            if bridge.history_session_id
+            else None
+        )
+        messages = (previous or {}).get("messages") or []
+        continuation = []
+        size = 0
+        for message in reversed(messages[-10:]):
+            content = str(message.get("content") or "")
+            if continuation and size + len(content) > 12000:
+                break
+            continuation.append(message)
+            size += len(content)
+        continuation.reverse()
+
         if not bridge.session.reset_context():
             return False
 
+        bridge.session.restore_history(continuation)
         bridge.history_session_id = None
         bridge._history_capture_reply = False
         self._save_active_id("")

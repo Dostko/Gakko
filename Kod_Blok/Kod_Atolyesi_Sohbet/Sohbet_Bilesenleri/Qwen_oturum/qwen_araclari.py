@@ -32,6 +32,11 @@ from .qwen_ayarlar import (
     PROJECT_ROOT,
     _CANCELLED,
 )
+from .sohbet_gecmisi_arama import (
+    SESSION_SEARCH_TOOL,
+    SESSION_SEARCH_TOOL_NAME,
+    session_search,
+)
 
 
 GENERATED_IMAGE_EXTENSIONS = IMAGE_EXTENSIONS | frozenset({
@@ -194,6 +199,7 @@ class QwenAraclariMixin:
     def _tools_for_prompt(self, user_text, runtime):
         text = str(user_text or "").casefold()
         tools = list(runtime.tools)
+        tools.append(SESSION_SEARCH_TOOL)
         model_mode = str(getattr(self, "_model_mode", "auto") or "auto")
 
         if (
@@ -250,6 +256,12 @@ class QwenAraclariMixin:
         )
 
     async def _execute_qwen_tool(self, runtime, name, arguments):
+        if name == SESSION_SEARCH_TOOL_NAME:
+            return session_search(
+                arguments,
+                active_project_root=getattr(self, "active_project_root", None),
+            )
+
         if name == KODCU_AI_TOOL_NAME:
             gorev = (
                 arguments.get("gorev")

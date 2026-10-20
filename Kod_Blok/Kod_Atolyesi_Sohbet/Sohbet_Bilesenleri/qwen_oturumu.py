@@ -186,7 +186,9 @@ class QwenSession(
     async def _run_async(self):
         async with self._mcp_runtime() as runtime:
             qwen_md_text = await self._mcp_read_text(runtime, QWEN_MD_PATH)
-            self._system_message = self._startup_message(qwen_md_text)
+            self._system_message = self._startup_message(
+                qwen_md_text,
+            )
 
             self._ready = True
             self.context_remaining.emit(100.0)

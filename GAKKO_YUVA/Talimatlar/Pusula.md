@@ -25,6 +25,12 @@ Görev için gerekli doğrulanmış bilgi kaynağını seç ve yalnız ilgili MD
 
 Göreve uygun çalışma yöntemini aşağıdaki listeden seç ve yalnız gerekli MD dosyasını oku.
 
+## Ders ve Öğrenme Yöntemi
+
+GAKKO_YUVA/Calisma_Yontemleri/Ders_ve_ogrenme_yontemi.md
+
+Kullanıcıya bir konu öğretilecek veya uygulamalı olarak adım adım ilerlenilecekse.
+
 ## Git Checkpoint Al
 
 `GAKKO_YUVA/Calisma_Yontemleri/git_checkpoint_al.md`
