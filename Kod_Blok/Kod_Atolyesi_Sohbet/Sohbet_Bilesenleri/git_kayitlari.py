@@ -31,11 +31,42 @@ GIT_COMMIT_SUCCESS_PATTERNS = (
     r"\bcommit\b.{0,80}\b(successfully|successful|completed|created)",
 )
 GIT_APPROVAL_ACTIONS = {"git_add", "git_commit", GIT_PUSH_TOOL_NAME}
+
 GIT_APPROVAL_RESPONSES = {
-    "evet", "evet kanka", "onay", "onaylıyorum", "onayliyorum",
-    "tamam", "tamam kanka", "yap", "devam", "devam et",
+    "evet",
+    "evet kanka",
+    "onay",
+    "onaylıyorum",
+    "onayliyorum",
+    "onay veriyorum",
+    "onay verdim",
+    "tamam",
+    "tamam kanka",
+    "yap",
+    "devam",
+    "devam et",
 }
-GIT_CANCEL_RESPONSES = {"hayır", "hayir", "iptal", "vazgeç", "vazgec"}
+
+GIT_APPROVAL_PHRASES = {
+    "onaylıyorum",
+    "onayliyorum",
+    "onay veriyorum",
+    "onay verdim",
+}
+
+GIT_CANCEL_RESPONSES = {
+    "hayır",
+    "hayir",
+    "iptal",
+    "vazgeç",
+    "vazgec",
+}
+
+GIT_CANCEL_PHRASES = {
+    "onaylamıyorum",
+    "onaylamiyorum",
+    "onay vermiyorum",
+}
 
 
 def _approval_arguments(arguments):
@@ -43,6 +74,13 @@ def _approval_arguments(arguments):
         key: value for key, value in dict(arguments or {}).items()
         if key != "repo_path"
     }
+
+
+def _contains_git_phrase(text, phrase):
+    return re.search(
+        rf"(?<!\w){re.escape(phrase)}(?!\w)",
+        text,
+    ) is not None
 
 
 def begin_git_approval_turn(owner, user_text):
@@ -53,11 +91,31 @@ def begin_git_approval_turn(owner, user_text):
 
     response = str(user_text or "").strip().casefold()
     response = re.sub(r"[.!?]+$", "", response).strip()
-    if response in GIT_CANCEL_RESPONSES:
+    response = re.sub(r"\s+", " ", response)
+
+    cancel_requested = (
+        response in GIT_CANCEL_RESPONSES
+        or any(
+            _contains_git_phrase(response, phrase)
+            for phrase in GIT_CANCEL_PHRASES
+        )
+    )
+
+    if cancel_requested:
         owner._git_pending_approval = None
         return
-    if response in GIT_APPROVAL_RESPONSES:
+
+    approval_given = (
+        response in GIT_APPROVAL_RESPONSES
+        or any(
+            _contains_git_phrase(response, phrase)
+            for phrase in GIT_APPROVAL_PHRASES
+        )
+    )
+
+    if approval_given:
         owner._git_approved_action = pending["action"]
+
         if pending.get("arguments") is not None:
             return {
                 "action": pending["action"],
