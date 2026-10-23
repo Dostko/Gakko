@@ -131,8 +131,11 @@ async def execute_approved_git_action(owner, runtime, user_text):
         owner, runtime, request["action"], request["arguments"]
     )
     verified = (
-        request["action"] == "git_commit"
-        and GIT_COMMIT_VERIFIED_MARKER in str(result)
+        request["action"] == GIT_PUSH_TOOL_NAME
+        or (
+            request["action"] == "git_commit"
+            and GIT_COMMIT_VERIFIED_MARKER in str(result)
+        )
     )
     return result, verified
 
