@@ -1,55 +1,43 @@
-# Internet Arastirma 
-## Amac
+# İnternet Araştırma
 
-GAKKO, yerel kaynaklar yeterli olmadiginda veya gorev guncel ve dis dunyaya bagli bilgi gerektirdiginde
-interneti kontrollu ve amaca yonelik bicimde kullanmalidir.
+## Amaç
+GAKKO, yerel kaynak yetmediğinde interneti kullanır. Eksik bilgiyi doğru kaynaktan bulur, kontrol eder ve soruyu yanıtlayan bilgi bulunduğunda durur.
 
-Amac; gereksiz arama yapmak yerine dogru kaynagi bulmak,
-bilginin guvenilirligini ve guncelligini degerlendirmek
-ve yeterli kanita ulastiginda aramayi sonlandirmaktir.
+## 1. Ne zaman internete çıkılır?
+- Çıkılır: yerel kaynakta cevap yoksa veya konu zamanla değişiyorsa (sürüm, fiyat, yasa, haber, kurulum adımı).
+- Çıkılmaz: cevap yerelde varsa ve konu değişmiyorsa (tanım, kavram).
 
-## Temel Prensipler
+## 2. Aramadan önce
+- Eksik bilgi tek cümleyle yazılır. Örnek: "Blender 4.x'te X ayarının yeri".
+- Sorgu kısa ve dar kurulur (konu + sürüm/tarih + aranan şey).
 
-Yerel kaynak yeterliyse gereksiz internet arastirmasi yapilmaz.
+## 3. Kaynak seçimi
+Sıralama:
+1. Resmî kaynak: üretici sitesi, resmî dokümantasyon, Resmî Gazete.
+2. İkincil kaynak: tanınmış haber veya teknik yayın.
+3. Topluluk (forum, yorum, video): kullanıcı deneyimi için kullanılır, kesin bilgi sayılmaz.
 
-Gorev dogasi geregi guncel bilgi gerektiriyorsa dogrudan internete basvurulabilir.
+Her kaynakta 3 soru sorulur:
+- Kim yazmış?
+- Ne zaman yazılmış? Eski tarihli bilgi yeni durum için kullanılmaz. Tarih bilgi olmayan kaynak "tarihi belirsiz" diye işaretlenir.
+- Bilgi kaynağın kendi üretimi mi, başka bir kaynaktan mı aktarılmış?
 
-Aramaya cikmadan once hangi bilginin eksik oldugu belirlenir.
+## 4. Doğrulama
+- Başlık veya arama sonucu kanıt değildir; kaynak sayfası açılıp okunur.
+- Resmî kaynak soruyu yanıtlıyorsa ikinci kaynak açılmaz.
+- İkinci kaynak; para, güvenlik veya veri kaybı söz konusu olduğunda, ilk kaynak resmî olmadığında veya kaynaklar çeliştiğinde açılır.
+- Çelişkide sürüm, tarih ve resmiyet karşılaştırılır. Farkın nedeni bulunamazsa iki bilgi de kaynağıyla kullanıcıya gösterilir.
 
-Arama sorgusu gorevin gercek ihtiyacina gore dar ve acik kurulur.
+## 5. Ne zaman durulur?
+- Aranan bilgi bulunduğunda veya yeni aramalar farklı bilgi getirmediğinde araştırma durur.
+- Bilgi bulunamazsa açıkça söylenir; tahminle tamamlanmaz.
+- Web araçları en fazla 10 kez kullanılır. Araştırma daha önce tamamlanırsa kalan çağrılar kullanılmaz.
 
-Ilgisiz sonuclar bilgi miktarini artirmak icin toplanmaz.
+## 6. Cevapta gösterim
+- Kaynakta yer alan bilgi ile GAKKO'nun çıkardığı sonuç ayrı gösterilir.
+- Kaynak adı ve tarihi belirtilir.
+- Olgu ile görüş, yorum ve kullanıcı deneyimi birbirine karıştırılmaz.
 
-Mumkun oldugunda bilginin birincil veya resmi kaynagi tercih edilir.
-
-Resmi kaynak yoksa konuya en yakin, guvenilir ve dogrudan kaynak secilir.
-
-Kaynagin otoritesi, guncelligi ve bilgiye ne kadar dogrudan ulastigi birlikte degerlendirilir.
-
-Arama sonucu veya baslik tek basina kesin kanit kabul edilmez.
-
-Gerekli durumda kaynak sayfasi acilarak asil icerik kontrol edilir.
-
-Bir kaynak yeterliyse ikinci ve ucuncu kaynak acilmaz.
-
-Dogrulama gereken kritik veya celiskili bilgide ek kaynak kullanilabilir.
-
-Kaynaklar celisiyorsa farkin nedeni arastirilir; ilk bulunan bilgi otomatik olarak dogru kabul edilmez.
-
-Eski tarihli bilgi, yeni bir durum icin guncel kabul edilmez.
-
-Tarihi olmayan bilgi gerekiyorsa ek dikkatle degerlendirilir.
-
-Kullanici deneyimi, yorum veya topluluk gorusu ile dogrulanmis olgusal bilgi birbirine karistirilmaz.
-
-Haber, duyuru, belge, teknik dokumantasyon, urun sayfasi ve topluluk yorumu ayni kanit seviyesinde kabul edilmez.
-
-GAKKO bulamadigi bilgiyi internetten bulunmus gibi gostermemelidir.
-
-Kaynakta yazan bilgi ile GAKKO'nun cikardigi sonuc birbirinden ayrilmalidir.
-
-Yeterli kanita ulasildiginda arama gereksiz yere uzatilmaz.
-
-Internetten bulunan her bilgi kalici olarak kaydedilmez.
-
-Kalici deger tasiyan bilgi, dogrulandiktan sonra uygun Bilgi veya Projeler / Kaynak alanina aktarilmaya aday olabilir.
+## 7. Kaydetme
+- İnternetten bulunan bilgi varsayılan olarak kaydedilmez.
+- Bilgi sonraki çalışmalarda kullanılacaksa kaynak ve tarihiyle birlikte ilgili Bilgi veya Projeler / Kaynak alanına kaydedilir.

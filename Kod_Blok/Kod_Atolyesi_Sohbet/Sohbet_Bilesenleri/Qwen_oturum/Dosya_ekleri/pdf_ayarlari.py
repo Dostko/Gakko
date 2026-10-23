@@ -16,6 +16,7 @@ from ..qwen_ayarlar import (
     VISION_MODEL,
     _CANCELLED,
 )
+from ..yapay_zeka_gecisi import uzman_model_cagir
 
 
 class PdfAyarlariMixin:
@@ -291,8 +292,9 @@ class PdfAyarlariMixin:
                     f"{user_request}"
                 )
 
-                response = self._chat(
-                    model=VISION_MODEL,
+                response = uzman_model_cagir(
+                    self,
+                    VISION_MODEL,
                     messages=[
                         {
                             "role": "user",

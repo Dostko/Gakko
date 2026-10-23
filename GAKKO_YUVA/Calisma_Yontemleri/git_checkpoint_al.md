@@ -1,42 +1,128 @@
 # Git Checkpoint Al
 
-## Amaç
+## Ne Zaman Kullanılır
 
-Test edilerek doğrulanmış mevcut çalışmayı, kullanıcı denetiminde güvenli biçimde Git kaydına almak.
+Kullanıcı:
 
-Repository kökü aktif projenin doğrulanmış köküdür; kullanılacak branch `master`dır. Stage işleminden önce repository kökünü kullanıcıya göster. Kullanıcı açıkça istemedikçe branch değiştirme veya yeni branch oluşturma.
+- `/git`
+- `git kaydı alalım`
+- `git checkpoint alalım`
+- `checkpoint alalım`
+- `kayıt alalım`
 
-## Onay Kuralı
+ifadelerinden biriyle mevcut çalışmanın Git kaydını istediğinde bu yöntem uygulanır.
 
-Stage, commit ve push birbirinden ayrı işlemlerdir. Her biri için işlemden hemen önce açık kullanıcı onayı al.
-
-Kullanıcının `evet`, `onaylıyorum` veya `devam et` cevabı yalnız bekleyen işlem için geçerlidir; sonraki adıma peşin onay sayılmaz.
-
-Kullanıcı dosyaları açıkça seçip bunlarla devam edilmesini isterse bu, yalnız belirtilen dosyalar için stage onayıdır. Kullanıcıdan commit mesajı isteme.
+Git checkpoint işlemi aşağıdaki sırayla yürütülür. Bir adım tamamlanmadan sonraki adıma geçilmez.
 
 ## İşlem Sırası
 
-1. `git_status` ile branch, uzak dal durumu, staged, unstaged ve yeni dosyaları kontrol edip kullanıcıya göster.
+### 1. Repository Kontrolü
 
-2. Kayda girecek tam dosya listesini belirle. Kullanıcı dosyaları belirtmişse yalnız onları kullan; belirtmemişse ilgili dosyaları kendin seçip göster. Ardından `Bu dosyaları stage alanına eklememi onaylıyor musunuz?` diye sor.
+Seçilen projenin repository kökünü doğrula ve sohbet ekranında kullanıcıya göster.
 
-3. Stage onayından sonra yalnız onaylanan dosyaları `git_add` ile ekle. Toplu veya ilgisiz dosya ekleme.
+`git_status` ile:
 
-4. `git_diff_staged` ve `git_status` ile commit'e girecek tam dosya listesini doğrula. Kapsam onaylanan listeden farklıysa dur ve kullanıcıya göster.
+- branch,
+- staged dosyalar,
+- unstaged dosyalar,
+- yeni dosyalar,
+- uzak depo durumu
 
-5. Stage sonucunu ve değişikliklere göre kendin belirlediğin kısa commit mesajını göster. Ardından yalnızca `Commit almamı onaylıyor musunuz?` diye sor.
+kontrol edilir ve sohbet ekranında kullanıcıya gösterilir.
 
-6. Commit onayından sonra `git_commit` kullan. `git_status` ve `git_log` ile sonucu doğrula; commit'i ve dışarıda kalan değişiklikleri kullanıcıya göster.
+Kullanılacak branch `master`dır.
 
-7. Commit başarılı olsa bile cevabı bitirme. Aynı cevap içinde tam olarak `Git push yapmamı onaylıyor musunuz?` diye sor.
+Branch değiştirme veya yeni branch oluşturma.
 
-8. Push onayından sonra GAKKO'nun özel `git_push` aracıyla aktif `master` branch'ini uzak depoya gönder. Sonucu göster ve `git_status` ile doğrula.
+### 2. Stage Kapsamı
+
+Checkpoint'e girecek dosyaları belirle ve tam listeyi sohbet ekranında kullanıcıya göster.
+
+Ardından:
+
+`Bu dosyaları stage alanına eklememi onaylıyor musunuz?`
+
+diye sor.
+
+Kullanıcı onay sırasında dosya ekleyebilir veya çıkarabilir.
+
+Kullanıcının cevabını bekle.
+
+### 3. Stage
+
+Stage onayından sonra onaylanan dosyaları `git_add` ile ekle.
+
+`git_diff_staged` ve `git_status` ile sonucu doğrula.
+
+Stage alanına eklenen dosyaları sohbet ekranında kullanıcıya göster.
+
+Onaylanan liste ile stage kapsamı farklıysa dur ve farkı kullanıcıya göster.
+
+### 4. Commit Hazırlığı
+
+Stage alanındaki dosyaları sohbet ekranında kullanıcıya göster.
+
+Değişiklikleri açıklayan kısa commit mesajını oluştur ve sohbet ekranında kullanıcıya göster.
+
+Kullanıcıdan commit mesajı isteme.
+
+Ardından:
+
+`Commit almamı onaylıyor musunuz?`
+
+diye sor.
+
+Kullanıcının cevabını bekle.
+
+### 5. Commit
+
+Commit onayından sonra `git_commit` kullan.
+
+`git_status` ve `git_log` ile commit sonucunu doğrula.
+
+Oluşan commit'i ve checkpoint dışında kalan değişiklikleri sohbet ekranında kullanıcıya göster.
+
+### 6. Push Onayı
+
+Commit tamamlandıktan sonra işlemi bitirme.
+
+Aynı cevap içinde:
+
+`Git push yapmamı onaylıyor musunuz?`
+
+diye sor.
+
+Kullanıcının cevabını bekle.
+
+### 7. Push
+
+Push onayından sonra GAKKO'nun `git_push` aracıyla `master` branch'ini uzak depoya gönder.
+
+Push sonucunu sohbet ekranında kullanıcıya göster.
+
+### 8. Son Kontrol
+
+`git_status` ile repository ve çalışma ağacının son durumunu kontrol et.
+
+Son durumu sohbet ekranında kullanıcıya göster.
+
+Push başarılıysa checkpoint işleminin tamamlandığını kullanıcıya bildir.
+
+## Onay Kuralı
+
+Stage, commit ve push birbirinden ayrı üç işlemdir.
+
+Her işlem kendi kullanıcı onayını ister.
+
+`Evet`, `onaylıyorum` veya `devam et` cevabı yalnızca o anda bekleyen işlem için geçerlidir.
+
+Bir adıma verilen onay sonraki adıma aktarılmaz.
 
 ## Güvenlik
 
-- Test edilmemiş veya kararsız çalışmayı commit etme.
-- Onaylanmamış dosyayı stage ya da commit kapsamına alma.
-- Açık onay olmadan değiştirici Git işlemi uygulama.
+- Test sonucu doğrulanmamış çalışmayı checkpoint kapsamına alma.
+- Kullanıcı onayı olmadan stage, commit veya push yapma.
 - `git_reset`, force push, branch değiştirme, branch oluşturma, merge veya rebase kullanma.
-- Araç hata verirse gerçek hatayı göster; işlemi başarılı olmuş gibi bildirme.
-- Push onayı verilmeden checkpoint akışını tamamlanmış sayma.
+- Araç hata verirse gerçek hatayı sohbet ekranında kullanıcıya göster.
+- Başarısız işlemi başarılı olarak bildirme.
+- Push ve son kontrol tamamlanmadan checkpoint işlemini tamamlanmış sayma.

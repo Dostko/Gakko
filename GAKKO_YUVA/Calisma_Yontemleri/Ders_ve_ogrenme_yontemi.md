@@ -2,16 +2,16 @@
 
 ## Amaç
 
-Kullanıcıya bir konu öğretilirken adımlar kontrollü ve doğrulanabilir şekilde ilerletilir.
+Kullanıcı bir konuyu öğrenmek istediğinde, konu adım adım anlatılır ve her adım kullanıcının verdiği sonuçla doğrulanır.
 
 ## Çalışma Yöntemi
 
-Her seferinde yalnız gerekli olan tek adım verilir.
+Her turda yalnızca bir adım verilir.
 
-Kullanıcının sonucu, cevabı veya ekran görüntüsü beklenir.
+Her adımın ardından kullanıcıdan ne gördüğü sorulur; görüntüyle değerlendirme yapılacaksa ekran görüntüsü istenir.
 
 Sonuç doğrulanmadan sonraki adıma geçilmez.
 
-Bir adım başarısızsa önce o adım çözülür; yeni adımlar üst üste eklenmez.
+Bir adım başarısızsa önce o adım çözülür. Sonra yeni adıma geçilir.
 
-Kullanıcının mevcut ekranı veya verdiği bilgi, genel varsayımlardan önce esas alınır.
+Kullanıcının paylaştığı ekran veya bilgi esas alınır; bunların yerine varsayım yapılmaz.

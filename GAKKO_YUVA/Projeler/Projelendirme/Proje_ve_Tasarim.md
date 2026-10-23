@@ -2,98 +2,93 @@
 
 ## Yeni Proje
 
-Kullanıcının seçtiği klasörü aktif proje kökü olarak kabul et.
+Kullanıcının seçtiği klasör aktif proje köküdür.
 
-Projenin amacı ve başlangıç yapısında kullanıcının isteğini esas al.
+Projenin amacı ve başlangıç yapısı kullanıcı isteğine göre oluşturulur.
 
-Kullanıcı belirtmedikçe:
+Kullanıcı belirtmeden:
 
-* teknoloji,
-* framework,
-* mimari,
-* bağımlılık,
-* dosya veya klasör yapısı
+- teknoloji,
+- framework,
+- mimari,
+- bağımlılık,
+- dosya yapısı,
+- klasör yapısı
 
-varsayma.
+belirlenmez.
 
-Mevcut içerik varsa kullanıcı istemeden değiştirme veya üzerine yazma.
+Projede bulunan içerik kullanıcı isteği olmadan değiştirilmez veya üzerine yazılmaz.
 
 ---
 
 ## Tasarım
 
-Yalnız mevcut ihtiyacı karşılayacak yapıyı oluştur.
+Tasarım yalnız mevcut görevi çözen yapıyı içerir.
 
-Henüz ihtiyaç olmayan:
+Görevde kullanılmayan:
 
-* özellik,
-* katman,
-* yardımcı sistem,
-* soyutlama,
-* bağımlılık
+- özellik,
+- katman,
+- yardımcı sistem,
+- soyutlama,
+- bağımlılık
 
-ekleme.
+eklenmez.
 
-Gelecekte gerekebilir düşüncesi tek başına yeni yapı oluşturmak için yeterli değildir.
+Gelecekte kullanılabileceği düşüncesi yeni yapı oluşturma nedeni değildir.
 
 ---
 
 ## Mevcut Yapıyla Uyum
 
-Mevcut projede değişiklik yapmadan önce ilgili yapıyı ve gerçek çağrı yollarını anla.
+Mevcut projede değişiklikten önce ilgili yapı ve gerçek çağrı yolları incelenir.
 
-Çalışan çözüm yeterliyse gereksiz yere değiştirme.
+Çalışan davranış görev kapsamında korunur.
 
-Aynı görevi yapan eski ve yeni iki kalıcı yolu paralel bırakma.
+Aynı işi yapan iki kalıcı yapı paralel bırakılmaz.
 
-Gerekirse:
+Yapı yenilenirken:
 
-1. doğru davranışı belirle,
-2. korunacak mevcut davranışları seç,
-3. tek temiz implementasyon oluştur,
-4. çağrı noktalarını buna yönlendir,
-5. gereksiz eski yolu kaldır.
+1. hedef davranış belirlenir,
+2. korunacak çalışan davranışlar belirlenir,
+3. tek uygulama oluşturulur,
+4. çağrı noktaları bu uygulamaya yönlendirilir,
+5. eski yol kaldırılır.
 
-Geçici `thin wrapper` yalnız kontrollü geçiş için kullanılabilir.
+Geçici `thin wrapper`, eski yapıdan yeni yapıya geçiş sırasında kullanılır.
 
 ---
 
 ## Eski Davranış
 
-Eski kodun yaptığı her şeyi otomatik olarak koruma.
+Eski kodun bütün davranışları yeni yapıya taşınmaz.
 
-Hata, gereksiz davranış veya geçersiz varsayımı yeni sisteme taşıma.
+Hata, kullanılmayan davranış ve geçersiz varsayım korunmaz.
 
-Yalnız:
+Korunanlar:
 
-* doğrulanmış çalışan özellikleri,
-* kullanıcı beklentisini,
-* gerekli geriye uyumluluğu
-
-koru.
+- doğrulanmış çalışan özellikler,
+- kullanıcı tarafından belirlenmiş davranışlar,
+- mevcut kullanımın devamı için gereken uyumluluk.
 
 ---
 
 ## Değişiklik
 
-Amaç en az satırı değiştirmek değil, temiz ve doğru çözüm bırakmaktır.
+Amaç en az satırı değiştirmek değil, görev sonunda tek ve temiz çözüm bırakmaktır.
 
-Görev gerektiriyorsa mevcut kod:
+Mevcut kod görev kapsamında değiştirilir, sadeleştirilir veya kaldırılır.
 
-* değiştirilebilir,
-* sadeleştirilebilir,
-* kaldırılabilir.
+Görev dışı refaktör yapılmaz.
 
-Görev dışı refaktör yapma.
-
-Karar mantığını MCP/Python teknik katmanına taşıma.
+Karar mantığı MCP/Python teknik katmanına taşınmaz.
 
 ---
 
 ## Temel İlke
 
-**Gerçek ihtiyacı anla → mevcut yapıyı doğrula → gerekli en küçük çözümü tasarla → tek temiz uygulama bırak.**
+**Görevi anla → mevcut yapıyı incele → çözümü tasarla → tek temiz uygulama bırak.**
 
-Projeyi kullanıcı ihtiyacına göre büyüt.
+Proje kullanıcı isteğine göre geliştirilir.
 
-Gereksiz mimari oluşturma.
+Görev dışında mimari oluşturulmaz.

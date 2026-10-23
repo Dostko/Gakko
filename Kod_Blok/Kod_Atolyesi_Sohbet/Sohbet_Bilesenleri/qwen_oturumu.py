@@ -1,5 +1,3 @@
-# IMPORT VE MIXIN BLOĞU: BAŞLANGIÇ
-
 from __future__ import annotations
 
 import asyncio
@@ -13,6 +11,7 @@ from PySide6.QtCore import QThread, Signal
 from .Qwen_oturum.qwen_ayarlar import (
     PROJECT_ROOT,
     QWEN_MD_PATH,
+    DAILY_CONTEXT_SIZE,
     _CANCELLED,
     _STOP,
 )
@@ -20,6 +19,7 @@ from .Qwen_oturum.qwen_araclari import QwenAraclariMixin
 from .Qwen_oturum.qwen_mcp import QwenMCPMixin
 from .Qwen_oturum.qwen_dosya_ekleri import QwenDosyaEkleriMixin
 from .Qwen_oturum.qwen_model import QwenModelMixin
+from .Qwen_oturum.yapay_zeka_gecisi import strata_motorunu_durdur
 
 
 class QwenSession(
@@ -66,6 +66,9 @@ class QwenSession(
         self._active_image_path = None
         self._generated_image_paths = {}
         self._model_mode = "auto"
+        self._strata_model_role = None
+        self._strata_owned = False
+        self._active_context_size = DAILY_CONTEXT_SIZE
 
     @property
     def is_ready(self):
@@ -90,19 +93,11 @@ class QwenSession(
         return {
             "role": "system",
             "content": (
-                "Sen GAKKO'nun ana Qwen modelisin.\n"
+                "Sen GAKKO'sun.\n"
                 f"Güncel sistem tarihi: {date.today().isoformat()}\n"
                 f"GAKKO_YUVA: {(PROJECT_ROOT / 'GAKKO_YUVA').resolve()}\n"
                 f"Aktif proje kökü: {active_project}\n"
-                "Araç kullanımında gereksiz tur üretme. Bir görev için "
-                "birden fazla bağımsız dosya içeriği gerekiyorsa mümkünse "
-                "read_multiple_files kullan; bağımsız araç çağrılarını aynı "
-                "model yanıtında birlikte yap. Bir sonraki aracın yolu veya "
-                "parametresi önceki sonuca bağlıysa ayrı tura geç.\n"
-                "Nihai yanıtta yalnız görevin gerektirdiği sonucu ver. "
-                "Kullanıcı ayrıntı istemediyse gereksiz tekrar, uzun açıklama, "
-                "alternatif, plan veya ek öneri üretmeden kısa ve doğrudan cevapla.\n"
-                "Aşağıdaki QWEN.md yalnız başlangıç kapısıdır.\n"
+                "QWEN.md başlangıç kapısıdır.\n"
                 "===== QWEN.md =====\n"
                 f"{qwen_md_text.strip()}\n"
                 "===== /QWEN.md ====="
@@ -241,6 +236,11 @@ class QwenSession(
         finally:
             self._ready = False
             self._system_message = None
+            try:
+                strata_motorunu_durdur(self)
+            except Exception as error:
+                print(f"[STRATA KAPATMA HATA] {error}", flush=True)
+            self._strata_model_role = None
 
     def stop(self):
         self._stopping = True

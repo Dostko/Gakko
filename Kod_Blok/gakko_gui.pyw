@@ -5,8 +5,12 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
 
 
-CHAT_FILE = Path(
-    r"D:\Gakko\Kod_Blok\Kod_Atolyesi_Sohbet\gakko_sohbet_penceresi.pyw"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+CHAT_FILE = (
+    PROJECT_ROOT
+    / "Kod_Blok"
+    / "Kod_Atolyesi_Sohbet"
+    / "gakko_sohbet_penceresi.pyw"
 )
 
 

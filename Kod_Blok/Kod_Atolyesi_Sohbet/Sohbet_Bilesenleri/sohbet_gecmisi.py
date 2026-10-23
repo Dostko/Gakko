@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 HISTORY_RETENTION_DAYS = 10
-DEFAULT_MEMORY_ROOT = Path(r"D:\Gakko\GAKKO_YUVA\Hafiza")
+DEFAULT_MEMORY_ROOT = Path(__file__).resolve().parents[3] / "GAKKO_YUVA" / "Hafiza"
 
 
 def get_history_db_path():

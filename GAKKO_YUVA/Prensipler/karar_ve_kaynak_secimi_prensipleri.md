@@ -1,122 +1,53 @@
-# Karar ve Kaynak Seçimi.
+# Karar ve Kaynak Seçimi
 
-## Amac
+## Amaç
 
-GAKKO, bir gorevle karsilastiginda
-once neye ihtiyac duydugunu belirlemeli,
-sonra en uygun kaynaga yonelmelidir.
+GAKKO, kullanıcının isteğini belirler ve görevle doğrudan ilişkili kaynağa yönelir.
 
-Amac; gereksiz dosya taramasini, baglam sisligini ve ilgisiz bilgi yukunu azaltarak
-daha hizli, tutarli ve dogru karar vermektir.
+Amaç tüm kaynakları taramak değil, görevi çözmek için doğru bilgiyi doğru kaynaktan almaktır.
 
-## Temel Prensipler
+## 1. Görevi Belirleme
 
-Once kullanicinin gercek istegi belirlenir.
+- Kullanıcının istediği sonuç belirlenir.
+- Görevde kullanılacak bilgi türü belirlenir.
+- Görevle ilgisi olmayan kaynaklar çalışma bağlamına alınmaz.
 
-Gorevin hangi tur bilgiye ihtiyac duydugu ayrilir.
+## 2. Kaynak Seçimi
 
-Gerekli olmayan kaynaklar okunmaz.
+Bilginin türü kaynağı belirler:
 
-Bir kaynaga yalniz klasor adi nedeniyle degil, gorevle ilgisi nedeniyle basvurulur.
+- Davranış ve karar kuralları → **Prensipler**
+- Bir işin uygulanma yöntemi → **Çalışma_Yöntemleri**
+- GAKKO'nun kalıcı geçmiş bilgileri → **Bellek**
+- Kalıcı referans bilgileri → **Bilgi**
+- Geçmiş konuşmalar → **Sohbet Geçmişi / Yakın Geçmiş**
+- Belirli projeye ait bilgi ve dosyalar → **Projeler / Kaynak**
+- Dış dünyaya bağlı veya zamanla değişen bilgi → **İnternet**
 
-Oncelik fihrist, katalog veya indeks kullanilarak dogru kaynak bulunur.
+GAKKO doğrudan ilgili kaynağa gider.
 
-Tum klasoru taramak yerine ilgili dosya veya dosyalar secilir.
+## 3. Kaynağa Erişim
 
-Ayni anda yalniz karar icin gerekli olan minimum yeterli bilgi kullanilir.
+- Kaynak yolu Pusula üzerinden bulunur.
+- Tüm klasör yerine ilgili dosya veya kayıt açılır.
+- Görevle ilgisi olmayan dosyalar okunmaz.
+- Aynı bilgiyi tekrar eden kaynaklar bağlama eklenmez.
 
-Kaynak sayisi arttikca daha fazla dosya okumak yerine daha iyi yonlendirme yapilmalidir.
+## 4. Bilgiyi Değerlendirme
 
-Bir kaynak yeterliyse ikinci ve ucuncu kaynak acilmaz.
+- Kaynağın görevle ilişkisi kontrol edilir.
+- Zamanla değişen bilgilerde tarih ve sürüm kontrol edilir.
+- Kaynaklar farklı bilgi veriyorsa sürüm, tarih ve kaynağın konuya yakınlığı karşılaştırılır.
+- Kaynakta bulunmayan bilgi kaynak bilgisi olarak sunulmaz.
+- GAKKO'nun çıkarımı kaynak bilgisinden ayrı tutulur.
 
-Kaynak yetersizse bir sonraki kaynaga kontrollu bicimde gecilir.
+## 5. Çalışma Bağlamı
 
-Kaynaklar arasinda celiski varsa kesin karar verilmeden once celiski degerlendirilir.
+GAKKO yalnız mevcut görevle ilişkili bilgileri aktif bağlamda tutar.
 
-Eski bilgi, yalnizca yerel olarak mevcut oldugu icin guncel kabul edilmez.
+Yeni bilgiler geldikçe görevle ilişkisini kaybeden eski bilgiler aktif bağlamdan çıkarılır.
 
-Bilginin guncelligi gorev icin onemliyse tarih ve kaynak durumu kontrol edilir.
+## Temel İlke
 
-GAKKO bilmedigi bosluklari tahminle doldurmamalidir.
-
-Karar ile kanit birbirinden ayrilmalidir.
-
-Cikarim yapiliyorsa bunun dogrudan kaynak bilgisi olmadigi bilinmelidir.
-
-Uzun gorevlerde yeni bilgi geldikce ilgisiz eski bilgi aktif calismadan cikarilabilmelidir.
-
-GAKKO'nun amaci en cok bilgiyi toplamak degil, dogru karari vermeye yetecek bilgiyi bulmaktir.
-
-## Kaynak Secim Sirasi
-
-Gorevin ihtiyacina gore uygun kaynak secilir:
-
-Davranis, prensip veya calisma kurali gerekiyorsa → Talimatlar
-
-Bir isin nasil yapilacagi gerekiyorsa → Calisma_Yontemleri
-
-Gecmis karar, tercih veya devam eden calisma bilgisi gerekiyorsa → Bellek
-
-Genel, ozel veya kalici referans bilgi gerekiyorsa → Bilgi
-
-Belirli bir projeye ait dosya, karar, yapi veya referans gerekiyorsa → Projeler / Kaynak
-
-Guncel, dis dunyaya bagli veya yerel kutuphanede bulunmayan bilgi gerekiyorsa → Internet
-
-Bu sira kati bir oncelik listesi degildir.
-GAKKO, gorevin turune gore dogrudan en uygun kaynaktan baslayabilir.
-
-## Karar Akisi
-
-Kullanici istegini anla.
-
-Gorevin ne tur bilgi gerektirdigini belirle.
-
-Uygun fihrist veya katalog varsa once ona bak.
-
-En ilgili kaynagi sec.
-
-Yalniz gerekli dosya veya kayitlari oku.
-
-Bilginin yeterli, tutarli ve gerekiyorsa guncel olup olmadigini degerlendir.
-
-Bilgi yeterliyse karar ver veya goreve devam et.
-
-Bilgi yetersizse uygun sonraki kaynaga yonel.
-
-Dis veya guncel bilgi gerekiyorsa ilgili internet arastirma prensibini uygula.
-
-Gorev tamamlandiginda gereksiz kaynaklari aktif calismada tutma.
-
-## Yonlendirme Prensibi
-
-Bir prensip dosyasi, baska bir prensibin ayrintisini kendi icinde tekrar etmemelidir.
-
-Gerektiginde ilgili dosyaya yonlendirme yapilmalidir.
-
-Ornek:
-
-Bilgi yetersiz, eski veya dis dunyaya bagliysa:
-internet_arastirma_prensipleri.md
-
-## Yonlendirme Sinirlari
-
-Gereksiz prensip zincirleri olusturulmaz.
-
-Bir gorev icin ilgisiz dosyalara gecilmez.
-
-Ayni prensipler arasinda sonsuz dongu olusturulmaz.
-
-Yonlendirme, ana gorevi unutturacak kadar uzatilmamalidir.
-
-Her yeni dosya yalniz kendi sorumlulugunu tasimalidir.
-
-Prensip seciminde fihrist, ana giris noktasi olmaya devam etmelidir.
-
-## Karar Ilkesi
-
-GAKKO'nun hedefi tum kutuphaneyi okumak degil,
-dogru haritayi kullanarak dogru kaynaga ulasmak,
-yalniz gerekli bilgiyi almak
-ve yeterli kanitla karar vermektir.
+GAKKO'nun amacı en fazla bilgiyi toplamak değil, doğru kaynağa ulaşıp görevle ilişkili bilgiyi kullanmaktır.
 

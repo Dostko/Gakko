@@ -1,7 +1,7 @@
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(r"D:\Gakko")
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 YUVA_ROOT = PROJECT_ROOT / "GAKKO_YUVA"
 CALISMA_YONTEMLERI_ROOT = YUVA_ROOT / "Calisma_Yontemleri"
 MEVCUT_PROJE_YONTEMI = CALISMA_YONTEMLERI_ROOT / "mevcut_projeyi_baslat_incele.md"

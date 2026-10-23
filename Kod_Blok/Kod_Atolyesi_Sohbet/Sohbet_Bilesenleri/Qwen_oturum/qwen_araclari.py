@@ -17,21 +17,16 @@ from ..git_kayitlari import (
     execute_approved_git_action,
     guard_git_commit_claim,
 )
-from .ai_arac_cagrisi import (
-    KODCU_AI_TOOL,
-    KODCU_AI_TOOL_NAME,
-    kod_gorevi_mi,
-    kodcu_ai_calistir,
-)
+from .ai_arac_cagrisi import model_rolu_sec
 from .qwen_ayarlar import (
     IMAGE_EXTENSIONS,
     MAX_TOOL_ROUNDS,
     MAX_WEB_TOOL_CALLS,
-    OLLAMA_CONTEXT_SIZE,
-    OLLAMA_MODEL,
     PROJECT_ROOT,
+    STRATA_API_MODEL,
     _CANCELLED,
 )
+from .yapay_zeka_gecisi import modeli_hazirla
 from .sohbet_gecmisi_arama import (
     SESSION_SEARCH_TOOL,
     SESSION_SEARCH_TOOL_NAME,
@@ -174,39 +169,20 @@ class QwenAraclariMixin:
 
     def _emit_context_remaining(self, response):
         try:
+            context_size = int(getattr(self, "_active_context_size", 0) or 0)
+            if context_size <= 0:
+                return
             used = int(getattr(response, "prompt_eval_count", 0) or 0)
             used += int(getattr(response, "eval_count", 0) or 0)
-            used = min(max(used, 0), OLLAMA_CONTEXT_SIZE)
-            remaining = 100.0 * (1.0 - (used / OLLAMA_CONTEXT_SIZE))
+            used = min(max(used, 0), context_size)
+            remaining = 100.0 * (1.0 - (used / context_size))
             self.context_remaining.emit(min(max(remaining, 0.0), 100.0))
         except Exception:
             pass
 
-    def _has_visual_attachment_context(self, user_text):
-        text = str(user_text or "")
-
-        if "===== EKLİ DOSYA BAĞLAMI =====" not in text:
-            return False
-
-        return any(
-            marker in text
-            for marker in (
-                "----- GÖRSEL -----",
-                "----- AKTİF GÖRSEL -----",
-            )
-        )
-
     def _tools_for_prompt(self, user_text, runtime):
         text = str(user_text or "").casefold()
-        tools = list(runtime.tools)
-        tools.append(SESSION_SEARCH_TOOL)
-        model_mode = str(getattr(self, "_model_mode", "auto") or "auto")
-
-        if (
-            model_mode == "auto"
-            and self._has_visual_attachment_context(user_text)
-        ):
-            tools.append(KODCU_AI_TOOL)
+        tools = [*runtime.tools, SESSION_SEARCH_TOOL]
 
         if any(term in text for term in DIRECTORY_TREE_REQUEST_TERMS):
             return tools
@@ -218,57 +194,12 @@ class QwenAraclariMixin:
             != DIRECTORY_TREE_TOOL_NAME
         ]
 
-    def _prepare_coder_context(self, user_text):
-        model_mode = str(getattr(self, "_model_mode", "auto") or "auto")
-
-        if model_mode == "normal":
-            return user_text
-
-        if model_mode == "auto":
-            if self._has_visual_attachment_context(user_text):
-                return user_text
-
-            if not kod_gorevi_mi(user_text):
-                return user_text
-
-        activity = {"name": "kodcu_ai"}
-        self.tool_activity.emit(json.dumps(activity, ensure_ascii=False))
-        print(
-            (
-                "[GAKKO KODCU] Kod modu seçildi; Kodcu çağrılıyor."
-                if model_mode == "kod"
-                else "[GAKKO KODCU] Kod görevi algılandı; Kodcu çağrılıyor."
-            ),
-            flush=True,
-        )
-
-        result = kodcu_ai_calistir(self, user_text)
-        if result is _CANCELLED:
-            return _CANCELLED
-
-        return (
-            f"{user_text}\n\n"
-            "===== KODCU UZMAN BAĞLAMI =====\n"
-            f"{result}\n"
-            "===== /KODCU UZMAN BAĞLAMI =====\n"
-            "Yukarıdaki uzman çıktısını teknik bağlam olarak kullan. "
-            "Nihai cevabı GAKKO'nun ana modeli olarak sen üret."
-        )
-
     async def _execute_qwen_tool(self, runtime, name, arguments):
         if name == SESSION_SEARCH_TOOL_NAME:
             return session_search(
                 arguments,
                 active_project_root=getattr(self, "active_project_root", None),
             )
-
-        if name == KODCU_AI_TOOL_NAME:
-            gorev = (
-                arguments.get("gorev")
-                if isinstance(arguments, dict)
-                else ""
-            )
-            return kodcu_ai_calistir(self, gorev)
 
         if name in runtime.search_tool_names:
             return await self._call_mcp_tool(
@@ -293,12 +224,18 @@ class QwenAraclariMixin:
         return f"[TOOL HATA] Bilinmeyen araç: {name}"
 
     async def _chat_with_tools(self, user_text, runtime):
+        selected_model = model_rolu_sec(
+            getattr(self, "_model_mode", "auto"),
+            user_text,
+        )
+        ready = modeli_hazirla(self, selected_model)
+        if ready is _CANCELLED:
+            return _CANCELLED
+
         approved_git_result, git_commit_verified = (
             await execute_approved_git_action(self, runtime, user_text)
         )
-        prepared_text = self._prepare_coder_context(user_text)
-        if prepared_text is _CANCELLED:
-            return _CANCELLED
+        prepared_text = user_text
 
         if approved_git_result is not None:
             prepared_text += (
@@ -324,12 +261,11 @@ class QwenAraclariMixin:
 
             try:
                 response = self._chat(
-                    model=OLLAMA_MODEL,
+                    model=STRATA_API_MODEL,
                     messages=messages,
                     tools=tools,
                     stream=False,
                     think=True,
-                    options={"num_ctx": OLLAMA_CONTEXT_SIZE},
                 )
 
             except Exception as exc:
@@ -344,7 +280,7 @@ class QwenAraclariMixin:
 
             last_response = response
             assistant_message = response.message
-            messages.append(assistant_message)
+            messages.append(assistant_message.to_dict())
 
             tool_calls = assistant_message.tool_calls or []
 
@@ -422,10 +358,17 @@ class QwenAraclariMixin:
                                 f"{result}\n\n{WEB_USAGE_LIMIT_MESSAGE}"
                             )
 
+                if not isinstance(result, str):
+                    result = json.dumps(
+                        result,
+                        ensure_ascii=False,
+                        default=str,
+                    )
+
                 messages.append(
                     {
                         "role": "tool",
-                        "tool_name": name,
+                        "tool_call_id": str(tool_call.id or ""),
                         "content": result,
                     }
                 )

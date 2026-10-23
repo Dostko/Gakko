@@ -4,102 +4,90 @@
 
 Kullanıcının açık onayı olmadan:
 
-* dosya oluşturma,
-* dosya değiştirme,
-* dosya silme,
-* taşıma,
-* yeniden adlandırma,
-* yeni yapı oluşturma
+- dosya oluşturulmaz,
+- dosya değiştirilmez,
+- dosya silinmez,
+- dosya taşınmaz,
+- dosya yeniden adlandırılmaz,
+- yeni yapı oluşturulmaz.
 
-işlemi yapma.
+Kullanıcının verdiği işlem emri yalnız belirtilen hedef ve kapsam için geçerlidir.
 
-Kullanıcının açıkça verdiği işlem emri, yalnız belirtilen hedef ve kapsam için onaydır.
-
-Görev dışında ek değişiklik gerekiyorsa önce açıkla ve onay al.
+Görev dışındaki değişiklikler kullanıcıya açıklanır ve ayrı onay alınır.
 
 ---
 
 ## Değişiklik Öncesi
 
-Mevcut bir dosyayı değiştirmeden önce gerekli mevcut içeriği incele.
+Değiştirilecek dosya önce incelenir.
 
-Görmediğin dosyanın üzerine yazma.
+Görülmeyen dosyanın üzerine yazılmaz.
 
 Değişiklikten önce:
 
-* ilgili çağrı yollarını,
-* bağımlılıkları,
-* korunması gereken çalışan davranışları
+- ilgili çağrı yolları,
+- bağımlılıklar,
+- korunacak çalışan davranışlar
 
-gerektiği kadar doğrula.
+kontrol edilir.
 
 ---
 
 ## Değişiklik
 
-Amaç en az satırı değiştirmek değil, doğru ve temiz sonucu bırakmaktır.
+Amaç en az satırı değiştirmek değil, görev sonunda doğru ve temiz yapıyı bırakmaktır.
 
-Görev gerektiriyorsa mevcut kod:
+Mevcut kod görev kapsamında değiştirilir, sadeleştirilir veya kaldırılır.
 
-* değiştirilebilir,
-* sadeleştirilebilir,
-* kaldırılabilir.
+Görev dışındaki dosya ve davranışlara dokunulmaz.
 
-Görev dışı dosyalara veya davranışlara dokunma.
-
-Eski ve yeni aynı işi yapan iki kalıcı yolu paralel bırakma.
+Aynı işi yapan eski ve yeni iki kalıcı yol paralel bırakılmaz.
 
 ---
 
-## Eski Davranışı Koruma
+## Eski Davranış
 
-Eski davranışı otomatik olarak doğru kabul etme.
+Eski davranış yalnız eski olduğu için korunmaz.
 
-Hata, gereksiz davranış veya geçersiz varsayımı yeni yapıya taşıma.
+Hata, kullanılmayan davranış ve geçersiz varsayım yeni yapıya taşınmaz.
 
-Yalnız:
+Korunanlar:
 
-* doğrulanmış çalışan özellikleri,
-* kullanıcı beklentisini,
-* gerekli geriye uyumluluğu
-
-koru.
+- doğrulanmış çalışan özellikler,
+- kullanıcı tarafından belirlenmiş davranışlar,
+- mevcut kullanımın devamı için gereken uyumluluk.
 
 ---
 
 ## Doğrulama
 
-Değişiklik sonrası gerçekten uygulandığını kontrol et.
+Değişiklikten sonra sonuç kontrol edilir:
 
-Doğrula:
+- doğru dosya değişti mi,
+- hedef davranış çalışıyor mu,
+- çalışan davranışlardan biri bozuldu mu,
+- eski yol kaldırıldı mı,
+- çağrı noktaları doğru yere gidiyor mu,
+- ilgili testler geçiyor mu.
 
-* hedef dosya doğru mu,
-* yeni davranış çalışıyor mu,
-* mevcut davranışlardan biri bozuldu mu,
-* gereksiz eski yol kaldırıldı mı,
-* çağrı noktaları doğru yere gidiyor mu,
-* ilgili testler geçiyor mu.
+`git diff` yardımcı kontroldür; tek başına başarı ölçütü değildir.
 
-`git diff` yalnız yardımcı kontroldür; başarı ölçütünün kendisi değildir.
-
-Bir işlem başarısızsa başarılı olmuş gibi gösterme.
+Başarısız işlem başarılı olarak gösterilmez.
 
 ---
 
 ## Revizyon
 
-Yeni ihtiyaç çıktığında mevcut yapıyı kontrollü biçimde revize et.
+Revizyon mevcut yapının üzerine yeni katman yığmak için kullanılmaz.
 
-Yeni çözümü eski yapının üzerine yığma.
+Eski çözüm kaldırılır ve görev sonunda tek temiz yol bırakılır.
 
-Gerekirse eski çözümü kaldır ve tek temiz yol bırak.
-
-Revizyonun kapsamını kullanıcı göreviyle sınırlı tut.
+Revizyon kapsamı kullanıcı göreviyle sınırlıdır.
 
 ---
 
 ## Temel İlke
 
-**İncele → onay sınırını koru → değiştir → doğrula → gereksiz eski yolu kaldır.**
+**İncele → onay al → değiştir → doğrula → eski yolu kaldır.**
 
-Çalışan yapıyı koru, fakat hatalı veya gereksiz davranışı sırf eski diye yaşatma.
+Çalışan yapı korunur. Hatalı veya kullanılmayan davranış yalnız eski olduğu için yaşatılmaz.

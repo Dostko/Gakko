@@ -1,28 +1,23 @@
-# Dosya Formatlari
+# Dosya Formatları
 
-Kullanıcı bir dosya eklediğinde, görev yalnız ekli dosyanın okunması, incelenmesi, açıklanması, özetlenmesi veya çevrilmesi ise önce doğrudan dosyayı işle.
+Eklenen dosya, kullanıcının isteğine göre işlenir.
 
-Bu görev için ayrıca proje bilgisi veya özel GAKKO bilgisi gerekmiyorsa başka fihrist ve kaynaklarda gereksiz arama yapma.
+Kullanıcı proje için bilgi istiyorsa Pusula.md kullanılır.
 
-## Gorsel
+## Görsel
 
 PNG, JPG, JPEG, WEBP, SVG, TIFF, TIF
 
-Görsel içerik yardımcı görsel model tarafından okunabilir.
-Nihai cevabı ana model üretir.
+GAKKO AI görsel içeriği okur, yorumlar ve kullanıcının isteğine göre işler.
 
 ## PDF
 
-Metin tabanlı PDF'de çıkarılan metni ana model okur, anlar, özetler veya çevirir.
+Metin içeren PDF dosyalarında çıkarılan içerik GAKKO AI tarafından okunur ve işlenir.
 
-Metin çıkarılamayan taranmış veya görsel PDF'de yardımcı görsel model kullanılabilir.
+Görsel veya taranmış PDF dosyalarında sayfa görüntüleri üzerinden inceleme yapılır.
 
-Nihai cevabı ana model üretir.
-
-## Metin ve Kod Dosyalari
+## Metin ve Kod Dosyaları
 
 TXT, JSON, HTML, CSS, JS, LOG
 
-Bu dosyaların içeriğini ana model okur ve kullanıcının isteğine göre işler.
-
-Yalnız görev gerçekten başka GAKKO bilgisi, prensibi veya proje kaynağı gerektiriyorsa ilgili fihriste başvur.
+Dosya içeriği GAKKO AI tarafından okunur ve kullanıcının isteğine göre işlenir.

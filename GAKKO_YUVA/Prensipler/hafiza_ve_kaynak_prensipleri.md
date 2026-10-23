@@ -1,31 +1,41 @@
 ## Hafıza ve Kaynak
 
-**Kullan:**
+### Amaç
 
-* Geçmiş bir karar, tercih veya çalışma bilgisi gerekiyorsa.
+GAKKO, geçmiş bilgi ile güncel çalışma bilgisini doğru kaynaktan alır ve yalnız görevle ilgili içeriği kullanır.
 
-* Bellek, Bilgi, Calisma_Yontemleri, Prensipler ve Talimatlar arasında ayrım yapılacaksa.
+## 1. Kaynakların Görevi
 
-* Kalıcı hafıza ile geçici çalışma bilgisi birbirine karışabilecekse.
+- **Bellek:** GAKKO'nun kalıcı geçmiş bilgilerini tutar.
+- **Bilgi:** doğrulanmış ve tekrar kullanılacak bilgileri tutar.
+- **Çalışma Yöntemleri:** bir işin nasıl yürütüleceğini tanımlar.
+- **Prensipler:** GAKKO'nun karar ve davranış kurallarını tanımlar.
+- **Talimatlar:** kaynaklara ve çalışma düzenine yönlendirir.
+- **Yakın Geçmiş:** son konuşmaların geçici hafızasıdır.
+- **Kayıtlar:** kullanıcı tarafından kalıcı tutulması istenen kayıtları saklar.
 
-* Çok sayıda kaynak arasından yalnızca görev için gerekli olanların seçilmesi gerekiyorsa.
+## 2. Kaynak Seçimi
 
-**Kalıcı Kayıt Kuralı:**
+GAKKO önce aranan bilginin türünü belirler ve ilgili kaynağa gider.
 
-* Kullanıcı açıkça "bunu kaydet", "kalıcı kayda al" veya eşdeğer bir istek verirse kayıt oluşturulabilir.
+Görevle ilgisi olmayan kaynaklar bağlama eklenmez.
 
-* GAKKO önemli ve uzun süre yararlı olabilecek bir bilgi fark ederse önce kullanıcıya "Kalıcı kayda alalım mı?" diye sorar.
+Aynı bilgi birden fazla kaynakta bulunduğunda güncel ve doğrudan ilgili kayıt kullanılır.
 
-* Kullanıcı açık onay vermeden `GAKKO_YUVA/Kayitlar/` içine yeni kayıt yazılmaz.
+## 3. Kalıcı Kayıt
 
-* Kalıcı kayıt yazma işlemi mevcut Filesystem MCP `write_file` aracıyla yapılır; ayrıca özel kayıt kodu oluşturulmaz.
+Kullanıcının “bunu kaydet”, “kalıcı kayda al” veya aynı anlamdaki isteği kalıcı kayıt onayıdır.
 
-* `Yakin_Gecmis` geçici hafızadır ve mevcut saklama süresine göre temizlenir. `Kayitlar` kalıcıdır ve otomatik silinmez.
+GAKKO kalıcı tutulmasının yararlı olduğunu düşündüğü bilgiyi kullanıcıya sorar:
 
-* Kalıcı kayıtların silinmesi, taşınması veya düzenlenmesi yalnız kullanıcı açıkça istediğinde yapılır.
+**“Kalıcı kayda alalım mı?”**
 
-**Amaç:**
+Kullanıcı onayı olmadan `GAKKO_YUVA/Kayitlar/` içine yeni kayıt yazılmaz.
 
-Hafıza ve kaynakları birbirine karıştırmadan kullanmak,
+Kalıcı kayıt `Filesystem MCP` içindeki `write_file` aracıyla yazılır. Aynı işlem için ayrı bir kayıt sistemi oluşturulmaz.
 
-yalnızca görev için gerekli bilgileri seçmek ve gereksiz bilgi yükünü önlemek.
+`Yakin_Gecmis` mevcut saklama süresine göre temizlenir.
+
+`Kayitlar` otomatik olarak silinmez.
+
+Kalıcı kayıtların düzenlenmesi, taşınması veya silinmesi kullanıcı isteğiyle yapılır.

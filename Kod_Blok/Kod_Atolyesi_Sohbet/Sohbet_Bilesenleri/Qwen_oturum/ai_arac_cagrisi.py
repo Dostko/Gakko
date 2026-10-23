@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from .qwen_ayarlar import (
-    CODER_MODEL,
-    OLLAMA_CONTEXT_SIZE,
-    _CANCELLED,
-)
+from .qwen_ayarlar import CODER_MODEL, DAILY_MODEL
 
 
 # BLOK BAŞLIĞI: KOD GÖREVİ ALGILAMA - BAŞLANGIÇ
@@ -108,82 +104,13 @@ def kod_gorevi_mi(text):
 
 # BLOK BAŞLIĞI: KOD GÖREVİ ALGILAMA - BİTİŞ
 
+def model_rolu_sec(model_mode, text):
+    mode = str(model_mode or "auto").strip().casefold()
 
-# BLOK BAŞLIĞI: KODCU AI ARAÇ TANIMI - BAŞLANGIÇ
+    if mode == "normal":
+        return DAILY_MODEL
 
-KODCU_AI_TOOL_NAME = "kodcu_ai"
+    if mode == "kod":
+        return CODER_MODEL
 
-KODCU_AI_TOOL = {
-    "type": "function",
-    "function": {
-        "name": KODCU_AI_TOOL_NAME,
-        "description": (
-            "Görsel/OCR bağlamında ana Günlük modelin teknik kodlama "
-            "uzmanlığına ihtiyaç duyduğunda Kodcu modeli çağırır. "
-            "Göreve gerekli OCR metnini, kod parçalarını ve teknik isteği ekle."
-        ),
-        "parameters": {
-            "type": "object",
-            "required": ["gorev"],
-            "properties": {
-                "gorev": {
-                    "type": "string",
-                    "description": (
-                        "Kodcu modelin çözmesi gereken teknik görev. "
-                        "Gerekli görsel/OCR içeriğini de bu metne dahil et."
-                    ),
-                }
-            },
-        },
-    },
-}
-
-# BLOK BAŞLIĞI: KODCU AI ARAÇ TANIMI - BİTİŞ
-
-
-CODER_SYSTEM_PROMPT = (
-    "Sen GAKKO'nun Kodcu uzman modelisin. "
-    "Sana yalnız kodlama, yazılım geliştirme veya teknik programlama görevi verilir. "
-    "Görevi teknik olarak çöz. Görmediğin proje dosyalarını veya yapısını uydurma. "
-    "Mevcut bağlam yeterli değilse bunu açıkça belirt. "
-    "Nihai kullanıcı cevabı yazma; ana Günlük modelin kullanacağı temiz ve uygulanabilir "
-    "teknik çözümü üret."
-)
-
-
-def kodcu_ai_calistir(session, gorev):
-    task = str(gorev or "").strip()
-
-    if not task:
-        return "[KODCU AI HATA] Görev boş."
-
-    print(
-        f"[GAKKO KODCU] Model çağrısı: {CODER_MODEL}",
-        flush=True,
-    )
-
-    response = session._chat(
-        model=CODER_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": CODER_SYSTEM_PROMPT,
-            },
-            {
-                "role": "user",
-                "content": task,
-            },
-        ],
-        stream=False,
-        options={"num_ctx": OLLAMA_CONTEXT_SIZE},
-    )
-
-    if response is _CANCELLED:
-        return _CANCELLED
-
-    content = str(response.message.content or "").strip()
-
-    if not content:
-        return f"[KODCU AI HATA] {CODER_MODEL} boş çıktı üretti."
-
-    return content
+    return CODER_MODEL if kod_gorevi_mi(text) else DAILY_MODEL

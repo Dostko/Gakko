@@ -1,62 +1,58 @@
-# Sistem Analiz
+# Sistem Analizi
 
 ## Başlangıç
 
-Mevcut bir projede değişiklik önermeden önce ilgili yapıyı yeterince anla.
+Mevcut projede değişiklikten önce ilgili yapı incelenir.
 
-Kullanıcı bir başlangıç dosyası verdiyse önce onu incele.
+Kullanıcının verdiği başlangıç dosyası önce okunur.
 
-Başlangıç noktası belirtilmemişse dosya adı tahmin etme; gerçek proje yapısından gerekli en küçük başlangıç noktasını bul.
-
----
-
-## Gerçek Yapıyı Doğrula
-
-Görmediğin veya doğrulamadığın:
-
-* dosya,
-* klasör,
-* sınıf,
-* fonksiyon,
-* araç,
-* bağlantı,
-* davranış
-
-varmış gibi kabul etme.
-
-Gerekirse çağrı noktalarını, bağımlılıkları ve ilgili dosyaları kontrol et.
-
-Tüm projeyi gereksiz yere bağlama yükleme.
+Başlangıç noktası verilmemişse proje yapısından görevle ilişkili dosya veya bölüm bulunur. Dosya adı tahmin edilmez.
 
 ---
 
-## Kök Nedeni Bul
+## Gerçek Yapıyı Doğrulama
 
-Sorunu yalnız görünen belirti üzerinden çözme.
+Görülmeyen veya doğrulanmayan:
 
-Mümkün olduğunca:
+- dosya,
+- klasör,
+- sınıf,
+- fonksiyon,
+- araç,
+- bağlantı,
+- davranış
 
-1. sorunun nerede başladığını,
-2. hangi çağrı yolunda oluştuğunu,
-3. hangi koşulda tekrarlandığını,
-4. hangi bileşenlerin etkilendiğini
+varmış gibi kabul edilmez.
 
-belirle.
+Görevle ilişkili çağrı noktaları, bağımlılıklar ve dosyalar incelenir.
 
-Geçici yama eklemeden önce gerçek nedeni bul.
+Tüm proje çalışma bağlamına yüklenmez.
+
+---
+
+## Kök Nedeni Bulma
+
+Sorun yalnız görünen belirti üzerinden çözülmez.
+
+Analizde:
+
+1. sorunun başladığı nokta,
+2. çağrı yolu,
+3. sorunu oluşturan koşul,
+4. etkilenen bileşenler
+
+belirlenir.
+
+Düzeltme kök nedene uygulanır. Geçici yama, gerçek nedenin yerine kullanılmaz.
 
 ---
 
 ## API ve Framework Doğruluğu
 
-Framework veya API kullanımında ezberden metod, sınıf veya parametre üretme.
+API, framework, sınıf, metot ve parametre bilgileri güncel resmî dokümantasyondan doğrulanır.
 
-Gerekliyse güncel resmi dokümantasyondan doğrula.
+Framework sınıfı kullanım amacına göre seçilir.
 
-Framework sınıfını kullanım amacına göre seç.
+Pseudo-code ile çalışabilir kod açıkça ayrılır.
 
-Pseudo-code ile gerçek çalışabilir kodu birbirine karıştırma.
-
-Doğrulanmamış kodu kesin çalışırmış gibi sunma.
-
----
+Doğrulanmamış kod çalışır kod olarak sunulmaz.
