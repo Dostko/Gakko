@@ -11,7 +11,7 @@ from PySide6.QtCore import QThread, Signal
 from .Qwen_oturum.qwen_ayarlar import (
     PROJECT_ROOT,
     QWEN_MD_PATH,
-    DAILY_CONTEXT_SIZE,
+    NORMAL_CONTEXT_SIZE,
     _CANCELLED,
     _STOP,
 )
@@ -48,6 +48,7 @@ class QwenSession(
             if active_project_root is not None
             else None
         )
+
         self.generated_images_root = (
             Path(generated_images_root).resolve()
             if generated_images_root is not None
@@ -63,12 +64,11 @@ class QwenSession(
         self._messages_lock = threading.Lock()
         self._messages = []
         self._system_message = None
-        self._active_image_path = None
         self._generated_image_paths = {}
-        self._model_mode = "auto"
+        self._model_mode = "normal"
         self._strata_model_role = None
         self._strata_owned = False
-        self._active_context_size = DAILY_CONTEXT_SIZE
+        self._active_context_size = NORMAL_CONTEXT_SIZE
 
     @property
     def is_ready(self):
@@ -77,7 +77,7 @@ class QwenSession(
     def set_model_mode(self, mode):
         normalized = str(mode or "").strip().casefold()
 
-        if normalized not in {"auto", "normal", "kod"}:
+        if normalized not in {"normal", "yuksek"}:
             return False
 
         self._model_mode = normalized
@@ -117,6 +117,7 @@ class QwenSession(
 
         self._cancel_requested.clear()
         self._prompt_queue.put(text)
+
         return True
 
     def reset_context(self):
@@ -127,8 +128,8 @@ class QwenSession(
         with self._messages_lock:
             self._messages.clear()
 
-        self._active_image_path = None
         self.context_remaining.emit(100.0)
+
         return True
 
     def restore_history(self, messages):
@@ -139,48 +140,84 @@ class QwenSession(
                 if not isinstance(message, dict):
                     continue
 
-                role = str(message.get("role") or "").strip().lower()
-                content = str(message.get("content") or "").strip()
+                role = str(
+                    message.get("role") or ""
+                ).strip().lower()
 
-                if role not in {"user", "assistant"} or not content:
+                content = str(
+                    message.get("content") or ""
+                ).strip()
+
+                if (
+                    role not in {"user", "assistant"}
+                    or not content
+                ):
                     continue
 
-                restored.append({"role": role, "content": content})
+                restored.append(
+                    {
+                        "role": role,
+                        "content": content,
+                    }
+                )
 
         with self._messages_lock:
             self._messages = restored
 
-        self._active_image_path = None
         return True
 
     def _messages_for_prompt(self, text):
         if self._system_message is None:
-            raise RuntimeError("Qwen başlangıç bağlamı hazır değil.")
+            raise RuntimeError(
+                "Qwen başlangıç bağlamı hazır değil."
+            )
 
         with self._messages_lock:
             return [
                 self._system_message,
                 *self._messages,
-                {"role": "user", "content": text},
+                {
+                    "role": "user",
+                    "content": text,
+                },
             ]
 
-    def _remember_exchange(self, user_text, assistant_text):
+    def _remember_exchange(
+        self,
+        user_text,
+        assistant_text,
+    ):
         with self._messages_lock:
             self._messages.extend(
                 (
-                    {"role": "user", "content": user_text},
-                    {"role": "assistant", "content": assistant_text},
+                    {
+                        "role": "user",
+                        "content": user_text,
+                    },
+                    {
+                        "role": "assistant",
+                        "content": assistant_text,
+                    },
                 )
             )
 
     def _notify_cancelled(self):
         self._cancel_requested.clear()
-        print("[QWEN] İşlem durduruldu.", flush=True)
+
+        print(
+            "[QWEN] İşlem durduruldu.",
+            flush=True,
+        )
+
         self.cancelled.emit()
 
     async def _run_async(self):
         async with self._mcp_runtime() as runtime:
-            qwen_md_text = await self._mcp_read_text(runtime, QWEN_MD_PATH)
+            qwen_md_text = await self._mcp_read_text(
+                runtime,
+                QWEN_MD_PATH,
+            )
+
             self._system_message = self._startup_message(
                 qwen_md_text,
             )
@@ -190,13 +227,20 @@ class QwenSession(
             self.ready.emit()
 
             while not self._stopping:
-                item = await asyncio.to_thread(self._prompt_queue.get)
+                item = await asyncio.to_thread(
+                    self._prompt_queue.get
+                )
 
                 if item is _STOP:
                     break
 
                 user_text = str(item)
-                prepared_user_text = self._prepare_user_text(user_text)
+
+                prepared_user_text = (
+                    self._prepare_user_text(
+                        user_text
+                    )
+                )
 
                 try:
                     reply = await self._chat_with_tools(
@@ -211,7 +255,9 @@ class QwenSession(
                     if self._cancel_requested.is_set():
                         self._notify_cancelled()
                     else:
-                        self.error_ready.emit(str(error))
+                        self.error_ready.emit(
+                            str(error)
+                        )
 
                     continue
 
@@ -222,24 +268,41 @@ class QwenSession(
                     self._notify_cancelled()
                     continue
 
-                self._remember_exchange(prepared_user_text, reply)
+                self._remember_exchange(
+                    prepared_user_text,
+                    reply,
+                )
+
                 self.reply_ready.emit(reply)
 
     def run(self):
         try:
-            asyncio.run(self._run_async())
+            asyncio.run(
+                self._run_async()
+            )
+
         except Exception as error:
             if not self._stopping:
                 self.error_ready.emit(
-                    f"GAKKO oturumu başlatılamadı: {error}"
+                    "GAKKO oturumu başlatılamadı: "
+                    f"{error}"
                 )
+
         finally:
             self._ready = False
             self._system_message = None
+
             try:
-                strata_motorunu_durdur(self)
+                strata_motorunu_durdur(
+                    self
+                )
+
             except Exception as error:
-                print(f"[STRATA KAPATMA HATA] {error}", flush=True)
+                print(
+                    f"[STRATA KAPATMA HATA] {error}",
+                    flush=True,
+                )
+
             self._strata_model_role = None
 
     def stop(self):

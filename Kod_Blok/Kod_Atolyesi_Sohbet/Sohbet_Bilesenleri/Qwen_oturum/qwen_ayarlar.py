@@ -8,27 +8,24 @@ STRATA_CHAT_URL = f"{STRATA_HOST}/v1/chat/completions"
 STRATA_HEALTH_URL = f"{STRATA_HOST}/health"
 STRATA_API_MODEL = "strata"
 
-DAILY_MODEL = "gunluk"
-DAILY_CONTEXT_SIZE = 131072
+NORMAL_MODEL = "normal"
+NORMAL_CONTEXT_SIZE = 131072
 
-CODER_MODEL = "kodcu"
-CODER_CONTEXT_SIZE = 131072
+YUKSEK_MODEL = "yuksek"
+YUKSEK_CONTEXT_SIZE = 131072
 
 STRATA_MODELS = {
-    DAILY_MODEL: {
+    NORMAL_MODEL: {
         "family": "swift",
         "model": "IQ2_XS",
-        "context": DAILY_CONTEXT_SIZE,
+        "context": NORMAL_CONTEXT_SIZE,
     },
-    CODER_MODEL: {
+    YUKSEK_MODEL: {
         "family": "swift",
         "model": "IQ3_S",
-        "context": CODER_CONTEXT_SIZE,
+        "context": YUKSEK_CONTEXT_SIZE,
     },
 }
-
-VISION_MODEL = DAILY_MODEL
-VISION_CONTEXT_SIZE = DAILY_CONTEXT_SIZE
 
 IMAGE_EXTENSIONS = frozenset({
     ".jpeg",
@@ -44,9 +41,6 @@ PDF_EXTENSIONS = frozenset({".pdf"})
 
 MIN_PDF_TEXT_CHARS = 80
 MAX_PDF_TEXT_CHARS = 50000
-MAX_PDF_VISION_PAGES = 20
-PDF_RENDER_WIDTH = 1600
-PDF_RENDER_MAX_HEIGHT = 2400
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 QWEN_MD_PATH = PROJECT_ROOT / ".qwen" / "QWEN.md"

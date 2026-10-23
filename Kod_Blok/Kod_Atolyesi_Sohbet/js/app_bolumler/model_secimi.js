@@ -13,12 +13,11 @@
     }
 
     const modeLabels = {
-        auto: "Otomatik",
         normal: "Normal",
-        kod: "Kod",
+        yuksek: "Yüksek",
     };
 
-    let activeMode = "auto";
+    let activeMode = "normal";
 
     function closeMenu() {
         menu.hidden = true;
@@ -39,14 +38,18 @@
             bridge.set_model_mode(mode);
             return true;
         }
+
         return false;
     }
 
     function updateTrigger(mode, sourceOption) {
-        triggerLabel.textContent = modeLabels[mode] || modeLabels.auto;
-        triggerIcon.className = `model-secim-trigger-icon model-secim-trigger-${mode}`;
+        triggerLabel.textContent = modeLabels[mode] || modeLabels.normal;
+
+        triggerIcon.className =
+            `model-secim-trigger-icon model-secim-trigger-${mode}`;
 
         const icon = sourceOption?.querySelector(".model-secim-icon");
+
         if (icon) {
             triggerIcon.innerHTML = icon.innerHTML;
         }
@@ -54,10 +57,11 @@
 
     function setMode(mode, notifyBridge = true) {
         if (!Object.hasOwn(modeLabels, mode)) {
-            mode = "auto";
+            mode = "normal";
         }
 
         activeMode = mode;
+
         const selectedOption = options.find(
             (option) => option.dataset.modelMode === mode
         );
@@ -79,6 +83,7 @@
 
     trigger.addEventListener("click", (event) => {
         event.stopPropagation();
+
         if (menu.hidden) {
             openMenu();
         } else {
@@ -89,7 +94,10 @@
     options.forEach((option) => {
         option.addEventListener("click", (event) => {
             event.stopPropagation();
-            setMode(option.dataset.modelMode || "auto");
+
+            setMode(
+                option.dataset.modelMode || "normal"
+            );
         });
     });
 
@@ -105,12 +113,17 @@
         }
     });
 
-    setMode("auto", false);
+    setMode("normal", false);
 
     let bridgeSyncAttempts = 0;
+
     const bridgeSyncTimer = window.setInterval(() => {
         bridgeSyncAttempts += 1;
-        if (syncModeToBridge(activeMode) || bridgeSyncAttempts >= 40) {
+
+        if (
+            syncModeToBridge(activeMode)
+            || bridgeSyncAttempts >= 40
+        ) {
             window.clearInterval(bridgeSyncTimer);
         }
     }, 250);

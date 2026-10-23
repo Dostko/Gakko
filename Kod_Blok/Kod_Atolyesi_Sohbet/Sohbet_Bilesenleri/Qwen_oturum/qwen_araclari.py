@@ -225,7 +225,7 @@ class QwenAraclariMixin:
 
     async def _chat_with_tools(self, user_text, runtime):
         selected_model = model_rolu_sec(
-            getattr(self, "_model_mode", "auto"),
+            getattr(self, "_model_mode", "normal"),
             user_text,
         )
         ready = modeli_hazirla(self, selected_model)

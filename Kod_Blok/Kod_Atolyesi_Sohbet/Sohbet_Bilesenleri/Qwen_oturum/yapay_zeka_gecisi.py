@@ -172,17 +172,21 @@ def _available_ram_bytes():
 
     status = MEMORYSTATUSEX()
     status.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+
     if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
         return None
+
     return int(status.ullAvailPhys)
 
 
 def _ensure_launch_memory():
     available = _available_ram_bytes()
+
     if available is None or available >= _MIN_FREE_RAM_BYTES:
         return
 
     available_gib = available / 1024**3
+
     raise RuntimeError(
         "Strata modeli başlatılmadı: yalnızca "
         f"{available_gib:.1f} GiB boş fiziksel RAM var. "
@@ -191,17 +195,32 @@ def _ensure_launch_memory():
     )
 
 
-def _wait_for_runtime(expected_loaded, config=None, timeout=_RUNTIME_WAIT_SECONDS):
+def _wait_for_runtime(
+    expected_loaded,
+    config=None,
+    timeout=_RUNTIME_WAIT_SECONDS,
+):
     deadline = time.monotonic() + float(timeout)
     last_info = None
 
     while time.monotonic() < deadline:
         last_info = _strata_runtime_info()
-        is_loaded = bool(last_info.get("loaded")) and last_info.get("status") == "ok"
+
+        is_loaded = (
+            bool(last_info.get("loaded"))
+            and last_info.get("status") == "ok"
+        )
 
         if expected_loaded:
-            if is_loaded and (config is None or _runtime_matches_model(last_info, config)):
+            if (
+                is_loaded
+                and (
+                    config is None
+                    or _runtime_matches_model(last_info, config)
+                )
+            ):
                 return last_info
+
         elif not is_loaded:
             return last_info
 
@@ -209,8 +228,10 @@ def _wait_for_runtime(expected_loaded, config=None, timeout=_RUNTIME_WAIT_SECOND
 
     if expected_loaded:
         expected = config.get("model") if config else "model"
+
         raise RuntimeError(
-            f"Strata {expected} modelini {_RUNTIME_WAIT_SECONDS:.0f} saniye içinde hazır edemedi."
+            f"Strata {expected} modelini "
+            f"{_RUNTIME_WAIT_SECONDS:.0f} saniye içinde hazır edemedi."
         )
 
     raise RuntimeError(
@@ -220,10 +241,25 @@ def _wait_for_runtime(expected_loaded, config=None, timeout=_RUNTIME_WAIT_SECOND
 
 
 def _stop_strata_runtime():
-    result = _run_strata_cli("launch", "--stop", "--output", "json", timeout=120.0)
+    result = _run_strata_cli(
+        "launch",
+        "--stop",
+        "--output",
+        "json",
+        timeout=120.0,
+    )
+
     if result["returncode"] not in {0}:
-        detail = result["stderr"] or result["stdout"] or "bilinmeyen hata"
-        raise RuntimeError(f"Strata modeli durdurulamadı: {detail}")
+        detail = (
+            result["stderr"]
+            or result["stdout"]
+            or "bilinmeyen hata"
+        )
+
+        raise RuntimeError(
+            f"Strata modeli durdurulamadı: {detail}"
+        )
+
     return _wait_for_runtime(False, timeout=90.0)
 
 
@@ -238,8 +274,6 @@ def _launch_strata_runtime(config):
         config["family"],
         "--context",
         _context_cli_value(config["context"]),
-        "--vision",
-        "cpu",
         "--tune",
         "skip",
         "--access",
@@ -254,8 +288,15 @@ def _launch_strata_runtime(config):
     )
 
     if result["returncode"] != 0:
-        detail = result["stderr"] or result["stdout"] or "bilinmeyen hata"
-        raise RuntimeError(f"Strata modeli başlatılamadı: {detail}")
+        detail = (
+            result["stderr"]
+            or result["stdout"]
+            or "bilinmeyen hata"
+        )
+
+        raise RuntimeError(
+            f"Strata modeli başlatılamadı: {detail}"
+        )
 
     try:
         payload = json.loads(result["stdout"] or "{}")
@@ -263,8 +304,15 @@ def _launch_strata_runtime(config):
         payload = {}
 
     if isinstance(payload, dict) and payload.get("serving") is False:
-        detail = payload.get("engine_problem") or payload.get("error") or result["stdout"]
-        raise RuntimeError(f"Strata modeli servis edemedi: {detail}")
+        detail = (
+            payload.get("engine_problem")
+            or payload.get("error")
+            or result["stdout"]
+        )
+
+        raise RuntimeError(
+            f"Strata modeli servis edemedi: {detail}"
+        )
 
     return _wait_for_runtime(True, config=config)
 
@@ -274,23 +322,33 @@ def modeli_hazirla(session, model):
     config = STRATA_MODELS.get(model_name)
 
     if config is None:
-        raise ValueError(f"Bilinmeyen GAKKO model rolü: {model_name}")
+        raise ValueError(
+            f"Bilinmeyen GAKKO model rolü: {model_name}"
+        )
 
     if session._stopping or session._cancel_requested.is_set():
         return _CANCELLED
 
     info = _strata_runtime_info()
-    is_loaded = bool(info.get("loaded")) and info.get("status") == "ok"
+
+    is_loaded = (
+        bool(info.get("loaded"))
+        and info.get("status") == "ok"
+    )
 
     if is_loaded and _runtime_matches_model(info, config):
         max_context = int(info.get("max_context") or 0)
         required_context = int(config["context"])
+
         if max_context and max_context < required_context:
             _stop_strata_runtime()
             session._strata_model_role = None
+
         else:
             session._strata_model_role = model_name
-            session._active_context_size = max_context or required_context
+            session._active_context_size = (
+                max_context or required_context
+            )
             return True
 
     elif is_loaded:
@@ -298,21 +356,26 @@ def modeli_hazirla(session, model):
         session._strata_model_role = None
 
     info = _launch_strata_runtime(config)
+
     required_context = int(config["context"])
     max_context = int(info.get("max_context") or 0)
 
     session._strata_model_role = model_name
     session._active_context_size = max_context or required_context
     session._strata_owned = True
+
     return True
 
 
 def strata_motorunu_durdur(session):
-    if not bool(getattr(session, "_strata_owned", False)):
+    if not bool(
+        getattr(session, "_strata_owned", False)
+    ):
         return True
 
     try:
         _stop_strata_runtime()
+
     finally:
         session._strata_owned = False
         session._strata_model_role = None
@@ -322,6 +385,7 @@ def strata_motorunu_durdur(session):
 
 def uzman_model_cagir(session, model, **chat_arguments):
     ready = modeli_hazirla(session, model)
+
     if ready is _CANCELLED:
         return _CANCELLED
 

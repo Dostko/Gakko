@@ -97,7 +97,7 @@ class ChatBridge(QObject):
         self.sohbet_gezgini = SohbetGezgini(self)
         self.sayfalama = SayfalamaTeknikleri(self)
         self.ekran_gorunum = EkranGorunum()
-        self._model_mode = "auto"
+        self._model_mode = "normal"
         self._generated_images_temp = tempfile.TemporaryDirectory(
             prefix="gakko_uretilen_",
             ignore_cleanup_errors=True,
@@ -335,7 +335,7 @@ class ChatBridge(QObject):
     def set_model_mode(self, mode):
         normalized = str(mode or "").strip().casefold()
 
-        if normalized not in {"auto", "normal", "kod"}:
+        if normalized not in {"normal", "yuksek"}:
             self.error_ready.emit("Geçersiz model seçimi.")
             return
 

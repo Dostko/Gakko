@@ -253,18 +253,8 @@
         <div class="model-secim-satiri">
           <div class="model-secici" id="modelSecici">
             <div class="model-secim-menu" id="modelSecimMenu" hidden>
-              <button class="model-secim-option model-secim-option-kod" type="button" data-model-mode="kod" title="Kod">
-                <span class="model-secim-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m8 8-4 4 4 4"/>
-                    <path d="m16 8 4 4-4 4"/>
-                    <path d="m14 5-4 14"/>
-                  </svg>
-                </span>
-                <span>Kod</span>
-              </button>
 
-              <button class="model-secim-option model-secim-option-normal" type="button" data-model-mode="normal" title="Normal">
+              <button class="model-secim-option model-secim-option-normal is-selected" type="button" data-model-mode="normal" title="Normal">
                 <span class="model-secim-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M5 6h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-8l-5 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"/>
@@ -273,29 +263,24 @@
                 <span>Normal</span>
               </button>
 
-              <button class="model-secim-option model-secim-option-auto is-selected" type="button" data-model-mode="auto" title="Otomatik">
+              <button class="model-secim-option model-secim-option-yuksek" type="button" data-model-mode="yuksek" title="Yüksek">
                 <span class="model-secim-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="5" y="7" width="14" height="11" rx="3"/>
-                    <path d="M12 4v3"/>
-                    <path d="M9 12h.01M15 12h.01"/>
-                    <path d="M9 15h6"/>
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 2 5 14h6l-1 8 8-12h-6z"/>
                   </svg>
                 </span>
-                <span>Otomatik</span>
+                <span>Yüksek</span>
               </button>
+
             </div>
 
             <button class="model-secim-trigger" id="modelSecimTrigger" type="button" aria-expanded="false" aria-controls="modelSecimMenu" title="Model seçimi">
-              <span class="model-secim-trigger-icon model-secim-trigger-auto" id="modelSecimTriggerIcon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="5" y="7" width="14" height="11" rx="3"/>
-                  <path d="M12 4v3"/>
-                  <path d="M9 12h.01M15 12h.01"/>
-                  <path d="M9 15h6"/>
+              <span class="model-secim-trigger-icon model-secim-trigger-normal" id="modelSecimTriggerIcon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 6h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-8l-5 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"/>
                 </svg>
               </span>
-              <span id="modelSecimTriggerLabel">Otomatik</span>
+              <span id="modelSecimTriggerLabel">Normal</span>
               <span class="model-secim-arrow" aria-hidden="true">‹</span>
             </button>
           </div>

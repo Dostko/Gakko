@@ -17,13 +17,6 @@
       inlinePrompt: "aktif projeyi incele ve mevcut durumu kısa şekilde özetle."
     },
     {
-      command: "/ocr",
-      title: "OCR",
-      description: "Ekli görseldeki metni oku",
-      prompt: "Ekli görseldeki metni oku ve metin olarak çıkar.",
-      inlinePrompt: "ekli görseldeki metni oku ve metin olarak çıkar."
-    },
-    {
       command: "/git",
       title: "Git",
       description: "Mevcut çalışma için güvenli checkpoint al",

@@ -56,18 +56,13 @@
     flex: 0 0 auto;
 }
 
-.model-secim-trigger-auto,
-.model-secim-option-auto .model-secim-icon {
-    color: #6fb7ff;
-}
-
 .model-secim-trigger-normal,
 .model-secim-option-normal .model-secim-icon {
     color: #ff6f9f;
 }
 
-.model-secim-trigger-kod,
-.model-secim-option-kod .model-secim-icon {
+.model-secim-trigger-yuksek,
+.model-secim-option-yuksek .model-secim-icon {
     color: #ff9a3d;
 }
 
