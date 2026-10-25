@@ -17,11 +17,11 @@ WEB_TIMEOUT_SECONDS = 60
 # web_search sonuçları kaynak seçimi için kullanılır. Ayrıntı gerekiyorsa Qwen
 # seçtiği URL'yi web_fetch ile açar. Bu nedenle her arama sonucunun tam sayfa
 # içeriğini modele taşımak yerine başlık + URL + sınırlı içerik taşınır.
-WEB_SEARCH_DEFAULT_MAX_RESULTS = 3
-WEB_SEARCH_MAX_RESULTS = 3
+WEB_SEARCH_DEFAULT_MAX_RESULTS = 10
+WEB_SEARCH_MAX_RESULTS = 10
 WEB_SEARCH_RESULT_CONTENT_MAX_CHARS = 600
-WEB_SEARCH_FALLBACK_MAX_CHARS = 6000
-WEB_SEARCH_TRANSPORT_MAX_CHARS = 3000
+WEB_SEARCH_FALLBACK_MAX_CHARS = 12000
+WEB_SEARCH_TRANSPORT_MAX_CHARS = 12000
 
 INTERNET_TOOL_NAMES = frozenset({"web_search", "web_fetch", "image_search"})
 

@@ -6,7 +6,7 @@ GAKKO, yapay zekâ modelleriyle çalışan bir AI agent ve proje çalışma orta
 
 Temel amaç; anlama, muhakeme, kaynak seçimi, araştırma, araç kullanımı ve proje çalışmalarını yapay zekâya bırakırken teknik katmanı mümkün olduğunca sade tutmaktır.
 
-Ana ilke:
+Ana ilkeler:
 
 - Kararları GAKKO AI verir.
 - GAKKO_YUVA kalıcı bilgi, talimat ve çalışma kaynaklarını sağlar.
@@ -18,11 +18,13 @@ GAKKO AI iki çalışma seviyesi kullanır.
 
 ### Normal
 
-**Swift 1.5 / Qwen3.8-Flash-Next 125B IQ2_XS**
+**Qwen3.6-35B-A3B UD-Q6_K_XL**
 
 Sohbet, araştırma, genel çalışma, planlama ve normal teknik görevlerde kullanılır.
 
-Hızlı ana çalışma modelidir.
+GAKKO'nun ana çalışma modelidir.
+
+Bağlam: **64K (65536)**
 
 ### Yüksek
 
@@ -32,13 +34,15 @@ Zor muhakeme, karmaşık analiz, kritik teknik doğrulama, yoğun kodlama ve der
 
 Görevi ve araç kullanımını baştan sona kendisi yürütür.
 
+Bağlam: **128K (131072)**
+
 ## 3. Model Çalıştırma Altyapısı
 
 GAKKO_R1 modellerini Strata üzerinden çalıştırır.
 
-- Çalışma anında sadece 1 yapay zekâ modeli aktif tutulur.
-- Model değiştirildiğinde mevcut Strata modeli kapatıldıktan sonra seçilen model başlatılır.
-- Modeller 128K bağlam ile çalıştırılır.
+- Çalışma anında yalnızca 1 yapay zekâ modeli aktif tutulur.
+- Model değiştirildiğinde mevcut Strata modeli tamamen kapatılır ve ardından seçilen model başlatılır.
+- Normal model 64K (65536), Yüksek model 128K (131072) bağlam ile çalıştırılır.
 - GAKKO ile Strata arasındaki bağlantı API üzerinden sağlanır.
 
 ## 4. GAKKO_YUVA
@@ -53,13 +57,13 @@ Ana alanlar:
 - `Bilgi` → Doğrulanmış sistem ve teknik bilgiler
 - `Hafiza` → Yakın geçmiş ve çalışma bağlamı
 - `Kayitlar` → Kalıcı kayıtlar
-- `Projeler` → Proje özel kaynakları
+- `Projeler` → Projeye özel kaynaklar
 
 `QWEN.md` başlangıç kapısıdır.
 
-`QWEN.md`'den `GAKKO_YUVA/Talimatlar/Pusula.md` yönlendirmesine geçilir.
+`QWEN.md` üzerinden `GAKKO_YUVA/Talimatlar/Pusula.md` yönlendirmesine geçilir.
 
-`Pusula.md` kaynağın nerede olduğunu gösterir. Davranış ve çalışma kuralları ilgili kaynak dosyalarında bulunur.
+`Pusula.md`, gerekli kaynağın nerede olduğunu gösterir. Davranış ve çalışma kuralları ilgili kaynak dosyalarında bulunur.
 
 ## 5. Kod_Blok
 
@@ -70,13 +74,15 @@ Başlıca sorumlulukları:
 - GAKKO arayüzünü çalıştırmak
 - Strata ve yapay zekâ modelleriyle bağlantı kurmak
 - MCP ve diğer araç bağlantılarını sağlamak
-- internet erişimini sağlamak
-- dosya ve proje erişimini sağlamak
-- sohbet geçmişi ve dosya eklerini yönetmek
+- İnternet erişimini sağlamak
+- Dosya ve proje erişimini sağlamak
+- Sohbet geçmişini ve dosya eklerini yönetmek
 
 ## 6. Projeler ve Araçlar
 
 GAKKO seçilen projede çalışır.
+
+GAKKO AI:
 
 - proje yapısını inceleyebilir,
 - dosya ve içerik arayabilir,
@@ -104,7 +110,7 @@ GAKKO AI Değerlendirmesi
 ↓  
 Kullanıcı
 
-Sohbet için model doğrudan cevap verebilir.
+Kaynak veya araç gerektirmeyen sohbetlerde model doğrudan cevap verebilir.
 
 ## 8. Ana Mimari İlke
 
@@ -116,4 +122,4 @@ Strata yapay zekâ modellerini çalıştırır.
 
 MCP, yapay zekânın dosya sistemi ve teknik araçlara erişimini sağlar.
 
-GAKKO AI tüm çalışmayı yürütür. Kodlar ise yalnızca GAKKO AI'nin kararlarını ve isteklerini teknik olarak uygular.
+GAKKO AI tüm çalışmayı yürütür. Kod katmanı yalnızca GAKKO AI'nin kararlarını ve isteklerini teknik olarak uygular.

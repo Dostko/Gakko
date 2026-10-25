@@ -16,10 +16,11 @@ YUKSEK_CONTEXT_SIZE = 131072
 
 STRATA_MODELS = {
     NORMAL_MODEL: {
-        "family": "swift",
-        "model": "IQ2_XS",
-        "context": NORMAL_CONTEXT_SIZE,
-    },
+    "family": "swift",
+    "model": "IQ3_XXS",
+    "context": NORMAL_CONTEXT_SIZE,
+    },  
+    
     YUKSEK_MODEL: {
         "family": "swift",
         "model": "IQ3_S",

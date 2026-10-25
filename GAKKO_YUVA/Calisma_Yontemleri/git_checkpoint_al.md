@@ -100,6 +100,8 @@ Push onayından sonra GAKKO'nun `git_push` aracıyla `master` branch'ini uzak de
 
 Push sonucunu sohbet ekranında kullanıcıya göster.
 
+Commit önceki adımda doğrulandıysa push aşamasında commit doğrulamasını yeniden başlatma.
+
 ### 8. Son Kontrol
 
 `git_status` ile repository ve çalışma ağacının son durumunu kontrol et.
@@ -107,6 +109,29 @@ Push sonucunu sohbet ekranında kullanıcıya göster.
 Son durumu sohbet ekranında kullanıcıya göster.
 
 Push başarılıysa checkpoint işleminin tamamlandığını kullanıcıya bildir.
+
+## Doğrulama Sınırı
+
+Checkpoint sırasında yalnız değişen dosyalar, ilgili diff ve checkpoint işlemi için gerekli doğrulamalar incelenir.
+
+Doğrulanmamış bir değişiklik görülürse yalnız o değişikliğin doğrudan çalışma yolu kontrol edilir.
+
+Checkpoint doğrulaması:
+
+- proje geneli taramaya,
+- ek araştırmaya,
+- görev dışı regresyon kontrolüne,
+- ilgili olmayan kaynak veya talimatların incelenmesine
+
+dönüştürülmez.
+
+Gerekli bilgi elde edildiğinde doğrulama durdurulur ve checkpoint akışına devam edilir.
+
+Bir değişikliğin doğrulanması ayrı ve kapsamlı bir çalışma gerektiriyorsa checkpoint işlemi genişletilmez; durum kullanıcıya bildirilir.
+
+Commit doğrulandıktan sonra push aşamasında aynı commit yeniden doğrulama görevine dönüştürülmez.
+
+Push tamamlandıktan sonra yalnız repository durumu, `origin/master` eşitliği ve çalışma ağacı kontrol edilerek checkpoint tamamlanır.
 
 ## Onay Kuralı
 
@@ -120,7 +145,8 @@ Bir adıma verilen onay sonraki adıma aktarılmaz.
 
 ## Güvenlik
 
-- Test sonucu doğrulanmamış çalışmayı checkpoint kapsamına alma.
+- Test sonucu doğrulanmamış çalışma doğrudan doğrulanmış olarak kabul edilmez.
+- Doğrulama checkpoint sırasında yapılacaksa yalnız ilgili değişikliğin doğrudan çalışma yolu kontrol edilir.
 - Kullanıcı onayı olmadan stage, commit veya push yapma.
 - `git_reset`, force push, branch değiştirme, branch oluşturma, merge veya rebase kullanma.
 - Araç hata verirse gerçek hatayı sohbet ekranında kullanıcıya göster.
