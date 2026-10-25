@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import html
 import json
+import re
+from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from .internet_kapisi.image_arama import (
@@ -11,17 +15,20 @@ from .internet_kapisi.image_arama import (
 )
 
 
-OLLAMA_WEB_BASE = "http://127.0.0.1:11434/api/experimental"
+WEB_SEARCH_URL = "https://html.duckduckgo.com/html/"
 WEB_TIMEOUT_SECONDS = 60
+WEB_MAX_RESPONSE_BYTES = 2_000_000
+WEB_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/156.0.0.0 Safari/537.36"
+)
 
-# web_search sonuçları kaynak seçimi için kullanılır. Ayrıntı gerekiyorsa Qwen
-# seçtiği URL'yi web_fetch ile açar. Bu nedenle her arama sonucunun tam sayfa
-# içeriğini modele taşımak yerine başlık + URL + sınırlı içerik taşınır.
 WEB_SEARCH_DEFAULT_MAX_RESULTS = 10
 WEB_SEARCH_MAX_RESULTS = 10
 WEB_SEARCH_RESULT_CONTENT_MAX_CHARS = 600
-WEB_SEARCH_FALLBACK_MAX_CHARS = 12000
 WEB_SEARCH_TRANSPORT_MAX_CHARS = 12000
+WEB_FETCH_CONTENT_MAX_CHARS = 24000
 
 INTERNET_TOOL_NAMES = frozenset({"web_search", "web_fetch", "image_search"})
 
@@ -97,119 +104,282 @@ INTERNET_TOOLS = (
 )
 
 
-def _post_json(endpoint, payload):
+class _SearchParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.results = []
+        self.current = None
+        self.capture = None
+        self.snippet_tag = None
+
+    def _finish(self):
+        if not self.current:
+            return
+
+        title = _clean_text(" ".join(self.current["title"]))
+        content = _clean_text(" ".join(self.current["content"]))
+        url = _clean_result_url(self.current["url"])
+
+        if title and url:
+            self.results.append(
+                {"title": title, "url": url, "content": content}
+            )
+
+        self.current = None
+        self.capture = None
+        self.snippet_tag = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        classes = set(str(attrs.get("class", "")).split())
+
+        if tag == "a" and "result__a" in classes:
+            self._finish()
+            self.current = {
+                "title": [],
+                "url": str(attrs.get("href", "") or ""),
+                "content": [],
+            }
+            self.capture = "title"
+        elif self.current and "result__snippet" in classes:
+            self.capture = "content"
+            self.snippet_tag = tag
+
+    def handle_endtag(self, tag):
+        if self.capture == "title" and tag == "a":
+            self.capture = None
+        elif self.capture == "content" and tag == self.snippet_tag:
+            self.capture = None
+            self.snippet_tag = None
+
+    def handle_data(self, data):
+        if self.current and self.capture:
+            self.current[self.capture].append(data)
+
+    def close(self):
+        super().close()
+        self._finish()
+
+
+def _clean_text(value):
+    value = re.sub(r"[ \t\r\f\v]+", " ", str(value or ""))
+    value = re.sub(r"\n\s*\n+", "\n", value)
+    return value.strip()
+
+
+def _clean_result_url(url):
+    url = str(url or "").strip()
+    if url.startswith("//"):
+        url = "https:" + url
+
+    parsed = urlparse(url)
+
+    if parsed.netloc.endswith("duckduckgo.com") and parsed.path.startswith("/l/"):
+        target = parse_qs(parsed.query).get("uddg")
+        if target:
+            url = target[0]
+            parsed = urlparse(url)
+
+    return url if parsed.scheme in {"http", "https"} else ""
+
+
+def _http_text(url, *, data=None, headers=None):
+    request_headers = {
+        "User-Agent": WEB_USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/json,text/plain;q=0.9,*/*;q=0.5",
+        "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+    }
+    if headers:
+        request_headers.update(headers)
+
     request = Request(
-        f"{OLLAMA_WEB_BASE}/{endpoint}",
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
+        url,
+        data=data,
+        headers=request_headers,
+        method="POST" if data is not None else "GET",
     )
 
-    try:
-        with urlopen(request, timeout=WEB_TIMEOUT_SECONDS) as response:
-            content = response.read().decode(
-                "utf-8",
-                errors="replace",
-            ).strip()
+    with urlopen(request, timeout=WEB_TIMEOUT_SECONDS) as response:
+        raw = response.read(WEB_MAX_RESPONSE_BYTES + 1)
+        transport_truncated = len(raw) > WEB_MAX_RESPONSE_BYTES
+        raw = raw[:WEB_MAX_RESPONSE_BYTES]
+        charset = response.headers.get_content_charset() or "utf-8"
 
-            return content or "[INTERNET HATA] Ollama boş yanıt döndürdü."
-
-    except HTTPError as error:
-        detail = error.read().decode(
-            "utf-8",
-            errors="replace",
-        ).strip()
-
-        return (
-            f"[INTERNET HATA] HTTP {error.code}: "
-            f"{detail or error.reason}"
-        )
-
-    except URLError as error:
-        return f"[INTERNET HATA] {error.reason}"
-
-    except Exception as error:
-        return (
-            f"[INTERNET HATA] "
-            f"{type(error).__name__}: {error}"
-        )
+        return {
+            "url": response.geturl(),
+            "content_type": (response.headers.get_content_type() or "").lower(),
+            "text": raw.decode(charset, errors="replace"),
+            "transport_truncated": transport_truncated,
+        }
 
 
-def _compact_web_search_response(content):
-    """
-    Ollama web_search yanıtını kaynak seçimi için gerekli boyuta indirir.
+def _web_search_results(query, max_results):
+    response = _http_text(
+        WEB_SEARCH_URL,
+        data=urlencode({"q": query, "b": ""}).encode("utf-8"),
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Referer": "https://html.duckduckgo.com/",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-User": "?1",
+        },
+    )
 
-    Kaynak seçmez veya sonuç sırasını değiştirmez. Yalnız her sonucun başlık,
-    URL ve sınırlı içerik bölümünü modele taşır. Ayrıntı gerektiğinde Qwen
-    web_fetch çağırabilir.
-    """
-    if not content or content.startswith("[INTERNET HATA]"):
-        return content
+    lowered = response["text"].lower()
+    if "captcha" in lowered or "anomaly-modal" in lowered:
+        raise RuntimeError("Arama motoru doğrulama ekranı döndürdü.")
 
-    try:
-        payload = json.loads(content)
-    except (json.JSONDecodeError, TypeError):
-        if len(content) <= WEB_SEARCH_FALLBACK_MAX_CHARS:
-            return content
+    parser = _SearchParser()
+    parser.feed(response["text"])
+    parser.close()
 
-        return (
-            content[:WEB_SEARCH_FALLBACK_MAX_CHARS].rstrip()
-            + "\n[WEB_SEARCH TAŞIMA SINIRI: yanıt kısaltıldı]"
-        )
+    results = []
+    seen = set()
 
-    results = payload.get("results")
-    if not isinstance(results, list):
-        if len(content) <= WEB_SEARCH_FALLBACK_MAX_CHARS:
-            return content
-
-        return (
-            content[:WEB_SEARCH_FALLBACK_MAX_CHARS].rstrip()
-            + "\n[WEB_SEARCH TAŞIMA SINIRI: yanıt kısaltıldı]"
-        )
-
-    compact_results = []
-
-    for item in results[:WEB_SEARCH_MAX_RESULTS]:
-        if not isinstance(item, dict):
+    for item in parser.results:
+        if item["url"] in seen:
             continue
 
-        title = str(item.get("title", "") or "").strip()
-        url = str(item.get("url", "") or "").strip()
-        result_content = str(item.get("content", "") or "").strip()
+        seen.add(item["url"])
+        results.append(item)
 
-        truncated = len(result_content) > WEB_SEARCH_RESULT_CONTENT_MAX_CHARS
+        if len(results) >= max_results:
+            break
+
+    if not results:
+        raise RuntimeError("Arama motorundan kullanılabilir sonuç alınamadı.")
+
+    return results
+
+
+def _compact_search_results(results):
+    compact = []
+
+    for item in results[:WEB_SEARCH_MAX_RESULTS]:
+        content = _clean_text(item.get("content", ""))
+        truncated = len(content) > WEB_SEARCH_RESULT_CONTENT_MAX_CHARS
+
         if truncated:
-            result_content = (
-                result_content[:WEB_SEARCH_RESULT_CONTENT_MAX_CHARS].rstrip()
+            content = (
+                content[:WEB_SEARCH_RESULT_CONTENT_MAX_CHARS].rstrip()
                 + "\n[İÇERİK KISALTILDI]"
             )
 
-        compact_item = {
-            "title": title,
-            "url": url,
-            "content": result_content,
+        item_out = {
+            "title": _clean_text(item.get("title", "")),
+            "url": str(item.get("url", "") or "").strip(),
+            "content": content,
         }
 
         if truncated:
-            compact_item["content_truncated"] = True
+            item_out["content_truncated"] = True
 
-        candidate_results = [*compact_results, compact_item]
-        candidate = json.dumps(
-            {"results": candidate_results},
+        candidate = [*compact, item_out]
+        serialized = json.dumps(
+            {"results": candidate},
             ensure_ascii=False,
             separators=(",", ":"),
         )
 
-        if len(candidate) > WEB_SEARCH_TRANSPORT_MAX_CHARS:
+        if len(serialized) > WEB_SEARCH_TRANSPORT_MAX_CHARS:
             break
 
-        compact_results.append(compact_item)
+        compact.append(item_out)
 
     return json.dumps(
-        {"results": compact_results},
+        {"results": compact},
         ensure_ascii=False,
         separators=(",", ":"),
     )
+
+
+def _html_to_text(body):
+    title_match = re.search(
+        r"<title\b[^>]*>(.*?)</title>",
+        body,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    title = _clean_text(
+        html.unescape(re.sub(r"<[^>]+>", " ", title_match.group(1)))
+    ) if title_match else ""
+
+    body = re.sub(
+        r"<(script|style|svg|canvas|template)\b.*?</\1>",
+        " ",
+        body,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    body = re.sub(
+        r"</?(p|div|li|br|section|article|h[1-6])\b[^>]*>",
+        "\n",
+        body,
+        flags=re.IGNORECASE,
+    )
+    body = re.sub(r"<[^>]+>", " ", body)
+
+    return title, _clean_text(html.unescape(body))
+
+
+def _web_fetch(url):
+    parsed = urlparse(str(url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("Yalnız http:// veya https:// adresleri açılabilir.")
+
+    response = _http_text(parsed.geturl())
+    content_type = response["content_type"]
+    body = response["text"]
+
+    if "html" in content_type or "<html" in body[:500].lower():
+        title, content = _html_to_text(body)
+    elif content_type.startswith("text/") or content_type in {
+        "application/json",
+        "application/ld+json",
+        "application/xml",
+        "application/rss+xml",
+        "application/atom+xml",
+    }:
+        title = ""
+        content = _clean_text(body)
+    else:
+        return (
+            "[INTERNET HATA] web_fetch metin tabanlı olmayan içerik döndürdü: "
+            f"{content_type or 'bilinmeyen içerik türü'}"
+        )
+
+    truncated = len(content) > WEB_FETCH_CONTENT_MAX_CHARS
+    if truncated:
+        content = (
+            content[:WEB_FETCH_CONTENT_MAX_CHARS].rstrip()
+            + "\n[WEB_FETCH İÇERİK SINIRI: sayfa kısaltıldı]"
+        )
+
+    payload = {
+        "url": response["url"],
+        "title": title,
+        "content": content,
+    }
+
+    if truncated or response["transport_truncated"]:
+        payload["content_truncated"] = True
+
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
+def _internet_error(error):
+    if isinstance(error, HTTPError):
+        try:
+            detail = error.read().decode("utf-8", errors="replace").strip()
+        except Exception:
+            detail = ""
+
+        return f"[INTERNET HATA] HTTP {error.code}: {detail or error.reason}"
+
+    if isinstance(error, URLError):
+        return f"[INTERNET HATA] {error.reason}"
+
+    return f"[INTERNET HATA] {type(error).__name__}: {error}"
 
 
 def internet_araci_calistir(tool_name, arguments):
@@ -233,25 +403,24 @@ def internet_araci_calistir(tool_name, arguments):
             flush=True,
         )
 
-        payload = {
-            "query": query,
-            "max_results": max_results,
-        }
-
-        result = _post_json("web_search", payload)
-        return _compact_web_search_response(result)
+        try:
+            return _compact_search_results(
+                _web_search_results(query, max_results)
+            )
+        except Exception as error:
+            return _internet_error(error)
 
     if tool_name == "web_fetch":
         url = str(arguments.get("url", "")).strip()
         if not url:
             return "[INTERNET HATA] web_fetch için url boş."
 
-        print(
-            f"[QWEN WEB FETCH] {url}",
-            flush=True,
-        )
+        print(f"[QWEN WEB FETCH] {url}", flush=True)
 
-        return _post_json("web_fetch", {"url": url})
+        try:
+            return _web_fetch(url)
+        except Exception as error:
+            return _internet_error(error)
 
     if tool_name == "image_search":
         query = str(arguments.get("query", "")).strip()
@@ -272,18 +441,22 @@ def internet_araci_calistir(tool_name, arguments):
         )
 
         try:
-            content = _post_json("web_search", {
-                "query": query,
-                "max_results": max(WEB_SEARCH_DEFAULT_MAX_RESULTS, max_results),
-            })
+            web_results = _web_search_results(
+                query,
+                max(WEB_SEARCH_DEFAULT_MAX_RESULTS, max_results),
+            )
 
             return image_search_from_web_results(
                 query,
                 max_results,
-                content,
+                json.dumps(
+                    {"results": web_results},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ),
                 WEB_SEARCH_RESULT_CONTENT_MAX_CHARS,
             )
         except Exception as error:
-            return f"[INTERNET HATA] {type(error).__name__}: {error}"
+            return _internet_error(error)
 
     return f"[TOOL HATA] Bilinmeyen internet aracı: {tool_name}"
