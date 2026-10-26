@@ -3,30 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 
-STRATA_HOST = "http://127.0.0.1:8080"
-STRATA_CHAT_URL = f"{STRATA_HOST}/v1/chat/completions"
-STRATA_HEALTH_URL = f"{STRATA_HOST}/health"
-STRATA_API_MODEL = "strata"
-
 NORMAL_MODEL = "normal"
 NORMAL_CONTEXT_SIZE = 131072
 
 YUKSEK_MODEL = "yuksek"
 YUKSEK_CONTEXT_SIZE = 131072
-
-STRATA_MODELS = {
-    NORMAL_MODEL: {
-    "family": "swift",
-    "model": "IQ3_XXS",
-    "context": NORMAL_CONTEXT_SIZE,
-    },  
-    
-    YUKSEK_MODEL: {
-        "family": "swift",
-        "model": "IQ3_S",
-        "context": YUKSEK_CONTEXT_SIZE,
-    },
-}
 
 IMAGE_EXTENSIONS = frozenset({
     ".jpeg",

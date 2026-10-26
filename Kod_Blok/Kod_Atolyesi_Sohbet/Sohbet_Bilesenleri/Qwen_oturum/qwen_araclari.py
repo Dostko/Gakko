@@ -23,7 +23,6 @@ from .qwen_ayarlar import (
     MAX_TOOL_ROUNDS,
     MAX_WEB_TOOL_CALLS,
     PROJECT_ROOT,
-    STRATA_API_MODEL,
     _CANCELLED,
 )
 from .yapay_zeka_gecisi import modeli_hazirla
@@ -261,7 +260,6 @@ class QwenAraclariMixin:
 
             try:
                 response = self._chat(
-                    model=STRATA_API_MODEL,
                     messages=messages,
                     tools=tools,
                     stream=False,

@@ -19,7 +19,7 @@ from .Qwen_oturum.qwen_araclari import QwenAraclariMixin
 from .Qwen_oturum.qwen_mcp import QwenMCPMixin
 from .Qwen_oturum.qwen_dosya_ekleri import QwenDosyaEkleriMixin
 from .Qwen_oturum.qwen_model import QwenModelMixin
-from .Qwen_oturum.yapay_zeka_gecisi import strata_motorunu_durdur
+from .Qwen_oturum.yapay_zeka_gecisi import model_motorunu_durdur
 
 
 class QwenSession(
@@ -66,8 +66,6 @@ class QwenSession(
         self._system_message = None
         self._generated_image_paths = {}
         self._model_mode = "normal"
-        self._strata_model_role = None
-        self._strata_owned = False
         self._active_context_size = NORMAL_CONTEXT_SIZE
 
     @property
@@ -293,17 +291,16 @@ class QwenSession(
             self._system_message = None
 
             try:
-                strata_motorunu_durdur(
+                model_motorunu_durdur(
                     self
                 )
 
             except Exception as error:
                 print(
-                    f"[STRATA KAPATMA HATA] {error}",
+                    f"[MODEL KAPATMA HATA] {error}",
                     flush=True,
                 )
 
-            self._strata_model_role = None
 
     def stop(self):
         self._stopping = True
