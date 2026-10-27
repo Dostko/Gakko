@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .Dosya_ekleri.pdf_ayarlari import PdfAyarlariMixin
+from .qwen_ayarlar import IMAGE_EXTENSIONS
 
 
 class QwenDosyaEkleriMixin(PdfAyarlariMixin):
@@ -54,7 +55,11 @@ class QwenDosyaEkleriMixin(PdfAyarlariMixin):
 
         kept_lines = []
         pdf_paths = []
+        image_paths = []
         seen_pdf_paths = set()
+        seen_image_paths = set()
+
+        self._pending_image_paths = []
 
         for line in original_text.splitlines():
             pdf_path = self._pdf_path_from_attachment_line(line)
@@ -68,10 +73,33 @@ class QwenDosyaEkleriMixin(PdfAyarlariMixin):
 
                 continue
 
+            image_path = self._attachment_path_from_line(
+                line,
+                IMAGE_EXTENSIONS,
+            )
+
+            if image_path is not None:
+                path_key = str(image_path).casefold()
+
+                if path_key not in seen_image_paths:
+                    seen_image_paths.add(path_key)
+                    image_paths.append(image_path)
+
+                continue
+
             kept_lines.append(line)
 
+        self._pending_image_paths = [
+            str(path)
+            for path in image_paths
+        ]
+
         if not pdf_paths:
-            return original_text
+            if not image_paths:
+                return original_text
+
+            user_request = "\n".join(kept_lines).strip()
+            return user_request or "Ekli görseli incele."
 
         user_request = "\n".join(kept_lines).strip()
 

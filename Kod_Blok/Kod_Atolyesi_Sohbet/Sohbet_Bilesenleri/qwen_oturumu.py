@@ -65,6 +65,7 @@ class QwenSession(
         self._messages = []
         self._system_message = None
         self._generated_image_paths = {}
+        self._pending_image_paths = []
         self._model_mode = "normal"
         self._active_context_size = NORMAL_CONTEXT_SIZE
 
@@ -170,14 +171,29 @@ class QwenSession(
                 "Qwen başlangıç bağlamı hazır değil."
             )
 
+        user_message = {
+            "role": "user",
+            "content": text,
+        }
+
+        image_paths = list(
+            getattr(
+                self,
+                "_pending_image_paths",
+                [],
+            )
+            or []
+        )
+        self._pending_image_paths = []
+
+        if image_paths:
+            user_message["images"] = image_paths
+
         with self._messages_lock:
             return [
                 self._system_message,
                 *self._messages,
-                {
-                    "role": "user",
-                    "content": text,
-                },
+                user_message,
             ]
 
     def _remember_exchange(

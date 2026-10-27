@@ -13,8 +13,6 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .qwen_ayarlar import (
-    NORMAL_CONTEXT_SIZE,
-    NORMAL_MODEL,
     YUKSEK_CONTEXT_SIZE,
     YUKSEK_MODEL,
     _CANCELLED,
@@ -30,7 +28,13 @@ STRATA_HEALTH_URL = f'{STRATA_HOST}/health'
 
 STRATA_API_MODEL = 'strata'
 
-STRATA_MODELS = {NORMAL_MODEL: {'family': 'swift', 'model': 'IQ3_XXS', 'context': NORMAL_CONTEXT_SIZE}, YUKSEK_MODEL: {'family': 'swift', 'model': 'IQ3_S', 'context': YUKSEK_CONTEXT_SIZE}}
+STRATA_MODELS = {
+    YUKSEK_MODEL: {
+        'family': 'swift',
+        'model': 'IQ3_S',
+        'context': YUKSEK_CONTEXT_SIZE,
+    },
+}
 
 _STRATA_PORT = '8080'
 

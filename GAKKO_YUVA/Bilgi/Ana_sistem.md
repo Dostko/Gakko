@@ -18,13 +18,13 @@ GAKKO AI iki çalışma seviyesi kullanır.
 
 ### Normal
 
-**Qwen3.6-35B-A3B UD-Q6_K_XL**
+**Swift 1.5 / Qwen3.8-Flash-Next 125B IQ3_XXS**
 
 Sohbet, araştırma, genel çalışma, planlama ve normal teknik görevlerde kullanılır.
 
 GAKKO'nun ana çalışma modelidir.
 
-Bağlam: **64K (65536)**
+Bağlam: **128K (131072)**
 
 ### Yüksek
 
@@ -42,7 +42,7 @@ GAKKO_R1 modellerini Strata üzerinden çalıştırır.
 
 - Çalışma anında yalnızca 1 yapay zekâ modeli aktif tutulur.
 - Model değiştirildiğinde mevcut Strata modeli tamamen kapatılır ve ardından seçilen model başlatılır.
-- Normal model 64K (65536), Yüksek model 128K (131072) bağlam ile çalıştırılır.
+- İki model de 128K (131072) bağlam ile çalıştırılır.
 - GAKKO ile Strata arasındaki bağlantı API üzerinden sağlanır.
 
 ## 4. GAKKO_YUVA
