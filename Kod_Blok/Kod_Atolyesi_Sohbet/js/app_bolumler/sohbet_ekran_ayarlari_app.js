@@ -28,12 +28,35 @@ contextLeft.style.minWidth = "0";
 contextLeft.style.maxWidth = "100%";
 
 const remainingDisplay = document.createElement("span");
-remainingDisplay.textContent = "Kullanılan — / — · Kalan —";
+remainingDisplay.textContent = "Kullanılan — · Kalan — · Toplam —";
 remainingDisplay.title = "Son model yanıtının giriş + çıkış token sayısı ve bağlam kapasitesi";
 remainingDisplay.style.fontSize = "10px";
 remainingDisplay.style.fontWeight = "600";
 remainingDisplay.style.fontVariantNumeric = "tabular-nums";
 remainingDisplay.style.letterSpacing = "0.3px";
+
+const speedDisplay = document.createElement("span");
+speedDisplay.title = "Son model yanıtının üretim hızı";
+speedDisplay.style.cssText = "display:inline-flex;align-items:center;gap:4px;margin-left:12px;font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap";
+speedDisplay.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19a10 10 0 1 1 16 0"/><path d="m12 12 5-5M5 12h1M12 5v1M18 12h1"/><circle cx="12" cy="12" r="1"/></svg>';
+const speedValue = document.createElement("span");
+speedValue.textContent = "— tok/s";
+speedDisplay.appendChild(speedValue);
+const speedDivider = document.createElement("span");
+speedDivider.textContent = "|";
+speedDivider.style.cssText = "font-size:10px;color:#566273";
+speedDivider.setAttribute("aria-hidden", "true");
+
+function formatGenerationSpeed(payloadText) {
+  try {
+    const value = JSON.parse(String(payloadText || "{}")).tokens_per_second;
+    return typeof value === "number" && Number.isFinite(value) && value > 0
+      ? `${value.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} tok/s`
+      : "— tok/s";
+  } catch (error) {
+    return "— tok/s";
+  }
+}
 
 const divider = document.createElement("span");
 divider.textContent = "|";
@@ -64,6 +87,8 @@ if (terminalButton) {
   terminalButton.style.position = "static";
   contextLeft.appendChild(terminalButton);
 }
+contextLeft.appendChild(speedDisplay);
+contextLeft.appendChild(speedDivider);
 contextLeft.appendChild(remainingDisplay);
 contextPanel.appendChild(contextLeft);
 contextPanel.appendChild(statusNote);
@@ -90,19 +115,19 @@ function formatTokenUsage(payloadText) {
     const payload = JSON.parse(String(payloadText || "{}"));
     const total = Number(payload.total);
     if (!Number.isSafeInteger(total) || total <= 0) {
-      return "Kullanılan — / — · Kalan —";
+      return "Kullanılan — · Kalan — · Toplam —";
     }
     const format = value => value.toLocaleString("tr-TR");
     if (payload.used === null || payload.used === undefined) {
-      return `Kullanılan — / ${format(total)} · Kalan —`;
+      return `Kullanılan — · Kalan — · Toplam ${format(total)}`;
     }
     const used = Number(payload.used);
     if (!Number.isSafeInteger(used) || used < 0) {
-      return `Kullanılan — / ${format(total)} · Kalan —`;
+      return `Kullanılan — · Kalan — · Toplam ${format(total)}`;
     }
-    return `Kullanılan ${format(used)} / ${format(total)} · Kalan ${format(Math.max(0, total - used))}`;
+    return `Kullanılan ${format(used)} · Kalan ${format(Math.max(0, total - used))} · Toplam ${format(total)}`;
   } catch (error) {
-    return "Kullanılan — / — · Kalan —";
+    return "Kullanılan — · Kalan — · Toplam —";
   }
 }
 

@@ -86,6 +86,7 @@ class _StrataChatResponse:
     message: _StrataMessage
     prompt_eval_count: int = 0
     eval_count: int = 0
+    tokens_per_second: float | None = None
 
 # BLOK BAŞLIĞI: STRATA API YANIT YAPILARI - BİTİŞ
 
@@ -354,7 +355,7 @@ def _parse_strata_response(payload, tools=None):
         function = item.get('function') or {}
         tool_calls.append(_StrataToolCall(id=str(item.get('id') or ''), type=str(item.get('type') or 'function'), function=_StrataToolFunction(name=str(function.get('name') or ''), arguments=_tool_arguments(function.get('arguments')))))
     usage = payload.get('usage') or {}
-    return _StrataChatResponse(message=_StrataMessage(role=str(raw_message.get('role') or 'assistant'), content=str(raw_message.get('content') or ''), tool_calls=tool_calls), prompt_eval_count=int(usage.get('prompt_tokens') or 0), eval_count=int(usage.get('completion_tokens') or 0))
+    return _StrataChatResponse(message=_StrataMessage(role=str(raw_message.get('role') or 'assistant'), content=str(raw_message.get('content') or ''), tool_calls=tool_calls), prompt_eval_count=int(usage.get('prompt_tokens') or 0), eval_count=int(usage.get('completion_tokens') or 0), tokens_per_second=(payload.get('timings') or {}).get('predicted_per_second'))
 
 # BLOK BAŞLIĞI: STRATA CHAT YANIT AYRIŞTIRMA - BİTİŞ
 
@@ -423,7 +424,7 @@ def _stream_response(content_parts, tool_call_state, usage, timings, tools=None)
             'role': 'assistant',
             'content': ''.join(content_parts),
             'tool_calls': [call.to_dict() for call in tool_calls],
-        }}], 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens}},
+        }}], 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens}, 'timings': timings},
         tools=tools,
     )
 

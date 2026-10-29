@@ -132,6 +132,7 @@ function connectBridge() {
     ) {
       bridge.token_usage_ready.connect(value => {
         remainingDisplay.textContent = formatTokenUsage(value);
+        speedValue.textContent = formatGenerationSpeed(value);
         if (!waiting && statusNote.textContent === "Bağlam sıfırlanıyor...") {
           statusNote.textContent = "Gakko AI";
         }

@@ -178,7 +178,7 @@ class QwenAraclariMixin:
             used = min(max(used, 0), context_size)
             remaining = 100.0 * (1.0 - (used / context_size))
             self.context_remaining.emit(min(max(remaining, 0.0), 100.0))
-            self.token_usage.emit(json.dumps({"used": used, "total": context_size}))
+            self.token_usage.emit(json.dumps({"used": used, "total": context_size, "tokens_per_second": getattr(response, "tokens_per_second", None)}))
         except Exception:
             pass
 
