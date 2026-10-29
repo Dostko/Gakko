@@ -5,7 +5,7 @@ import json
 import re
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from .internet_kapisi.image_arama import (
@@ -15,7 +15,7 @@ from .internet_kapisi.image_arama import (
 )
 
 
-WEB_SEARCH_URL = "https://html.duckduckgo.com/html/"
+WEB_SEARCH_URL = "http://127.0.0.1:8888/search"
 WEB_TIMEOUT_SECONDS = 60
 WEB_MAX_RESPONSE_BYTES = 2_000_000
 WEB_USER_AGENT = (
@@ -29,6 +29,9 @@ WEB_SEARCH_MAX_RESULTS = 10
 WEB_SEARCH_RESULT_CONTENT_MAX_CHARS = 600
 WEB_SEARCH_TRANSPORT_MAX_CHARS = 12000
 WEB_FETCH_CONTENT_MAX_CHARS = 24000
+WEB_PRODUCT_TEXT_MAX_CHARS = 6000
+WEB_PRODUCT_DATA_MAX_CHARS = 8000
+WEB_ERROR_MAX_CHARS = 2000
 
 INTERNET_TOOL_NAMES = frozenset({"web_search", "web_fetch", "image_search"})
 
@@ -104,83 +107,10 @@ INTERNET_TOOLS = (
 )
 
 
-class _SearchParser(HTMLParser):
-    def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.results = []
-        self.current = None
-        self.capture = None
-        self.snippet_tag = None
-
-    def _finish(self):
-        if not self.current:
-            return
-
-        title = _clean_text(" ".join(self.current["title"]))
-        content = _clean_text(" ".join(self.current["content"]))
-        url = _clean_result_url(self.current["url"])
-
-        if title and url:
-            self.results.append(
-                {"title": title, "url": url, "content": content}
-            )
-
-        self.current = None
-        self.capture = None
-        self.snippet_tag = None
-
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-        classes = set(str(attrs.get("class", "")).split())
-
-        if tag == "a" and "result__a" in classes:
-            self._finish()
-            self.current = {
-                "title": [],
-                "url": str(attrs.get("href", "") or ""),
-                "content": [],
-            }
-            self.capture = "title"
-        elif self.current and "result__snippet" in classes:
-            self.capture = "content"
-            self.snippet_tag = tag
-
-    def handle_endtag(self, tag):
-        if self.capture == "title" and tag == "a":
-            self.capture = None
-        elif self.capture == "content" and tag == self.snippet_tag:
-            self.capture = None
-            self.snippet_tag = None
-
-    def handle_data(self, data):
-        if self.current and self.capture:
-            self.current[self.capture].append(data)
-
-    def close(self):
-        super().close()
-        self._finish()
-
-
 def _clean_text(value):
     value = re.sub(r"[ \t\r\f\v]+", " ", str(value or ""))
     value = re.sub(r"\n\s*\n+", "\n", value)
     return value.strip()
-
-
-def _clean_result_url(url):
-    url = str(url or "").strip()
-    if url.startswith("//"):
-        url = "https:" + url
-
-    parsed = urlparse(url)
-
-    if parsed.netloc.endswith("duckduckgo.com") and parsed.path.startswith("/l/"):
-        target = parse_qs(parsed.query).get("uddg")
-        if target:
-            url = target[0]
-            parsed = urlparse(url)
-
-    return url if parsed.scheme in {"http", "https"} else ""
 
 
 def _http_text(url, *, data=None, headers=None):
@@ -214,42 +144,48 @@ def _http_text(url, *, data=None, headers=None):
 
 
 def _web_search_results(query, max_results):
-    response = _http_text(
-        WEB_SEARCH_URL,
-        data=urlencode({"q": query, "b": ""}).encode("utf-8"),
-        headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Referer": "https://html.duckduckgo.com/",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "same-origin",
-            "Sec-Fetch-User": "?1",
-        },
-    )
+    search_url = f"{WEB_SEARCH_URL}?{urlencode({'q': query, 'format': 'json'})}"
+    response = _http_text(search_url)
 
-    lowered = response["text"].lower()
-    if "captcha" in lowered or "anomaly-modal" in lowered:
-        raise RuntimeError("Arama motoru doğrulama ekranı döndürdü.")
+    try:
+        payload = json.loads(response["text"])
+    except (json.JSONDecodeError, TypeError) as error:
+        raise RuntimeError("SearXNG geçersiz JSON döndürdü.") from error
 
-    parser = _SearchParser()
-    parser.feed(response["text"])
-    parser.close()
+    raw_results = payload.get("results") if isinstance(payload, dict) else None
+    if not isinstance(raw_results, list):
+        raise RuntimeError("SearXNG sonuç listesi döndürmedi.")
 
     results = []
     seen = set()
 
-    for item in parser.results:
-        if item["url"] in seen:
+    for item in raw_results:
+        if not isinstance(item, dict):
             continue
 
-        seen.add(item["url"])
-        results.append(item)
+        title = _clean_text(item.get("title", ""))
+        url = str(item.get("url", "") or "").strip()
+        parsed = urlparse(url)
+
+        if not title or parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            continue
+        if url in seen:
+            continue
+
+        seen.add(url)
+        results.append(
+            {
+                "title": title,
+                "url": url,
+                "content": _clean_text(item.get("content", "")),
+            }
+        )
 
         if len(results) >= max_results:
             break
 
     if not results:
-        raise RuntimeError("Arama motorundan kullanılabilir sonuç alınamadı.")
+        raise RuntimeError("SearXNG kullanılabilir arama sonucu döndürmedi.")
 
     return results
 
@@ -295,7 +231,105 @@ def _compact_search_results(results):
     )
 
 
+# BLOK BAŞLIĞI: YAPILANDIRILMIŞ ÜRÜN VERİSİ - BAŞLANGIÇ
+class _JsonLdParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.documents = []
+        self.parts = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "script":
+            content_type = dict(attrs).get("type") or ""
+            if content_type.split(";", 1)[0].strip().lower() == "application/ld+json":
+                self.parts = []
+
+    def handle_data(self, data):
+        if self.parts is not None:
+            self.parts.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "script" and self.parts is not None:
+            try:
+                self.documents.append(json.loads("".join(self.parts)))
+            except (ValueError, RecursionError):
+                pass
+            self.parts = None
+
+
+def _product_data(body):
+    parser = _JsonLdParser()
+    parser.feed(body)
+    nodes, references = [], {}
+    pending = list(parser.documents)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, list):
+            pending.extend(reversed(node))
+        elif isinstance(node, dict):
+            nodes.append(node)
+            if isinstance(node.get("@id"), str) and len(node) > 1:
+                references[node["@id"]] = node
+            pending.extend(reversed(list(node.values())))
+
+    fields = (
+        "@type", "name", "sku", "mpn", "model", "gtin", "gtin13", "gtin14",
+        "price", "priceCurrency", "availability", "seller", "brand", "url",
+        "lowPrice", "highPrice", "offerCount", "priceValidUntil", "itemCondition",
+        "offers", "priceSpecification", "itemOffered",
+    )
+
+    def select(value, budget, depth=0, seen=frozenset()):
+        if depth > 6 or budget[0] < 8:
+            return None
+        budget[0] -= 4
+        if isinstance(value, dict):
+            reference = value.get("@id")
+            if isinstance(reference, str) and reference in references:
+                if reference in seen:
+                    return None
+                value = {**references[reference], **value}
+                seen = seen | {reference}
+            result = {}
+            for key in fields:
+                if key in value and budget[0] > len(key) + 8:
+                    budget[0] -= len(key) + 4
+                    chosen = select(value[key], budget, depth + 1, seen)
+                    if chosen is not None:
+                        result[key] = chosen
+            return result or None
+        if isinstance(value, list):
+            result = [select(item, budget, depth + 1, seen) for item in value[:5]]
+            return [item for item in result if item is not None] or None
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            # Uzun açıklama, görsel ve yorumlar bu alan listesine alınmaz.
+            result = _clean_text(value)[:300] if isinstance(value, str) else value
+            size = len(json.dumps(result, ensure_ascii=False))
+            if size <= budget[0]:
+                budget[0] -= size
+                return result
+        return None
+
+    records, seen = [], set()
+    for node in nodes:
+        types = node.get("@type", [])
+        types = types if isinstance(types, list) else [types]
+        types = {str(value).rsplit("/", 1)[-1] for value in types}
+        if not types.intersection({"Product", "ProductGroup", "Offer", "AggregateOffer"}):
+            continue
+        record = select(node, [6000])
+        encoded = json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+        if record and encoded not in seen:
+            if sum(map(len, records)) + len(encoded) + len(records) + 2 > WEB_PRODUCT_DATA_MAX_CHARS:
+                break
+            seen.add(encoded)
+            records.append(encoded)
+    return "[" + ",".join(records) + "]" if records else ""
+# BLOK BAŞLIĞI: YAPILANDIRILMIŞ ÜRÜN VERİSİ - BİTİŞ
+
+
 def _html_to_text(body):
+    product_data = _product_data(body)
     title_match = re.search(
         r"<title\b[^>]*>(.*?)</title>",
         body,
@@ -319,7 +353,15 @@ def _html_to_text(body):
     )
     body = re.sub(r"<[^>]+>", " ", body)
 
-    return title, _clean_text(html.unescape(body))
+    content = _clean_text(html.unescape(body))
+    if product_data:
+        if len(content) > WEB_PRODUCT_TEXT_MAX_CHARS:
+            content = (
+                content[:WEB_PRODUCT_TEXT_MAX_CHARS].rstrip()
+                + "\n[WEB_FETCH İÇERİK SINIRI: sayfa kısaltıldı]"
+            )
+        content = "[JSON-LD ÜRÜN VERİSİ]\n" + product_data + "\n\n" + content
+    return title, content
 
 
 def _web_fetch(url):
@@ -348,8 +390,9 @@ def _web_fetch(url):
             f"{content_type or 'bilinmeyen içerik türü'}"
         )
 
-    truncated = len(content) > WEB_FETCH_CONTENT_MAX_CHARS
-    if truncated:
+    truncated = "[WEB_FETCH İÇERİK SINIRI: sayfa kısaltıldı]" in content
+    truncated = truncated or len(content) > WEB_FETCH_CONTENT_MAX_CHARS
+    if len(content) > WEB_FETCH_CONTENT_MAX_CHARS:
         content = (
             content[:WEB_FETCH_CONTENT_MAX_CHARS].rstrip()
             + "\n[WEB_FETCH İÇERİK SINIRI: sayfa kısaltıldı]"
@@ -370,16 +413,19 @@ def _web_fetch(url):
 def _internet_error(error):
     if isinstance(error, HTTPError):
         try:
-            detail = error.read().decode("utf-8", errors="replace").strip()
+            raw = error.read(WEB_ERROR_MAX_CHARS * 4)
+            _, detail = _html_to_text(raw.decode("utf-8", errors="replace"))
         except Exception:
             detail = ""
+        message = f"HTTP {error.code}: {detail or error.reason}"
+    elif isinstance(error, URLError):
+        message = str(error.reason)
+    else:
+        message = f"{type(error).__name__}: {error}"
 
-        return f"[INTERNET HATA] HTTP {error.code}: {detail or error.reason}"
-
-    if isinstance(error, URLError):
-        return f"[INTERNET HATA] {error.reason}"
-
-    return f"[INTERNET HATA] {type(error).__name__}: {error}"
+    if len(message) > WEB_ERROR_MAX_CHARS:
+        message = message[:WEB_ERROR_MAX_CHARS] + " [HATA İÇERİĞİ KISALTILDI]"
+    return f"[INTERNET HATA] {message}"
 
 
 def internet_araci_calistir(tool_name, arguments):

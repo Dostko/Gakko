@@ -13,7 +13,7 @@ const statusNote = document.getElementById("statusNote");
 
 const contextPanel = document.createElement("div");
 contextPanel.style.display = "grid";
-contextPanel.style.gridTemplateColumns = "1fr auto 1fr";
+contextPanel.style.gridTemplateColumns = "minmax(0, 1fr) auto minmax(0, 1fr)";
 contextPanel.style.alignItems = "center";
 contextPanel.style.gap = "12px";
 contextPanel.style.marginTop = "8px";
@@ -23,9 +23,13 @@ contextLeft.style.display = "inline-flex";
 contextLeft.style.alignItems = "center";
 contextLeft.style.gap = "8px";
 contextLeft.style.justifySelf = "start";
+contextLeft.style.flexWrap = "wrap";
+contextLeft.style.minWidth = "0";
+contextLeft.style.maxWidth = "100%";
 
 const remainingDisplay = document.createElement("span");
-remainingDisplay.textContent = "Kalan —";
+remainingDisplay.textContent = "Kullanılan — / — · Kalan —";
+remainingDisplay.title = "Son model yanıtının giriş + çıkış token sayısı ve bağlam kapasitesi";
 remainingDisplay.style.fontSize = "10px";
 remainingDisplay.style.fontWeight = "600";
 remainingDisplay.style.fontVariantNumeric = "tabular-nums";
@@ -53,9 +57,14 @@ shortcutNote.style.fontSize = "10px";
 shortcutNote.style.justifySelf = "end";
 
 statusNote.insertAdjacentElement("afterend", contextPanel);
-contextLeft.appendChild(remainingDisplay);
-contextLeft.appendChild(divider);
 contextLeft.appendChild(resetContextButton);
+contextLeft.appendChild(divider);
+const terminalButton = document.getElementById("terminalButton");
+if (terminalButton) {
+  terminalButton.style.position = "static";
+  contextLeft.appendChild(terminalButton);
+}
+contextLeft.appendChild(remainingDisplay);
 contextPanel.appendChild(contextLeft);
 contextPanel.appendChild(statusNote);
 contextPanel.appendChild(shortcutNote);
@@ -76,17 +85,25 @@ function formatThinkingDuration(milliseconds) {
   return `${minutes} dakika ${seconds} saniye`;
 }
 
-function formatRemainingPercentage(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) {
-    return "Kalan —";
+function formatTokenUsage(payloadText) {
+  try {
+    const payload = JSON.parse(String(payloadText || "{}"));
+    const total = Number(payload.total);
+    if (!Number.isSafeInteger(total) || total <= 0) {
+      return "Kullanılan — / — · Kalan —";
+    }
+    const format = value => value.toLocaleString("tr-TR");
+    if (payload.used === null || payload.used === undefined) {
+      return `Kullanılan — / ${format(total)} · Kalan —`;
+    }
+    const used = Number(payload.used);
+    if (!Number.isSafeInteger(used) || used < 0) {
+      return `Kullanılan — / ${format(total)} · Kalan —`;
+    }
+    return `Kullanılan ${format(used)} / ${format(total)} · Kalan ${format(Math.max(0, total - used))}`;
+  } catch (error) {
+    return "Kullanılan — / — · Kalan —";
   }
-
-  const clamped = Math.max(0, Math.min(100, number));
-  return `Kalan %${clamped.toLocaleString("tr-TR", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1
-  })}`;
 }
 
 resetContextButton.addEventListener("click", () => {
@@ -265,15 +282,15 @@ function formatThinkingActivity(payload) {
 }
 
 function appendThinkingActivity(payloadText) {
-  if (!thinkingMessage || !thinkingActivityList) {
-    return;
-  }
-
   let payload = null;
 
   try {
     payload = JSON.parse(String(payloadText || "{}"));
   } catch (error) {
+    return;
+  }
+
+  if (!thinkingMessage || !thinkingActivityList) {
     return;
   }
 

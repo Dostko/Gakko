@@ -12,7 +12,11 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from .arac_yanit_ayristirma import normalize_tool_message
+
 from .qwen_ayarlar import (
+    NORMAL_CONTEXT_SIZE,
+    NORMAL_MODEL,
     YUKSEK_CONTEXT_SIZE,
     YUKSEK_MODEL,
     _CANCELLED,
@@ -29,6 +33,11 @@ STRATA_HEALTH_URL = f'{STRATA_HOST}/health'
 STRATA_API_MODEL = 'strata'
 
 STRATA_MODELS = {
+    NORMAL_MODEL: {
+        'family': 'swift',
+        'model': 'IQ3_XXS',
+        'context': NORMAL_CONTEXT_SIZE,
+    },
     YUKSEK_MODEL: {
         'family': 'swift',
         'model': 'IQ3_S',
@@ -159,7 +168,7 @@ def _strata_command_path():
     fallback = shutil.which('strata') or shutil.which('strata.cmd')
     if fallback:
         return Path(fallback)
-    raise RuntimeError('Strata Terminal bulunamadı. Yüksek model Strata üzerinden çalışır.')
+    raise RuntimeError('Strata Terminal bulunamadı. GAKKO modelleri Strata üzerinden çalışır.')
 
 def _run_strata_cli(*args, timeout=600.0):
     strata_path = _strata_command_path()
@@ -330,7 +339,7 @@ def _build_strata_payload(chat_arguments):
 
 # BLOK BAŞLIĞI: STRATA CHAT YANIT AYRIŞTIRMA - BAŞLANGIÇ
 
-def _parse_strata_response(payload):
+def _parse_strata_response(payload, tools=None):
     choices = payload.get('choices') or []
     if not choices:
         error = payload.get('error')
@@ -339,7 +348,7 @@ def _parse_strata_response(payload):
         else:
             detail = str(error or 'Strata boş yanıt döndürdü.')
         raise RuntimeError(detail)
-    raw_message = choices[0].get('message') or {}
+    raw_message = normalize_tool_message(choices[0].get('message') or {}, tools)
     tool_calls = []
     for item in raw_message.get('tool_calls') or []:
         function = item.get('function') or {}
@@ -351,13 +360,99 @@ def _parse_strata_response(payload):
 
 # BLOK BAŞLIĞI: STRATA CHAT ÇAĞRISI - BAŞLANGIÇ
 
+def _stream_text(value):
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        parts = []
+        for item in value:
+            if isinstance(item, dict):
+                piece = item.get('text') or item.get('content') or ''
+                if piece:
+                    parts.append(str(piece))
+        return ''.join(parts)
+    return ''
+
+def _stream_tool_calls(raw_calls, state):
+    for fallback_index, item in enumerate(raw_calls or []):
+        if not isinstance(item, dict):
+            continue
+        index = int(item.get('index') if item.get('index') is not None else fallback_index)
+        current = state.setdefault(index, {'id': '', 'type': 'function', 'name': '', 'arguments': ''})
+        if item.get('id') and not current['id']:
+            current['id'] = str(item.get('id') or '')
+        if item.get('type'):
+            current['type'] = str(item.get('type') or 'function')
+        function = item.get('function') or {}
+        name_part = str(function.get('name') or '')
+        if name_part:
+            if not current['name']:
+                current['name'] = name_part
+            elif name_part != current['name'] and not current['name'].endswith(name_part):
+                current['name'] += name_part
+        arguments = function.get('arguments')
+        if isinstance(arguments, dict):
+            arguments = json.dumps(arguments, ensure_ascii=False, separators=(',', ':'))
+        if arguments not in (None, ''):
+            current['arguments'] += str(arguments)
+
+def _stream_response(content_parts, tool_call_state, usage, timings, tools=None):
+    tool_calls = []
+    for index in sorted(tool_call_state):
+        item = tool_call_state[index]
+        tool_calls.append(
+            _StrataToolCall(
+                id=str(item.get('id') or ''),
+                type=str(item.get('type') or 'function'),
+                function=_StrataToolFunction(
+                    name=str(item.get('name') or ''),
+                    arguments=_tool_arguments(item.get('arguments')),
+                ),
+            )
+        )
+
+    prompt_tokens = int((usage or {}).get('prompt_tokens') or 0)
+    completion_tokens = int((usage or {}).get('completion_tokens') or 0)
+    if not prompt_tokens:
+        prompt_tokens = int((timings or {}).get('prompt_n') or 0) + int((timings or {}).get('cache_n') or 0)
+    if not completion_tokens:
+        completion_tokens = int((timings or {}).get('predicted_n') or 0)
+
+    return _parse_strata_response(
+        {'choices': [{'message': {
+            'role': 'assistant',
+            'content': ''.join(content_parts),
+            'tool_calls': [call.to_dict() for call in tool_calls],
+        }}], 'usage': {'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens}},
+        tools=tools,
+    )
+
 def _strata_chat_worker(connection, chat_arguments):
     try:
         payload = _build_strata_payload(chat_arguments)
-        request = Request(STRATA_CHAT_URL, data=json.dumps(payload, ensure_ascii=False).encode('utf-8'), headers={'Content-Type': 'application/json'}, method='POST')
+        request = Request(
+            STRATA_CHAT_URL,
+            data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
         with urlopen(request, timeout=1800) as response:
-            raw = response.read().decode('utf-8')
-        connection.send(('ok', json.loads(raw)))
+            if not payload.get('stream'):
+                raw = response.read().decode('utf-8')
+                connection.send(('ok', json.loads(raw)))
+                return
+
+            for raw_line in response:
+                line = raw_line.decode('utf-8', errors='replace').strip()
+                if not line or not line.startswith('data:'):
+                    continue
+                data = line[5:].strip()
+                if not data:
+                    continue
+                if data == '[DONE]':
+                    break
+                connection.send(('chunk', json.loads(data)))
+            connection.send(('done', None))
     except HTTPError as error:
         try:
             detail = error.read().decode('utf-8', errors='replace')
@@ -367,7 +462,7 @@ def _strata_chat_worker(connection, chat_arguments):
             connection.send(('error', f'HTTP {error.code}: {detail}'))
         except (BrokenPipeError, EOFError, OSError):
             pass
-    except (URLError, OSError, ValueError, RuntimeError) as error:
+    except (URLError, OSError, ValueError, RuntimeError, json.JSONDecodeError) as error:
         try:
             connection.send(('error', f'{type(error).__name__}: {error}'))
         except (BrokenPipeError, EOFError, OSError):
@@ -383,9 +478,21 @@ def _strata_chat_worker(connection, chat_arguments):
 def strata_chat(session, **kwargs):
     if session._stopping or session._cancel_requested.is_set():
         return _CANCELLED
+
+    stream_callback = kwargs.pop('_stream_callback', None)
+    streaming = bool(kwargs.get('stream', False))
+    content_parts = []
+    tool_call_state = {}
+    usage = {}
+    timings = {}
+
     process_context = multiprocessing.get_context('spawn')
     receive_connection, send_connection = process_context.Pipe(duplex=False)
-    process = process_context.Process(target=_strata_chat_worker, args=(send_connection, dict(kwargs)), daemon=True)
+    process = process_context.Process(
+        target=_strata_chat_worker,
+        args=(send_connection, dict(kwargs)),
+        daemon=True,
+    )
     started = False
     try:
         with session._active_process_lock:
@@ -395,25 +502,67 @@ def strata_chat(session, **kwargs):
             process.start()
             started = True
         send_connection.close()
+
         while True:
             if session._stopping or session._cancel_requested.is_set():
                 if process.is_alive():
                     process.terminate()
                 return _CANCELLED
+
             if receive_connection.poll(0.05):
                 try:
                     status, payload = receive_connection.recv()
                 except EOFError:
                     status = None
                     payload = None
+
                 if status == 'ok':
-                    return _parse_strata_response(payload)
+                    return _parse_strata_response(payload, tools=kwargs.get('tools'))
+
+                if status == 'chunk':
+                    usage.update(payload.get('usage') or {})
+                    timings.update(payload.get('timings') or {})
+                    choices = payload.get('choices') or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get('delta') or {}
+                    reasoning = _stream_text(
+                        delta.get('reasoning_content')
+                        if delta.get('reasoning_content') is not None
+                        else delta.get('reasoning')
+                    )
+                    if reasoning and callable(stream_callback):
+                        stream_callback('reasoning', reasoning)
+
+                    content = _stream_text(delta.get('content'))
+                    if content:
+                        content_parts.append(content)
+                        if callable(stream_callback):
+                            stream_callback('content', content)
+
+                    _stream_tool_calls(delta.get('tool_calls'), tool_call_state)
+                    continue
+
+                if status == 'done':
+                    if not streaming:
+                        raise RuntimeError('Strata akışı beklenmedik biçimde stream sonu döndürdü.')
+                    return _stream_response(
+                        content_parts,
+                        tool_call_state,
+                        usage,
+                        timings,
+                        tools=kwargs.get('tools'),
+                    )
+
                 if status == 'error':
                     raise RuntimeError(payload)
+
             if not process.is_alive():
                 if receive_connection.poll(0.1):
                     continue
-                raise RuntimeError(f'Strata istek süreci yanıt vermeden kapandı (çıkış kodu: {process.exitcode}).')
+                raise RuntimeError(
+                    f'Strata istek süreci yanıt vermeden kapandı (çıkış kodu: {process.exitcode}).'
+                )
     finally:
         with session._active_process_lock:
             if session._active_process is process:

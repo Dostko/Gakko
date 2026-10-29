@@ -9,6 +9,7 @@ function connectBridge() {
   new QWebChannel(qt.webChannelTransport, channel => {
     bridge = channel.objects.gakkoBridge;
     recordsBridge = channel.objects.kayitlarBridge || null;
+    terminalBridge = channel.objects.terminalBridge || null;
 
     initializeChatPagination(bridge);
 
@@ -126,11 +127,11 @@ function connectBridge() {
     });
 
     if (
-      bridge.context_remaining_ready
-      && typeof bridge.context_remaining_ready.connect === "function"
+      bridge.token_usage_ready
+      && typeof bridge.token_usage_ready.connect === "function"
     ) {
-      bridge.context_remaining_ready.connect(value => {
-        remainingDisplay.textContent = formatRemainingPercentage(value);
+      bridge.token_usage_ready.connect(value => {
+        remainingDisplay.textContent = formatTokenUsage(value);
         if (!waiting && statusNote.textContent === "Bağlam sıfırlanıyor...") {
           statusNote.textContent = "Gakko AI";
         }
@@ -149,9 +150,9 @@ function connectBridge() {
     });
 
     bridge.reply_ready.connect(reply => {
-      const thinkingDuration = finishThinkingMessage();
       const assistantImages = pendingAssistantImageAttachments;
       pendingAssistantImageAttachments = [];
+      const thinkingDuration = finishThinkingMessage();
       addMessage(reply, "assistant", assistantImages, thinkingDuration);
       setWaiting(false);
       refreshVisibleFileDirectories();

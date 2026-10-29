@@ -24,7 +24,7 @@ Sohbet, araştırma, genel çalışma, planlama ve normal teknik görevlerde kul
 
 GAKKO'nun ana çalışma modelidir.
 
-Bağlam: **128K (131072)**
+Bağlam: **256K (262144)**
 
 ### Yüksek
 
@@ -42,7 +42,7 @@ GAKKO_R1 modellerini Strata üzerinden çalıştırır.
 
 - Çalışma anında yalnızca 1 yapay zekâ modeli aktif tutulur.
 - Model değiştirildiğinde mevcut Strata modeli tamamen kapatılır ve ardından seçilen model başlatılır.
-- İki model de 128K (131072) bağlam ile çalıştırılır.
+- normal model 256K (262144) yüksek model de 128K (131072) bağlam ile çalıştırılır.
 - GAKKO ile Strata arasındaki bağlantı API üzerinden sağlanır.
 
 ## 4. GAKKO_YUVA

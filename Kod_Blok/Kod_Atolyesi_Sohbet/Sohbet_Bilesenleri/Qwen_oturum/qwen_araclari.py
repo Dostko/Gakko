@@ -172,10 +172,13 @@ class QwenAraclariMixin:
             if context_size <= 0:
                 return
             used = int(getattr(response, "prompt_eval_count", 0) or 0)
+            if used <= 0:
+                return
             used += int(getattr(response, "eval_count", 0) or 0)
             used = min(max(used, 0), context_size)
             remaining = 100.0 * (1.0 - (used / context_size))
             self.context_remaining.emit(min(max(remaining, 0.0), 100.0))
+            self.token_usage.emit(json.dumps({"used": used, "total": context_size}))
         except Exception:
             pass
 
@@ -248,10 +251,13 @@ class QwenAraclariMixin:
         tools = self._tools_for_prompt(prepared_text, runtime)
         self._generated_image_paths = {}
 
-        last_response = None
         web_research_tool_calls = 0
 
-        for _ in range(MAX_TOOL_ROUNDS):
+        # Son ek tur yalnız internet sınırından sonraki araçsız final içindir.
+        for round_index in range(MAX_TOOL_ROUNDS + 1):
+            final_only = web_research_tool_calls >= MAX_WEB_TOOL_CALLS
+            if round_index == MAX_TOOL_ROUNDS and not final_only:
+                break
             if self._stopping:
                 return None
 
@@ -261,9 +267,10 @@ class QwenAraclariMixin:
             try:
                 response = self._chat(
                     messages=messages,
-                    tools=tools,
+                    tools=[] if final_only else tools,
                     stream=False,
                     think=True,
+                    **({"tool_choice": "none"} if final_only else {}),
                 )
 
             except Exception as exc:
@@ -276,14 +283,16 @@ class QwenAraclariMixin:
             if response is _CANCELLED:
                 return _CANCELLED
 
-            last_response = response
+            self._emit_context_remaining(response)
             assistant_message = response.message
-            messages.append(assistant_message.to_dict())
-
             tool_calls = assistant_message.tool_calls or []
+            if final_only and tool_calls:
+                raise RuntimeError("Araçsız final isteğine beklenmeyen araç çağrısı döndü.")
+
+            assistant_record = assistant_message.to_dict()
+            messages.append(assistant_record)
 
             if not tool_calls:
-                self._emit_context_remaining(response)
                 final_text = str(assistant_message.content or "").strip()
                 final_text = self._rewrite_generated_image_references(
                     final_text
@@ -293,7 +302,7 @@ class QwenAraclariMixin:
                     git_commit_verified,
                 )
 
-            for tool_call in tool_calls:
+            for call_index, tool_call in enumerate(tool_calls):
                 if self._stopping or self._cancel_requested.is_set():
                     return _CANCELLED
 
@@ -314,47 +323,35 @@ class QwenAraclariMixin:
 
                 is_web_research_tool = name in WEB_RESEARCH_TOOL_NAMES
 
+                result = await self._execute_qwen_tool(
+                    runtime,
+                    name,
+                    arguments,
+                )
+
+                if result is _CANCELLED:
+                    return _CANCELLED
+
                 if (
-                    is_web_research_tool
-                    and web_research_tool_calls >= MAX_WEB_TOOL_CALLS
+                    name == "git_commit"
+                    and GIT_COMMIT_VERIFIED_MARKER in str(result)
                 ):
-                    result = WEB_USAGE_LIMIT_MESSAGE
+                    git_commit_verified = True
+
+                if is_web_research_tool:
+                    web_research_tool_calls += 1
                     print(
                         "[QWEN INTERNET] "
-                        f"kullanım={web_research_tool_calls}/{MAX_WEB_TOOL_CALLS} | "
-                        f"{name} çalıştırılmadı.",
+                        f"kullanım={web_research_tool_calls}/{MAX_WEB_TOOL_CALLS}",
                         flush=True,
                     )
-                else:
-                    result = await self._execute_qwen_tool(
-                        runtime,
-                        name,
-                        arguments,
-                    )
-
-                    if result is _CANCELLED:
-                        return _CANCELLED
-
                     if (
-                        name == "git_commit"
-                        and GIT_COMMIT_VERIFIED_MARKER in str(result)
+                        web_research_tool_calls
+                        >= MAX_WEB_TOOL_CALLS
                     ):
-                        git_commit_verified = True
-
-                    if is_web_research_tool:
-                        web_research_tool_calls += 1
-                        print(
-                            "[QWEN INTERNET] "
-                            f"kullanım={web_research_tool_calls}/{MAX_WEB_TOOL_CALLS}",
-                            flush=True,
+                        result = (
+                            f"{result}\n\n{WEB_USAGE_LIMIT_MESSAGE}"
                         )
-                        if (
-                            web_research_tool_calls
-                            >= MAX_WEB_TOOL_CALLS
-                        ):
-                            result = (
-                                f"{result}\n\n{WEB_USAGE_LIMIT_MESSAGE}"
-                            )
 
                 if not isinstance(result, str):
                     result = json.dumps(
@@ -371,8 +368,10 @@ class QwenAraclariMixin:
                     }
                 )
 
-        if last_response is not None:
-            self._emit_context_remaining(last_response)
+                if web_research_tool_calls >= MAX_WEB_TOOL_CALLS:
+                    # Aynı yanıttaki çalıştırılmayan çağrıları bağlama taşıma.
+                    assistant_record["tool_calls"] = assistant_record["tool_calls"][:call_index + 1]
+                    break
 
         raise RuntimeError(
             f"Qwen {MAX_TOOL_ROUNDS} araç turu içinde nihai cevap üretmedi."

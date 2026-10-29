@@ -1,10 +1,5 @@
 from __future__ import annotations
 
-from .llama import (
-    llama_chat,
-    llama_modelini_hazirla,
-    llama_motorunu_durdur,
-)
 from .qwen_ayarlar import (
     NORMAL_MODEL,
     YUKSEK_MODEL,
@@ -42,32 +37,15 @@ def _aktif_model_rolu(session):
 def modeli_hazirla(session, model):
     model_name = str(model or "").strip().casefold()
 
-    if model_name == NORMAL_MODEL:
-        stopped = strata_motorunu_durdur(session)
-
-        if stopped is _CANCELLED:
-            return _CANCELLED
-
-        ready = llama_modelini_hazirla(
-            session,
-            NORMAL_MODEL,
-        )
-
-    elif model_name == YUKSEK_MODEL:
-        stopped = llama_motorunu_durdur(session)
-
-        if stopped is _CANCELLED:
-            return _CANCELLED
-
-        ready = strata_modelini_hazirla(
-            session,
-            YUKSEK_MODEL,
-        )
-
-    else:
+    if model_name not in {NORMAL_MODEL, YUKSEK_MODEL}:
         raise ValueError(
             f"Bilinmeyen GAKKO model rolü: {model_name}"
         )
+
+    ready = strata_modelini_hazirla(
+        session,
+        model_name,
+    )
 
     if ready is _CANCELLED:
         return _CANCELLED
@@ -79,42 +57,24 @@ def modeli_hazirla(session, model):
 def model_chat(session, **chat_arguments):
     model_role = _aktif_model_rolu(session)
 
-    if model_role == NORMAL_MODEL:
-        return llama_chat(
-            session,
-            **chat_arguments,
+    if model_role not in {NORMAL_MODEL, YUKSEK_MODEL}:
+        raise RuntimeError(
+            f"Aktif GAKKO model rolü çözülemedi: {model_role}"
         )
 
-    if model_role == YUKSEK_MODEL:
-        return strata_chat(
-            session,
-            **chat_arguments,
-        )
-
-    raise RuntimeError(
-        f"Aktif GAKKO model rolü çözülemedi: {model_role}"
+    return strata_chat(
+        session,
+        **chat_arguments,
     )
 
 
 def model_motorunu_durdur(session):
-    errors = []
-
     try:
-        llama_motorunu_durdur(session)
-    except Exception as error:
-        errors.append(f"Llama: {error}")
+        result = strata_motorunu_durdur(session)
+    finally:
+        session._active_model_role = None
 
-    try:
-        strata_motorunu_durdur(session)
-    except Exception as error:
-        errors.append(f"Strata: {error}")
-
-    session._active_model_role = None
-
-    if errors:
-        raise RuntimeError(" | ".join(errors))
-
-    return True
+    return result
 
 
 def uzman_model_cagir(

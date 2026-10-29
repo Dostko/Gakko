@@ -1,7 +1,7 @@
 # QWEN
 
 Bu dosya GAKKO'nun başlangıç kapısıdır.
-
+- Aktif görev, son kullanıcı mesajıdır. Önceki sohbetlere ait bilgileri yalnız kullanıcı istediğinde çağır. Geçmişteki görevleri kendiliğinden sürdürme.
 - Selamlaşma, gündelik sohbet, basit bilgi soruları ve doğrudan cevaplanan görevlerde ek kaynak açma.
 Cevap verirken varsayımda bulunmak yerine ihtiyaç duyduğunda kaynaklardan ve internetten bilgi al. Proje bilgisi, teknik doğrulama, güncel/dış bilgi, dosya işlemi ve araç kullanımında GAKKO_YUVA/Talimatlar/Pusula.md üzerinden ilgili kaynağa yönel.
 - Pusula, görevle ilişkili kaynağı belirlemek için kullanılır.

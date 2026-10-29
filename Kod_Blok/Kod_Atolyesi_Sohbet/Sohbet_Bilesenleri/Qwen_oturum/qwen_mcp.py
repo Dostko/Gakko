@@ -347,6 +347,12 @@ class QwenMCPMixin:
 
     async def _call_mcp_tool(self, client, name, arguments):
         tool_path = str(arguments.get("path") or "").replace("\\", "/")
+
+        if tool_path.casefold().startswith("gakko_yuva/"):
+            arguments = dict(arguments)
+            tool_path = str((PROJECT_ROOT / Path(tool_path)).resolve())
+            arguments["path"] = tool_path
+
         display_path = tool_path
 
         if tool_path:

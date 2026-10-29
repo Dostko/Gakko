@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import queue
 import threading
 from datetime import date
@@ -34,6 +35,7 @@ class QwenSession(
     error_ready = Signal(str)
     cancelled = Signal()
     context_remaining = Signal(float)
+    token_usage = Signal(str)
     tool_activity = Signal(str)
 
     def __init__(
@@ -128,6 +130,7 @@ class QwenSession(
             self._messages.clear()
 
         self.context_remaining.emit(100.0)
+        self.token_usage.emit(json.dumps({"used": None, "total": self._active_context_size}))
 
         return True
 
@@ -238,6 +241,7 @@ class QwenSession(
 
             self._ready = True
             self.context_remaining.emit(100.0)
+            self.token_usage.emit(json.dumps({"used": None, "total": self._active_context_size}))
             self.ready.emit()
 
             while not self._stopping:

@@ -4,6 +4,7 @@
     const menu = document.getElementById("modelSecimMenu");
     const triggerLabel = document.getElementById("modelSecimTriggerLabel");
     const triggerIcon = document.getElementById("modelSecimTriggerIcon");
+    const terminalButton = document.getElementById("terminalButton");
     const options = Array.from(
         document.querySelectorAll(".model-secim-option[data-model-mode]")
     );
@@ -112,6 +113,24 @@
             closeMenu();
         }
     });
+
+    if (terminalButton) {
+        terminalButton.addEventListener("click", () => {
+            if (
+                !terminalBridge
+                || typeof terminalBridge.toggle_terminal !== "function"
+            ) {
+                statusNote.textContent = "Terminal bağlantısı hazır değil";
+                return;
+            }
+
+            terminalBridge.toggle_terminal((opened) => {
+                if (!opened) {
+                    statusNote.textContent = "Terminal penceresi bulunamadı";
+                }
+            });
+        });
+    }
 
     setMode("normal", false);
 

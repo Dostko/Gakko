@@ -16,6 +16,7 @@ from PySide6.QtWebEngineCore import (
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from Sohbet_Bilesenleri.sohbet_koprusu import ChatBridge
+from Sohbet_Bilesenleri.terminal_koprusu import TerminalBridge
 
 
 def _load_records_bridge_class():
@@ -219,10 +220,12 @@ class GakkoSohbetPenceresi(QMainWindow):
 
         self.bridge = ChatBridge()
         self.records_bridge = KayitlarKoprusu()
+        self.terminal_bridge = TerminalBridge(self)
 
         self.channel = QWebChannel(self.web.page())
         self.channel.registerObject("gakkoBridge", self.bridge)
         self.channel.registerObject("kayitlarBridge", self.records_bridge)
+        self.channel.registerObject("terminalBridge", self.terminal_bridge)
         self.web.page().setWebChannel(self.channel)
 
         index_path = Path(__file__).resolve().parent / "index.html"

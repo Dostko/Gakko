@@ -12,4 +12,5 @@ const historyDeleteBeforeButton = document.getElementById("historyDeleteBeforeBu
 const historyRetentionNote = document.getElementById("historyRetentionNote");
 
 let bridge = null;
+let terminalBridge = null;
 let currentView = "chat";

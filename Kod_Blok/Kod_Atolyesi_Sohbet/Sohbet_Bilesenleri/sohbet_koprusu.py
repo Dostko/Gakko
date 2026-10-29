@@ -78,6 +78,7 @@ class ChatBridge(QObject):
     history_action_ready = Signal(str)
     chat_files_selected = Signal(str)
     context_remaining_ready = Signal(float)
+    token_usage_ready = Signal(str)
     generation_cancelled = Signal()
     tool_activity = Signal(str)
     active_chat_ready = Signal(str)
@@ -145,6 +146,7 @@ class ChatBridge(QObject):
         session.error_ready.connect(self._on_error)
         session.cancelled.connect(self._on_cancelled)
         session.context_remaining.connect(self._on_context_remaining)
+        session.token_usage.connect(self._on_token_usage)
         session.tool_activity.connect(self._on_tool_activity)
 
     def start(self):
@@ -414,6 +416,9 @@ class ChatBridge(QObject):
 
     def _on_tool_activity(self, payload):
         self.tool_activity.emit(str(payload or ""))
+
+    def _on_token_usage(self, payload):
+        self.token_usage_ready.emit(str(payload))
 
     def _on_context_remaining(self, value):
         self.context_remaining_ready.emit(float(value))
