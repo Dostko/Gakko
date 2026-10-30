@@ -3,6 +3,8 @@ from __future__ import annotations
 import html
 import json
 import re
+import subprocess
+import threading
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
@@ -105,6 +107,31 @@ INTERNET_TOOLS = (
         },
     },
 )
+
+
+def searxng_baslat_arka_planda():
+    def kontrol_et():
+        try:
+            options = dict(
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=True,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            state = subprocess.run(
+                ["docker", "inspect", "--format", "{{.State.Running}}", "searxng"],
+                **options,
+            )
+            if state.stdout.strip().lower() == "false":
+                subprocess.run(["docker", "start", "searxng"], **options)
+        except (OSError, subprocess.SubprocessError) as error:
+            print(f"[GAKKO INTERNET] SearXNG başlangıç kontrolü başarısız: {error}", flush=True)
+
+    try:
+        threading.Thread(target=kontrol_et, name="searxng-startup", daemon=True).start()
+    except RuntimeError as error:
+        print(f"[GAKKO INTERNET] SearXNG kontrolü başlatılamadı: {error}", flush=True)
 
 
 def _clean_text(value):

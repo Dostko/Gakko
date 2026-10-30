@@ -6,6 +6,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from PySide6.QtCore import QObject, QSettings, Signal, Slot
 
 from Sohbet_Bilesenleri.ekran_gorunum import EkranGorunum
+from Sohbet_Bilesenleri.internet_giris import searxng_baslat_arka_planda
 from Sohbet_Bilesenleri.proje_dosya_yardimcilari import (
     build_attachment_history_message,
     build_attachment_prompt,
@@ -151,6 +152,7 @@ class ChatBridge(QObject):
 
     def start(self):
         if not self.session.isRunning():
+            searxng_baslat_arka_planda()
             self.session.start()
 
     def _on_ready(self):
